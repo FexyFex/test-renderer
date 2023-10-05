@@ -6,28 +6,23 @@ import org.lwjgl.vulkan.VkPhysicalDevice
 
 
 class PhysicalDevice {
-    lateinit var vkPhysicalDevice: VkPhysicalDevice
+    lateinit var vkHandle: VkPhysicalDevice
 
     fun create(instance: Instance, pickCriteria: PickCriteria = PickCriteria.BEST_DEVICE): PhysicalDevice {
-        this.vkPhysicalDevice = OffHeapSafeAllocator.runMemorySafe {
+        this.vkHandle = OffHeapSafeAllocator.runMemorySafe {
             val pDeviceCount = allocateInt(1)
-            vkEnumeratePhysicalDevices(instance.vkInstance, pDeviceCount, null)
+            vkEnumeratePhysicalDevices(instance.vkHandle, pDeviceCount, null)
             val deviceCount = pDeviceCount[0]
             if (deviceCount <= 0) throw Exception()
 
             val ppDevices = allocatePointer(deviceCount)
-            vkEnumeratePhysicalDevices(instance.vkInstance, pDeviceCount, ppDevices)
+            vkEnumeratePhysicalDevices(instance.vkHandle, pDeviceCount, ppDevices)
 
             // TODO: Consider PickCriteria
             val physicalDeviceHandle = ppDevices[0]
-            return@runMemorySafe VkPhysicalDevice(physicalDeviceHandle, instance.vkInstance)
+            return@runMemorySafe VkPhysicalDevice(physicalDeviceHandle, instance.vkHandle)
         }
         return this
-    }
-
-
-    fun destroy() {
-
     }
 
 

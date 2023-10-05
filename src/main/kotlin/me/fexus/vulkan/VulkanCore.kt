@@ -1,37 +1,45 @@
 package me.fexus.vulkan
 
-import me.fexus.vulkan.extension.DepthStencilResolveExtension
-import me.fexus.vulkan.extension.DynamicRenderingExtension
-import me.fexus.vulkan.extension.SwapchainExtension
+import me.fexus.vulkan.debug.DebugUtilsMessenger
+import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.layer.ValidationLayer
 import me.fexus.vulkan.layer.VulkanLayer
-import me.fexus.window.Window
+import me.fexus.vulkan.queue.QueueFamily
 
 
-class VulkanCore(private val window: Window) {
+class VulkanCore {
     private val enabledLayers = listOf<VulkanLayer>(ValidationLayer)
     private val enabledExtensions = listOf(
         SwapchainExtension,
         DynamicRenderingExtension,
         DepthStencilResolveExtension,
+        //DescriptorBufferExtension,
+        DescriptorIndexingExtension
     )
 
     val instance = Instance()
+    private val debugMessenger = DebugUtilsMessenger()
     val physicalDevice = PhysicalDevice()
     val device = Device()
 
 
     fun createInstance() {
         instance.create(enabledLayers)
+        debugMessenger.create(instance)
     }
 
-    fun init() {
+    fun createPhysicalDevice() {
         physicalDevice.create(instance)
-        device.create(physicalDevice, enabledLayers, enabledExtensions)
+    }
+
+    fun createDevice(uniqueQueueFamilies: List<QueueFamily>) {
+        device.create(physicalDevice, enabledLayers, enabledExtensions, uniqueQueueFamilies)
     }
 
 
     fun destroy() {
-
+        device.destroy()
+        debugMessenger.destroy(instance)
+        instance.destroy()
     }
 }

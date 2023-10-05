@@ -69,15 +69,17 @@ class OffHeapSafeAllocator private constructor(
         return struct
     }
 
-    @Suppress("UNCHECKED_CAST")
-    inline fun <reified S: Struct> calloc(count: Int, configure: StructBuffer<S, *>.() -> Unit = {}): StructBuffer<S, *> {
+    inline fun <reified S: Struct, C> calloc(count: Int): C {
         val cl = S::class
         val callocFun = cl.members.first { it.name == "calloc" && it.parameters.size == 1 }
-        val structBuffer: StructBuffer<S, *> = callocFun.call(count) as StructBuffer<S, *>
-        structBuffer.configure()
-        vkStructBuffers.add(structBuffer)
-        return structBuffer
+        val structBuffer = callocFun.call(count)
+        if (structBuffer is StructBuffer<*,*>)
+            vkStructBuffers.add(structBuffer)
+        else
+            throw Exception("HUH???")
+        return structBuffer as C
     }
+
 
     companion object {
         @OptIn(ExperimentalContracts::class)

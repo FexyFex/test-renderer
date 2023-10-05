@@ -1,21 +1,21 @@
 package me.fexus.vulkan
 
 import me.fexus.memory.OffHeapSafeAllocator
+import me.fexus.vulkan.debug.DebugUtilsMessenger
+import me.fexus.vulkan.debug.utils.FullValidationHandler
+import me.fexus.vulkan.debug.utils.VulkanDebugCallback
 import me.fexus.vulkan.layer.VulkanLayer
 import org.lwjgl.glfw.GLFWVulkan
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.vkDestroyInstance
-import org.lwjgl.vulkan.VK12
-import org.lwjgl.vulkan.VkApplicationInfo
-import org.lwjgl.vulkan.VkInstance
-import org.lwjgl.vulkan.VkInstanceCreateInfo
 
 
 class Instance() {
-    lateinit var vkInstance: VkInstance
+    lateinit var vkHandle: VkInstance
 
 
     fun create(layers: List<VulkanLayer>): Instance {
-        this.vkInstance = OffHeapSafeAllocator.runMemorySafe {
+        this.vkHandle = OffHeapSafeAllocator.runMemorySafe {
             val appInfo = calloc<VkApplicationInfo>() {
                 sType(VK12.VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 pNext(0)
@@ -32,14 +32,17 @@ class Instance() {
             }
 
             val glfwExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions() ?: throw Exception()
-            val ppEnabledExtensions = allocatePointer(glfwExtensions.capacity())
+            val ppEnabledExtensions = allocatePointer(glfwExtensions.capacity() + 1)
             repeat(glfwExtensions.capacity()) {
                 ppEnabledExtensions.put(it, glfwExtensions[it])
             }
+            ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 1, allocateString("VK_EXT_debug_utils"))
+
+            val debugCreateInfo = DebugUtilsMessenger.getCreateInfo()
 
             val instanceCreateInfo = calloc<VkInstanceCreateInfo>() {
                 sType(VK12.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
-                pNext(0)
+                pNext(debugCreateInfo.address())
                 flags(0)
                 pApplicationInfo(appInfo)
                 ppEnabledExtensionNames(ppEnabledExtensions)
@@ -48,6 +51,7 @@ class Instance() {
 
             val pInstance = allocatePointer(1)
             VK12.vkCreateInstance(instanceCreateInfo, null, pInstance)
+            debugCreateInfo.free()
             return@runMemorySafe VkInstance(pInstance.get(0), instanceCreateInfo)
         }
 
@@ -56,6 +60,6 @@ class Instance() {
 
 
     fun destroy() {
-        vkDestroyInstance(vkInstance, null)
+        vkDestroyInstance(vkHandle, null)
     }
 }

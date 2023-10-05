@@ -62,6 +62,7 @@ class Application {
             // Frame limiting
         }
 
-        //window.destroy()
+        backend.destroy()
+        window.destroy()
     }
 }
