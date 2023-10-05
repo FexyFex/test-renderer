@@ -3,7 +3,14 @@ import me.fexus.window.Window
 
 
 class Application {
-    private val window = Window("Testore") {}
+    private val window = Window("Testore") {
+        windowVisible()
+        enableResizable()
+        setInitialWindowSize(1067,600)
+        enableDecoration()
+        setInitialWindowPosition(400, 300)
+        enableAutoIconify()
+    }
     private val backend = VulkanRenderer(window).init()
 
     fun startRenderLoop() {

@@ -84,4 +84,10 @@ class VulkanRenderer(private val window: Window) {
         surface.destroy(core.instance)
         core.destroy()
     }
+
+
+    companion object {
+        const val FRAMES_TOTAL = 3
+        const val FRAMES_IN_FLIGHT = 2
+    }
 }

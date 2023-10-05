@@ -13,7 +13,8 @@ class VulkanCore {
         SwapchainExtension,
         DynamicRenderingExtension,
         DepthStencilResolveExtension,
-        //DescriptorBufferExtension,
+        Synchronization2Extension,
+        DescriptorBufferExtension,
         DescriptorIndexingExtension
     )
 
