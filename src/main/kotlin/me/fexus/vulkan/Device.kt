@@ -3,7 +3,7 @@ package me.fexus.vulkan
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.layer.VulkanLayer
-import me.fexus.vulkan.queue.QueueFamily
+import me.fexus.vulkan.queue.family.QueueFamily
 import org.lwjgl.vulkan.EXTDescriptorBuffer.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK13.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES
@@ -35,7 +35,7 @@ class Device {
                     .pNext(0)
                     .flags(0)
                     .pQueuePriorities(pQueuePriority)
-                    .queueFamilyIndex(queueFamily.queueFamilyIndex)
+                    .queueFamilyIndex(queueFamily.index)
             }
 
             val ppEnabledLayerNames = allocatePointer(layers.size)

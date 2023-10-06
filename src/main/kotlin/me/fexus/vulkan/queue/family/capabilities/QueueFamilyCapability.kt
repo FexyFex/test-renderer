@@ -1,4 +1,4 @@
-package me.fexus.vulkan.queue
+package me.fexus.vulkan.queue.family.capabilities
 
 import org.lwjgl.vulkan.VK10.*
 

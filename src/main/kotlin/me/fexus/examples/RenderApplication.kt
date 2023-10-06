@@ -1,19 +1,11 @@
-import me.fexus.vulkan.VulkanRenderer
+package me.fexus.examples
+
+import me.fexus.vulkan.VulkanRendererBase
 import me.fexus.window.Window
 
 
-class Application {
-    private val window = Window("Testore") {
-        windowVisible()
-        enableResizable()
-        setInitialWindowSize(1067,600)
-        enableDecoration()
-        setInitialWindowPosition(400, 300)
-        enableAutoIconify()
-    }
-    private val backend = VulkanRenderer(window).init()
-
-    fun startRenderLoop() {
+interface RenderApplication {
+    fun startRenderLoop(window: Window, renderer: VulkanRendererBase) {
         val desiredFPS = 60
 
         val optimalTime: Double = 1.0 / desiredFPS
@@ -47,8 +39,10 @@ class Application {
             // Update logic
             //------------------------------------------------------------------------------------------+
 
-            //game.doShid()
-            backend.drawFrame()
+            renderer.prepareFrame()
+            renderer.drawFrame()
+            renderer.submitFrame()
+
             window.pollEvents()
             //val totalTime = backendProcessingTime + windowProcessingTime
             //println("Processing times: game: $gameProcessingTime, backend: $backendProcessingTime, window: $windowProcessingTime, total: $totalTime")
@@ -69,7 +63,7 @@ class Application {
             // Frame limiting
         }
 
-        backend.destroy()
+        renderer.destroy()
         window.destroy()
     }
 }

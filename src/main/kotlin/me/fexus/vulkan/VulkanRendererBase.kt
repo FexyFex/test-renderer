@@ -2,10 +2,9 @@ package me.fexus.vulkan
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.queue.Queue
-import me.fexus.vulkan.queue.QueueFamilyCapabilities
-import me.fexus.vulkan.queue.QueueFamilyCapability
-import me.fexus.vulkan.queue.QueueFamily
-import me.fexus.vulkan.swapchain.Swapchain
+import me.fexus.vulkan.queue.family.capabilities.QueueFamilyCapabilities
+import me.fexus.vulkan.queue.family.capabilities.QueueFamilyCapability
+import me.fexus.vulkan.queue.family.QueueFamily
 import me.fexus.window.Window
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.VK10.VK_TRUE
@@ -13,17 +12,17 @@ import org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceQueueFamilyProperties
 import org.lwjgl.vulkan.VkQueueFamilyProperties
 
 
-class VulkanRenderer(private val window: Window) {
-    private val core = VulkanCore()
-    private val surface = Surface()
-    private val uniqueQueueFamilies = mutableListOf<QueueFamily>()
-    private val graphicsQueue = Queue()
-    private val presentQueue = Queue()
-    private val computeQueue = Queue()
-    private val swapchain = Swapchain()
+abstract class VulkanRendererBase(protected val window: Window) {
+    protected val core = VulkanCore()
+    protected val surface = Surface()
+    protected val uniqueQueueFamilies = mutableListOf<QueueFamily>()
+    protected val graphicsQueue = Queue()
+    protected val presentQueue = Queue()
+    protected val computeQueue = Queue()
+    protected val swapchain = Swapchain()
 
 
-    fun init(): VulkanRenderer {
+    fun initVulkan(): VulkanRendererBase {
         core.createInstance()
         surface.create(core.instance, window)
         core.createPhysicalDevice()
@@ -32,12 +31,20 @@ class VulkanRenderer(private val window: Window) {
         graphicsQueue.create(core.device, getQueueFamilyWithCapabilities(QueueFamilyCapability.GRAPHICS), 0)
         presentQueue.create(core.device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
         computeQueue.create(core.device, getQueueFamilyWithCapabilities(QueueFamilyCapability.COMPUTE), 0)
+        val extent = window.extent2D
+        swapchain.create(surface, core.physicalDevice, core.device, FRAMES_TOTAL, ImageExtent(extent.x, extent.y), uniqueQueueFamilies)
 
         return this
     }
 
 
-    fun drawFrame() {
+    fun prepareFrame() {
+
+    }
+
+    abstract fun drawFrame()
+
+    fun submitFrame() {
 
     }
 
@@ -80,7 +87,8 @@ class VulkanRenderer(private val window: Window) {
     }
 
 
-    fun destroy() {
+    open fun destroy() {
+        swapchain.destroy(core.device)
         surface.destroy(core.instance)
         core.destroy()
     }

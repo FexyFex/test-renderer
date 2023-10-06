@@ -4,7 +4,7 @@ import me.fexus.vulkan.debug.DebugUtilsMessenger
 import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.layer.ValidationLayer
 import me.fexus.vulkan.layer.VulkanLayer
-import me.fexus.vulkan.queue.QueueFamily
+import me.fexus.vulkan.queue.family.QueueFamily
 
 
 class VulkanCore {
@@ -14,7 +14,7 @@ class VulkanCore {
         DynamicRenderingExtension,
         DepthStencilResolveExtension,
         Synchronization2Extension,
-        DescriptorBufferExtension,
+        //DescriptorBufferExtension,
         DescriptorIndexingExtension
     )
 
