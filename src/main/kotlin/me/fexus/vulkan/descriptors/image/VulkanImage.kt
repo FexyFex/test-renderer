@@ -1,6 +1,6 @@
 package me.fexus.vulkan.descriptors.image
 
-import me.fexus.vulkan.Device
+import me.fexus.vulkan.component.Device
 import org.lwjgl.vulkan.VK12.*
 
 class VulkanImage(

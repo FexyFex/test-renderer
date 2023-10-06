@@ -1,0 +1,18 @@
+package me.fexus.vulkan.pipeline
+
+import org.lwjgl.vulkan.VK12.*
+
+
+enum class VertexAttributeFormat(val vkValue: Int, val size: Int) {
+    INT(VK_FORMAT_R32_SINT, Int.SIZE_BYTES),
+    UINT(VK_FORMAT_R32_UINT, Int.SIZE_BYTES),
+    FLOAT(VK_FORMAT_R32_SFLOAT, Float.SIZE_BYTES),
+
+    VEC2(VK_FORMAT_R32G32_SFLOAT, Float.SIZE_BYTES * 2),
+    VEC3(VK_FORMAT_R32G32B32_SFLOAT, Float.SIZE_BYTES * 3),
+    VEC4(VK_FORMAT_R32G32B32A32_SFLOAT, Float.SIZE_BYTES * 4),
+
+    IVEC2(VK_FORMAT_R32G32_SINT, Int.SIZE_BYTES * 2),
+    IVEC3(VK_FORMAT_R32G32B32_SINT, Int.SIZE_BYTES * 3),
+    IVEC4(VK_FORMAT_R32G32B32A32_SINT, Int.SIZE_BYTES * 4)
+}

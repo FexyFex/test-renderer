@@ -1,8 +1,8 @@
 package me.fexus.vulkan.descriptors.image
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
-import me.fexus.vulkan.Device
-import me.fexus.vulkan.PhysicalDevice
+import me.fexus.vulkan.component.Device
+import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
 import me.fexus.vulkan.exception.catchVK
 import org.lwjgl.vulkan.*
@@ -96,7 +96,8 @@ class VulkanImageFactory: DescriptorFactory {
                 preferredLayout.imageAspect,
                 preferredLayout.imageUsage,
                 preferredLayout.memoryProperties,
-                preferredLayout.sharingMode
+                preferredLayout.finalLayout,
+                preferredLayout.sharingMode,
             )
 
             return@runMemorySafe VulkanImage(device, imageHandle, imageMemoryHandle, imageViewHandle, actualLayout)

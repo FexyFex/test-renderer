@@ -1,5 +1,7 @@
 package me.fexus.math.vec
 
+import me.fexus.math.inverseSqrt
+
 data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float>() {
     constructor(s: Float): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toFloat(), y.toFloat(), z.toFloat())
@@ -29,4 +31,12 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
     override operator fun unaryMinus(): Vec3 = Vec3(-x, -y, -z)
 
     override fun dot(other: TVec3<Float>): Float = this.x * other.x + this.y * other.y + this.z * other.z
+
+    fun normalize(): Vec3 {
+        val invSqrtDotThis = inverseSqrt(dot(this))
+        val x = this.x * invSqrtDotThis
+        val y = this.y * invSqrtDotThis
+        val z = this.z * invSqrtDotThis
+        return Vec3(x,y,z)
+    }
 }

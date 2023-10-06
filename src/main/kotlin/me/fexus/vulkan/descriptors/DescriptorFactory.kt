@@ -1,8 +1,8 @@
 package me.fexus.vulkan.descriptors
 
 import me.fexus.memory.OffHeapSafeAllocator
-import me.fexus.vulkan.Device
-import me.fexus.vulkan.PhysicalDevice
+import me.fexus.vulkan.component.Device
+import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
 import org.lwjgl.vulkan.VK12
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties

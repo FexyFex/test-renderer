@@ -11,6 +11,7 @@ import java.nio.LongBuffer
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.reflect.KTypeParameter
 
 
 class OffHeapSafeAllocator private constructor(
@@ -71,12 +72,12 @@ class OffHeapSafeAllocator private constructor(
 
     inline fun <reified S: Struct, C> calloc(count: Int): C {
         val cl = S::class
-        val callocFun = cl.members.first { it.name == "calloc" && it.parameters.size == 1 }
-        val structBuffer = callocFun.call(count)
-        if (structBuffer is StructBuffer<*,*>)
-            vkStructBuffers.add(structBuffer)
-        else
-            throw Exception("HUH???")
+        val callocFun = cl.members.first {
+            val paramName = it.parameters.firstOrNull()?.type.toString()
+            it.name == "calloc" && it.parameters.size == 1 && paramName == "kotlin.Int"
+        }
+        val structBuffer = callocFun.call(count) as StructBuffer<*, *>
+        vkStructBuffers.add(structBuffer)
         return structBuffer as C
     }
 

@@ -1,6 +1,6 @@
 package me.fexus.vulkan.descriptors.buffer
 
-import me.fexus.vulkan.Device
+import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
 import me.fexus.vulkan.descriptors.buffer.usage.IBufferUsage
 import org.lwjgl.vulkan.VK10.vkDestroyBuffer

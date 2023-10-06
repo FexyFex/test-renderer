@@ -40,8 +40,10 @@ interface RenderApplication {
             //------------------------------------------------------------------------------------------+
 
             val prep = renderer.prepareFrame()
-            val frameData = renderer.recordFrame(prep)
-            renderer.submitFrame(frameData)
+            if (prep.acquireSuccessful) {
+                val frameData = renderer.recordFrame(prep)
+                renderer.submitFrame(frameData)
+            }
 
             window.pollEvents()
             //val totalTime = backendProcessingTime + windowProcessingTime

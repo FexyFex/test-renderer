@@ -1,5 +1,6 @@
 package me.fexus.math.vec
 
+import me.fexus.math.inverseSqrt
 import kotlin.math.sqrt
 
 abstract class TVec3<T: Number>: Vec<T> {

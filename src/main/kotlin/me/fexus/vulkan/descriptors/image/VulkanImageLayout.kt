@@ -1,6 +1,6 @@
 package me.fexus.vulkan.descriptors.image
 
-import me.fexus.vulkan.ImageExtent3D
+import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
 import me.fexus.vulkan.descriptors.image.usage.IImageUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
@@ -19,5 +19,6 @@ data class VulkanImageLayout(
     val imageAspect: IImageAspect,
     val imageUsage: IImageUsage,
     val memoryProperties: MemoryProperties,
+    val finalLayout: ImageLayout,
     val sharingMode: Int = VK_SHARING_MODE_EXCLUSIVE
 )

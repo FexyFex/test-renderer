@@ -1,15 +1,24 @@
 package me.fexus.vulkan
 
+import me.fexus.examples.RenderApplication
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.vulkan.component.CommandBuffer
+import me.fexus.vulkan.component.CommandPool
+import me.fexus.vulkan.component.Surface
+import me.fexus.vulkan.component.Swapchain
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
+import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.exception.catchVK
 import me.fexus.vulkan.pipeline.stage.PipelineStage
-import me.fexus.vulkan.queue.Queue
-import me.fexus.vulkan.queue.family.capabilities.QueueFamilyCapabilities
-import me.fexus.vulkan.queue.family.capabilities.QueueFamilyCapability
-import me.fexus.vulkan.queue.family.QueueFamily
-import me.fexus.vulkan.sync.Fence
-import me.fexus.vulkan.sync.Semaphore
+import me.fexus.vulkan.component.Queue
+import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
+import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability
+import me.fexus.vulkan.component.queuefamily.QueueFamily
+import me.fexus.vulkan.component.Fence
+import me.fexus.vulkan.component.Semaphore
+import me.fexus.vulkan.util.FramePreparation
+import me.fexus.vulkan.util.FrameSubmitData
+import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.window.Window
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.KHRSwapchain.*
@@ -19,9 +28,10 @@ import org.lwjgl.vulkan.VkQueueFamilyProperties
 import org.lwjgl.vulkan.VkSubmitInfo
 
 
-abstract class VulkanRendererBase(protected val window: Window) {
+abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
     protected val core = VulkanCore()
     protected val bufferFactory = VulkanBufferFactory()
+    protected val imageFactory = VulkanImageFactory()
     protected val surface = Surface()
     protected val uniqueQueueFamilies = mutableListOf<QueueFamily>()
     protected val graphicsQueue = Queue()
@@ -61,6 +71,7 @@ abstract class VulkanRendererBase(protected val window: Window) {
         inFlightFences.forEach { it.create(core.device) }
 
         bufferFactory.init(core.physicalDevice, core.device)
+        imageFactory.init(core.physicalDevice, core.device)
 
         return this
     }
@@ -172,17 +183,13 @@ abstract class VulkanRendererBase(protected val window: Window) {
     private fun resizeSwapchain() {
         window.waitForFramebufferResize()
         core.device.waitIdle().catchVK()
-        destroySwapchain()
-        recreateSwapchain()
-    }
 
-    private fun destroySwapchain() {
         swapchain.destroy(core.device)
-    }
+        onResizeDestroy()
 
-    private fun recreateSwapchain() {
-        val newExtentVec = window.extent2D
-        val newExtent = ImageExtent2D(newExtentVec.x, newExtentVec.y)
+        val winExtent = window.extent2D
+        val newExtent = ImageExtent2D(winExtent.x, winExtent.y)
+
         swapchain.create(
             surface,
             core.physicalDevice,
@@ -191,7 +198,11 @@ abstract class VulkanRendererBase(protected val window: Window) {
             newExtent,
             uniqueQueueFamilies
         )
+        onResizeRecreate(newExtent)
     }
+
+    abstract fun onResizeDestroy()
+    abstract fun onResizeRecreate(newExtent2D: ImageExtent2D)
 
 
     private fun findUniqueQueueFamilies(): List<QueueFamily> {
@@ -233,6 +244,11 @@ abstract class VulkanRendererBase(protected val window: Window) {
 
 
     open fun destroy() {
+        core.device.waitIdle()
+        imageAvailableSemaphores.forEach { it.destroy(core.device) }
+        renderFinishedSemaphores.forEach { it.destroy(core.device) }
+        inFlightFences.forEach { it.destroy(core.device) }
+        commandPool.destroy(core.device)
         swapchain.destroy(core.device)
         surface.destroy(core.instance)
         core.destroy()

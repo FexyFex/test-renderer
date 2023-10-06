@@ -1,10 +1,13 @@
 package me.fexus.vulkan
 
-import me.fexus.vulkan.debug.DebugUtilsMessenger
+import me.fexus.vulkan.component.Device
+import me.fexus.vulkan.component.Instance
+import me.fexus.vulkan.component.PhysicalDevice
+import me.fexus.vulkan.component.debug.DebugUtilsMessenger
 import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.layer.ValidationLayer
 import me.fexus.vulkan.layer.VulkanLayer
-import me.fexus.vulkan.queue.family.QueueFamily
+import me.fexus.vulkan.component.queuefamily.QueueFamily
 
 
 class VulkanCore {

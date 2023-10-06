@@ -1,10 +1,9 @@
 package me.fexus.vulkan.descriptors.buffer
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
-import me.fexus.vulkan.Device
-import me.fexus.vulkan.PhysicalDevice
+import me.fexus.vulkan.component.Device
+import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
 import me.fexus.vulkan.exception.catchVK
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
