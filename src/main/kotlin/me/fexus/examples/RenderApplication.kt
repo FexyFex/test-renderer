@@ -39,9 +39,9 @@ interface RenderApplication {
             // Update logic
             //------------------------------------------------------------------------------------------+
 
-            renderer.prepareFrame()
-            renderer.drawFrame()
-            renderer.submitFrame()
+            val prep = renderer.prepareFrame()
+            val frameData = renderer.recordFrame(prep)
+            renderer.submitFrame(frameData)
 
             window.pollEvents()
             //val totalTime = backendProcessingTime + windowProcessingTime

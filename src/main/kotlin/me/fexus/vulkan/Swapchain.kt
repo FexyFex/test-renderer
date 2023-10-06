@@ -17,14 +17,14 @@ import java.nio.IntBuffer
 class Swapchain {
     var vkHandle: Long = 0
     var format: Int = VK_FORMAT_UNDEFINED
-    lateinit var extent: ImageExtent
+    lateinit var extent: ImageExtent2D
 
     fun create(
         surface: Surface,
         physicalDevice: PhysicalDevice,
         device: Device,
         imagesTotal: Int,
-        imageExtent: ImageExtent,
+        imageExtent: ImageExtent2D,
         uniqueQueueFamilies: List<QueueFamily>
     ): Swapchain {
         this.vkHandle = runMemorySafe {

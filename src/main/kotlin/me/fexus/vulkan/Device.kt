@@ -67,9 +67,9 @@ class Device {
 
             val deviceCreateInfo = calloc<VkDeviceCreateInfo>() {
                 sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                pNext(descriptorBufferFeatures.address())
+                pNext(dynamicRenderingFeatures.address())
                 flags(0)
-                pQueueCreateInfos(queueCreateInfos as VkDeviceQueueCreateInfo.Buffer)
+                pQueueCreateInfos(queueCreateInfos)
                 ppEnabledLayerNames(ppEnabledLayerNames)
                 ppEnabledExtensionNames(ppEnabledExtensions)
                 pEnabledFeatures(deviceFeatures)
@@ -81,6 +81,9 @@ class Device {
         }
         return this
     }
+
+
+    fun waitIdle() = vkDeviceWaitIdle(vkHandle)
 
 
     fun destroy() {
