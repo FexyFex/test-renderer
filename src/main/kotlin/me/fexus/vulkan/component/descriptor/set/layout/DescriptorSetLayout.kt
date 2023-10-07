@@ -23,13 +23,15 @@ class DescriptorSetLayout {
                 .pImmutableSamplers(null)
         }
 
-        val pBindingFlags = allocateInt(1)
-        pBindingFlags.put(0, plan.bindingFlags.vkBits)
+        val pBindingFlags = allocateInt(plan.bindings.size)
+        plan.bindings.forEachIndexed { index, binding ->
+            pBindingFlags.put(index, binding.flags.vkBits)
+        }
 
         val bindingFlags = calloc<VkDescriptorSetLayoutBindingFlagsCreateInfo>() {
             sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO)
             pNext(0)
-            bindingCount(1)
+            bindingCount(plan.bindings.size)
             pBindingFlags(pBindingFlags)
         }
 

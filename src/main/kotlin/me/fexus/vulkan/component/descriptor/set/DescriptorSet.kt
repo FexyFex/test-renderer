@@ -19,7 +19,7 @@ import org.lwjgl.vulkan.VkWriteDescriptorSet
 class DescriptorSet {
     var vkHandle: Long = 0L; private set
 
-    fun create(device: Device, pool: DescriptorPool, layout: DescriptorSetLayout, plan: DescriptorSetPlan) = runMemorySafe {
+    fun create(device: Device, pool: DescriptorPool, layout: DescriptorSetLayout) = runMemorySafe {
         val pSetLayouts = allocateLong(1)
         pSetLayouts.put(0, layout.vkHandle)
 

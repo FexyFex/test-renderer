@@ -21,7 +21,7 @@ interface DescriptorFactory {
             for (i in 0 until deviceMemProps.memoryTypeCount()) {
                 val propertyFlags = deviceMemProps.memoryTypes(i).propertyFlags()
                 val typeBitsSatisfied = (typeBits and (1 shl i) != 0)
-                val containsRequestedProperties = propertyFlags in memProps
+                val containsRequestedProperties = propertyFlags and memProps.vkBits == memProps.vkBits
                 if (typeBitsSatisfied && containsRequestedProperties) return@runMemorySafe i
             }
 

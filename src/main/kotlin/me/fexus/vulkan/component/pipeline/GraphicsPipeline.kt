@@ -1,20 +1,22 @@
-package me.fexus.vulkan.pipeline
+package me.fexus.vulkan.component.pipeline
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.component.Device
+import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRDynamicRendering.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
 import org.lwjgl.vulkan.VK12.*
 
 
 class GraphicsPipeline {
-    var vkVertShaderModuleHandle: Long = 0L; private set
-    var vkFragShaderModuleHandle: Long = 0L; private set
+    private var vkVertShaderModuleHandle: Long = 0L
+    private var vkFragShaderModuleHandle: Long = 0L
     var vkLayoutHandle: Long = 0L; private set
     var vkHandle: Long = 0L; private set
 
 
-    fun create(device: Device, setLayout: Long, config: GraphicsPipelineConfiguration) = runMemorySafe {
+    fun create(device: Device, setLayout: DescriptorSetLayout, config: GraphicsPipelineConfiguration) = runMemorySafe {
         this@GraphicsPipeline.vkVertShaderModuleHandle = createShaderModule(device, config.vertShaderCode)
         this@GraphicsPipeline.vkFragShaderModuleHandle = createShaderModule(device, config.fragShaderCode)
 
@@ -25,7 +27,7 @@ class GraphicsPipeline {
             .stageFlags(config.pushConstantsLayout.shaderStages.vkBits)
 
         val pSetLayout = allocateLong(1)
-        pSetLayout.put(0, setLayout) // TODO: descriptor set layout
+        pSetLayout.put(0, setLayout.vkHandle) // TODO: descriptor set layout
 
         val pipelineLayoutInfo = calloc<VkPipelineLayoutCreateInfo>() {
             sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
@@ -39,15 +41,15 @@ class GraphicsPipeline {
         vkCreatePipelineLayout(device.vkHandle, pipelineLayoutInfo, null, pPipelineLayoutHandle)
         this@GraphicsPipeline.vkLayoutHandle = pPipelineLayoutHandle[0]
 
-        val bindingDescription = calloc<VkVertexInputBindingDescription, VkVertexInputBindingDescription.Buffer>(1)
-        bindingDescription[0]
+        val vertexBindingDescription = calloc<VkVertexInputBindingDescription, VkVertexInputBindingDescription.Buffer>(1)
+        vertexBindingDescription[0]
             .binding(0)
             .stride(config.vertexStride)
             .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
 
-        val attributeDescription = calloc<VkVertexInputAttributeDescription, VkVertexInputAttributeDescription.Buffer>(config.vertexAttributes.size)
+        val vertexAttributeDescription = calloc<VkVertexInputAttributeDescription, VkVertexInputAttributeDescription.Buffer>(config.vertexAttributes.size)
         config.vertexAttributes.forEachIndexed { index, vertexAttribute ->
-            attributeDescription[index]
+            vertexAttributeDescription[index]
                 .binding(0)
                 .location(vertexAttribute.location)
                 .format(vertexAttribute.format.vkValue)
@@ -71,8 +73,8 @@ class GraphicsPipeline {
         val vertexInputInfo = calloc<VkPipelineVertexInputStateCreateInfo>() {
             sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
             pNext(0)
-            pVertexBindingDescriptions(bindingDescription)
-            pVertexAttributeDescriptions(attributeDescription)
+            pVertexBindingDescriptions(vertexBindingDescription)
+            pVertexAttributeDescriptions(vertexAttributeDescription)
         }
 
         val inputAssembly = calloc<VkPipelineInputAssemblyStateCreateInfo>() {
@@ -175,10 +177,23 @@ class GraphicsPipeline {
             pDynamicStates(pDynamicStates)
         }
 
+        val pColorAttachmentFormats = allocateInt(1)
+        pColorAttachmentFormats.put(0, VK_FORMAT_B8G8R8A8_SRGB)
+
+        val renderingInfo = calloc<VkPipelineRenderingCreateInfoKHR>() {
+            sType(VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR)
+            pNext(0)
+            viewMask(0)
+            colorAttachmentCount(1)
+            pColorAttachmentFormats(pColorAttachmentFormats)
+            depthAttachmentFormat(VK_FORMAT_D32_SFLOAT)
+            stencilAttachmentFormat(VK_FORMAT_UNDEFINED)
+        }
+
         val pipelineInfo = calloc<VkGraphicsPipelineCreateInfo, VkGraphicsPipelineCreateInfo.Buffer>(1)
         pipelineInfo[0]
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
-            .pNext(0)
+            .pNext(renderingInfo.address())
             .pStages(shaderStages)
             .pVertexInputState(vertexInputInfo)
             .pInputAssemblyState(inputAssembly)
@@ -193,6 +208,7 @@ class GraphicsPipeline {
             .basePipelineIndex(-1)
             .pDepthStencilState(depthStencil)
             .pDynamicState(dynamicState)
+            .renderPass(0) // No render pass. Dynamic rendering is used
 
         val pPipelineHandle = allocateLong(1)
         vkCreateGraphicsPipelines(device.vkHandle, 0, pipelineInfo, null, pPipelineHandle)

@@ -10,7 +10,7 @@ import org.lwjgl.vulkan.VkCommandBufferAllocateInfo
 class CommandBuffer {
     lateinit var vkHandle: VkCommandBuffer; private set
 
-    fun create(device: Device, commandPool: CommandPool, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+    fun create(device: Device, commandPool: CommandPool, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): CommandBuffer {
         this.vkHandle = runMemorySafe {
             val cmdBufAllocInfo = calloc<VkCommandBufferAllocateInfo>() {
                 sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
@@ -24,5 +24,7 @@ class CommandBuffer {
             vkAllocateCommandBuffers(device.vkHandle, cmdBufAllocInfo, pCommandBufferHandle)
             return@runMemorySafe VkCommandBuffer(pCommandBufferHandle[0], device.vkHandle)
         }
+
+        return this
     }
 }

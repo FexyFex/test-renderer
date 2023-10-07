@@ -4,6 +4,8 @@ import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
 import me.fexus.vulkan.exception.catchVK
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
@@ -103,5 +105,33 @@ class VulkanImageFactory: DescriptorFactory {
             return@runMemorySafe VulkanImage(device, imageHandle, imageMemoryHandle, imageViewHandle, actualLayout)
         }
         return image
+    }
+
+    fun createSampler(layout: VulkanSamplerLayout): VulkanSampler = runMemorySafe{
+        val createInfo = calloc<VkSamplerCreateInfo>() {
+            sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
+            pNext(0)
+            flags(0)
+            minFilter(layout.filtering.vkValue)
+            magFilter(layout.filtering.vkValue)
+            addressModeU(layout.addressMode.vkValue)
+            addressModeV(layout.addressMode.vkValue)
+            addressModeW(layout.addressMode.vkValue)
+            anisotropyEnable(false)
+            maxAnisotropy(0f)
+            borderColor(VK_BORDER_COLOR_INT_OPAQUE_BLACK)
+            unnormalizedCoordinates(false)
+            compareEnable(false)
+            compareOp(VK_COMPARE_OP_ALWAYS)
+            mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
+            minLod(0f)
+            maxLod(layout.mipLevels.toFloat())
+            mipLodBias(0f)
+        }
+
+        val pSamplerHandle = allocateLong(1)
+        vkCreateSampler(device.vkHandle, createInfo, null, pSamplerHandle)
+
+        return@runMemorySafe VulkanSampler(pSamplerHandle[0], layout)
     }
 }

@@ -1,4 +1,4 @@
-package me.fexus.vulkan.pipeline
+package me.fexus.vulkan.component.pipeline
 
 import org.lwjgl.vulkan.VK12
 

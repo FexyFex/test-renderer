@@ -1,4 +1,4 @@
-package me.fexus.vulkan.pipeline
+package me.fexus.vulkan.component.pipeline
 
 data class GraphicsPipelineConfiguration(
     val vertexAttributes: List<VertexAttribute>,
@@ -18,5 +18,5 @@ data class GraphicsPipelineConfiguration(
     val depthTest: Boolean = true,
     val depthWrite: Boolean = true
 ) {
-    val vertexStride: Int = vertexAttributes.sumOf { it.format.size }
+    val vertexStride: Int = vertexAttributes.last().offset + vertexAttributes.last().format.size
 }

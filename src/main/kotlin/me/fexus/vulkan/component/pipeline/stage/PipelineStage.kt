@@ -1,4 +1,4 @@
-package me.fexus.vulkan.pipeline.stage
+package me.fexus.vulkan.component.pipeline.stage
 
 import org.lwjgl.vulkan.VK12.*
 

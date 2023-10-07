@@ -173,7 +173,7 @@ class Swapchain {
 
     companion object {
         private const val preferredColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-        private val preferredImageFormats = arrayOf(VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB)
+        private val preferredImageFormats = arrayOf(VK_FORMAT_B8G8R8A8_SRGB)
 
         private const val preferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR
     }

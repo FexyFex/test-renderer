@@ -9,7 +9,7 @@ import me.fexus.vulkan.component.Swapchain
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
 import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.exception.catchVK
-import me.fexus.vulkan.pipeline.stage.PipelineStage
+import me.fexus.vulkan.component.pipeline.stage.PipelineStage
 import me.fexus.vulkan.component.Queue
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability
@@ -23,6 +23,7 @@ import me.fexus.window.Window
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VkCommandBufferBeginInfo
 import org.lwjgl.vulkan.VkPresentInfoKHR
 import org.lwjgl.vulkan.VkQueueFamilyProperties
 import org.lwjgl.vulkan.VkSubmitInfo
@@ -36,7 +37,6 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val uniqueQueueFamilies = mutableListOf<QueueFamily>()
     protected val graphicsQueue = Queue()
     protected val presentQueue = Queue()
-    protected val computeQueue = Queue()
     protected val swapchain = Swapchain()
     protected val commandPool = CommandPool()
     protected val commandBuffers = Array(FRAMES_IN_FLIGHT) { CommandBuffer() }
@@ -47,6 +47,8 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected var currentFrame: Int = 0; private set
     protected var currentFrameInFlight: Int = 0; private set
 
+    protected val device; get() = core.device
+
 
     fun initVulkanCore(): VulkanRendererBase {
         core.createInstance()
@@ -56,22 +58,21 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         core.createDevice(uniqueQueueFamilies)
 
         val graphicsCapableQueueFamily = getQueueFamilyWithCapabilities(QueueFamilyCapability.GRAPHICS)
-        val computeCapableQueueFamily = getQueueFamilyWithCapabilities(QueueFamilyCapability.COMPUTE)
-        graphicsQueue.create(core.device, graphicsCapableQueueFamily, 0)
-        presentQueue.create(core.device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
-        computeQueue.create(core.device, computeCapableQueueFamily, 0)
+        graphicsQueue.create(device, graphicsCapableQueueFamily, 0)
+        presentQueue.create(device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
+
         val extent = window.extent2D
-        swapchain.create(surface, core.physicalDevice, core.device, FRAMES_TOTAL, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
+        swapchain.create(surface, core.physicalDevice, device, FRAMES_TOTAL, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
 
-        commandPool.create(core.device, graphicsCapableQueueFamily)
-        commandBuffers.forEach { it.create(core.device, commandPool) }
+        commandPool.create(device, graphicsCapableQueueFamily)
+        commandBuffers.forEach { it.create(device, commandPool) }
 
-        imageAvailableSemaphores.forEach { it.create(core.device) }
-        renderFinishedSemaphores.forEach { it.create(core.device) }
-        inFlightFences.forEach { it.create(core.device) }
+        imageAvailableSemaphores.forEach { it.create(device) }
+        renderFinishedSemaphores.forEach { it.create(device) }
+        inFlightFences.forEach { it.create(device) }
 
-        bufferFactory.init(core.physicalDevice, core.device)
-        imageFactory.init(core.physicalDevice, core.device)
+        bufferFactory.init(core.physicalDevice, device)
+        imageFactory.init(core.physicalDevice, device)
 
         return this
     }
@@ -81,11 +82,11 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         return runMemorySafe {
             val pWaitFence = allocateLong(1)
             pWaitFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
-            vkWaitForFences(core.device.vkHandle, pWaitFence, true, Long.MAX_VALUE)
+            vkWaitForFences(device.vkHandle, pWaitFence, true, Long.MAX_VALUE)
 
             val pImageIndex = allocateInt(1)
             val resultAcquire = vkAcquireNextImageKHR(
-                core.device.vkHandle,
+                device.vkHandle,
                 swapchain.vkHandle,
                 Long.MAX_VALUE,
                 imageAvailableSemaphores[currentFrameInFlight].vkHandle,
@@ -96,7 +97,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
 
             val pResetFence = allocateLong(1)
             pResetFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
-            vkResetFences(core.device.vkHandle, pResetFence)
+            vkResetFences(device.vkHandle, pResetFence)
 
             if (resultAcquire == VK_SUCCESS) return@runMemorySafe FramePreparation(true, imageIndex)
             if (resultAcquire == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -182,9 +183,9 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
 
     private fun resizeSwapchain() {
         window.waitForFramebufferResize()
-        core.device.waitIdle().catchVK()
+        device.waitIdle().catchVK()
 
-        swapchain.destroy(core.device)
+        swapchain.destroy(device)
         onResizeDestroy()
 
         val winExtent = window.extent2D
@@ -193,7 +194,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         swapchain.create(
             surface,
             core.physicalDevice,
-            core.device,
+            device,
             FRAMES_TOTAL,
             newExtent,
             uniqueQueueFamilies
@@ -242,14 +243,47 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         return uniqueQueueFamilies.first { cap.vkBits and it.capabilities.vkBits == cap.vkBits }
     }
 
+    protected fun beginSingleTimeCommandBuffer(): CommandBuffer = runMemorySafe {
+        val cmdBuf = CommandBuffer().create(device, commandPool)
+
+        val beginInfo = calloc<VkCommandBufferBeginInfo>() {
+            sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+            pNext(0)
+            flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
+            pInheritanceInfo(null)
+        }
+
+        vkBeginCommandBuffer(cmdBuf.vkHandle, beginInfo)
+
+        return@runMemorySafe cmdBuf
+    }
+
+    protected fun endSingleTimeCommandBuffer(cmdBuf: CommandBuffer): Unit = runMemorySafe {
+        vkEndCommandBuffer(cmdBuf.vkHandle)
+
+        val pCommandBuffers = allocatePointer(1)
+        pCommandBuffers.put(0, cmdBuf.vkHandle)
+
+        val submitInfo = calloc<VkSubmitInfo>() {
+            sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+            pNext(0)
+            pCommandBuffers(pCommandBuffers)
+        }
+
+        vkQueueSubmit(graphicsQueue.vkHandle, submitInfo, 0)
+        vkQueueWaitIdle(graphicsQueue.vkHandle)
+
+        vkFreeCommandBuffers(device.vkHandle, commandPool.vkHandle, pCommandBuffers)
+    }
+
 
     open fun destroy() {
-        core.device.waitIdle()
-        imageAvailableSemaphores.forEach { it.destroy(core.device) }
-        renderFinishedSemaphores.forEach { it.destroy(core.device) }
-        inFlightFences.forEach { it.destroy(core.device) }
-        commandPool.destroy(core.device)
-        swapchain.destroy(core.device)
+        device.waitIdle()
+        imageAvailableSemaphores.forEach { it.destroy(device) }
+        renderFinishedSemaphores.forEach { it.destroy(device) }
+        inFlightFences.forEach { it.destroy(device) }
+        commandPool.destroy(device)
+        swapchain.destroy(device)
         surface.destroy(core.instance)
         core.destroy()
     }
