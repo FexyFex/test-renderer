@@ -58,7 +58,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
 
-    private val modelMatrix = Mat4(1f).translate(Vec3(0f))
+    private val modelMatrix = Mat4(1f).translate(Vec3(0f, 0f, -5f))
 
 
     fun start() {
@@ -82,7 +82,12 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val vertexBufferData = ByteBuffer.allocate(ParallaxMappingQuadModel.SIZE_BYTES)
         ParallaxMappingQuadModel.vertices.forEachIndexed { index, fl ->
             val offset = index * Float.SIZE_BYTES
-            vertexBufferData.putFloat(offset, fl)
+            val lBuf = ByteBuffer.allocate(4)
+            lBuf.putFloat(0, fl)
+            var iPlus = 0
+            for (iNeg in 3 downTo 0) {
+                vertexBufferData.put(offset + iPlus++, lBuf[iNeg])
+            }
         }
         val vertexBufferLayout = VulkanBufferLayout(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
@@ -159,11 +164,11 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         val pipelineConfig = GraphicsPipelineConfiguration(
             listOf(
-                VertexAttribute(0, VertexAttributeFormat.VEC3, 0),
-                VertexAttribute(1, VertexAttributeFormat.VEC3, 16),
-                VertexAttribute(2, VertexAttributeFormat.VEC2, 32),
-                VertexAttribute(3, VertexAttributeFormat.VEC3, 48),
-                VertexAttribute(4, VertexAttributeFormat.VEC3, 64)
+                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
+                VertexAttribute(2, VertexAttributeFormat.VEC4, 32),
+                VertexAttribute(3, VertexAttributeFormat.VEC4, 48),
+                VertexAttribute(4, VertexAttributeFormat.VEC4, 64)
             ),
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxmapping/vert.spv").readBytes(),
@@ -314,6 +319,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
+            modelMatrix.toByteBuffer(pPushConstants, 0)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 
