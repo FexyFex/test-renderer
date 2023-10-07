@@ -58,14 +58,14 @@ object ParallaxMappingQuadModel {
     ).normalize()
 
     val vertices = arrayOf(
-        // Position             Normal                  Texcoord      Tangent                             Bitangent
-        pos1.x, pos1.y, pos1.z, norm.x, norm.y, norm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-        pos2.x, pos2.y, pos2.z, norm.x, norm.y, norm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-        pos3.x, pos3.y, pos3.z, norm.x, norm.y, norm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+        // Position                   Normal                        Texcoord                  Tangent                                   Bitangent
+        pos1.x, pos1.y, pos1.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv1.x, uv1.y, 0.0f, 0.0f, tangent1.x, tangent1.y, tangent1.z, 0.0f, bitangent1.x, bitangent1.y, bitangent1.z, 0.0f,
+        pos2.x, pos2.y, pos2.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv2.x, uv2.y, 0.0f, 0.0f, tangent1.x, tangent1.y, tangent1.z, 0.0f, bitangent1.x, bitangent1.y, bitangent1.z, 0.0f,
+        pos3.x, pos3.y, pos3.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv3.x, uv3.y, 0.0f, 0.0f, tangent1.x, tangent1.y, tangent1.z, 0.0f, bitangent1.x, bitangent1.y, bitangent1.z, 0.0f,
 
-        pos1.x, pos1.y, pos1.z, norm.x, norm.y, norm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-        pos3.x, pos3.y, pos3.z, norm.x, norm.y, norm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-        pos4.x, pos4.y, pos4.z, norm.x, norm.y, norm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
+        pos1.x, pos1.y, pos1.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv1.x, uv1.y, 0.0f, 0.0f, tangent2.x, tangent2.y, tangent2.z, 0.0f, bitangent2.x, bitangent2.y, bitangent2.z, 0.0f,
+        pos3.x, pos3.y, pos3.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv3.x, uv3.y, 0.0f, 0.0f, tangent2.x, tangent2.y, tangent2.z, 0.0f, bitangent2.x, bitangent2.y, bitangent2.z, 0.0f,
+        pos4.x, pos4.y, pos4.z, 1.0f, norm.x, norm.y, norm.z, 0.0f, uv4.x, uv4.y, 0.0f, 0.0f, tangent2.x, tangent2.y, tangent2.z, 0.0f, bitangent2.x, bitangent2.y, bitangent2.z, 0.0f
     )
 
     val SIZE_BYTES = vertices.size * Float.SIZE_BYTES
