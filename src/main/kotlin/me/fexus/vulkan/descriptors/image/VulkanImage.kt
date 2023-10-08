@@ -5,15 +5,15 @@ import org.lwjgl.vulkan.VK12.*
 
 class VulkanImage(
     private val device: Device,
-    val imageHandle: Long,
-    val imageMemoryHandle: Long,
-    val imageViewHandle: Long,
+    val vkImageHandle: Long,
+    val vkImageMemoryHandle: Long,
+    val vkImageViewHandle: Long,
     val layout: VulkanImageLayout,
 ) {
 
     fun destroy() {
-        vkDestroyImageView(device.vkHandle, imageViewHandle, null)
-        vkFreeMemory(device.vkHandle, imageMemoryHandle, null)
-        vkDestroyImage(device.vkHandle, imageHandle, null)
+        vkDestroyImageView(device.vkHandle, vkImageViewHandle, null)
+        vkFreeMemory(device.vkHandle, vkImageMemoryHandle, null)
+        vkDestroyImage(device.vkHandle, vkImageHandle, null)
     }
 }

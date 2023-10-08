@@ -98,7 +98,6 @@ class VulkanImageFactory: DescriptorFactory {
                 preferredLayout.imageAspect,
                 preferredLayout.imageUsage,
                 preferredLayout.memoryProperties,
-                preferredLayout.finalLayout,
                 preferredLayout.sharingMode,
             )
 

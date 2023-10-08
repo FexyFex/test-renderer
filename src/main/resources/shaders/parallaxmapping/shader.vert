@@ -17,6 +17,7 @@ layout(push_constant) uniform PushConstants{
     mat4 modelMatrix;
     vec4 lightPos;
     vec4 viewPos;
+    float heightScale;
 };
 
 layout (location = 0) out vec3 outFragPos;
@@ -24,6 +25,8 @@ layout (location = 1) out vec2 outTexCoords;
 layout (location = 2) out vec3 outTangentLightPos;
 layout (location = 3) out vec3 outTangentViewPos;
 layout (location = 4) out vec3 outTangentFragPos;
+layout (location = 5) out vec3 outNormal;
+layout (location = 6) out mat3 outTBN;
 
 void main() {
     gl_Position  = cameraBuffer.proj * cameraBuffer.view * modelMatrix * inPosition;
@@ -38,4 +41,8 @@ void main() {
     outTangentLightPos = tbn * lightPos.xyz;
     outTangentViewPos  = tbn * viewPos.xyz;
     outTangentFragPos  = tbn * outFragPos;
+
+    outTBN = tbn;
+
+    outNormal = inNormal.xyz;
 }

@@ -188,23 +188,102 @@ class Mat4(val columns: Array<Vec4>) {
         return res
     }
 
+    operator fun div(other: Mat4): Mat4 {
+        return other.inverse() * this
+    }
 
-    fun toByteBuffer(dbb: ByteBuffer, offset: Int) {
-        dbb.putFloat(offset + 0 * Float.SIZE_BYTES, columns[0][0])
-        dbb.putFloat(offset + 1 * Float.SIZE_BYTES, columns[0][1])
-        dbb.putFloat(offset + 2 * Float.SIZE_BYTES, columns[0][2])
-        dbb.putFloat(offset + 3 * Float.SIZE_BYTES, columns[0][3])
-        dbb.putFloat(offset + 4 * Float.SIZE_BYTES, columns[1][0])
-        dbb.putFloat(offset + 5 * Float.SIZE_BYTES, columns[1][1])
-        dbb.putFloat(offset + 6 * Float.SIZE_BYTES, columns[1][2])
-        dbb.putFloat(offset + 7 * Float.SIZE_BYTES, columns[1][3])
-        dbb.putFloat(offset + 8 * Float.SIZE_BYTES, columns[2][0])
-        dbb.putFloat(offset + 9 * Float.SIZE_BYTES, columns[2][1])
-        dbb.putFloat(offset + 10 * Float.SIZE_BYTES, columns[2][2])
-        dbb.putFloat(offset + 11 * Float.SIZE_BYTES, columns[2][3])
-        dbb.putFloat(offset + 12 * Float.SIZE_BYTES, columns[3][0])
-        dbb.putFloat(offset + 13 * Float.SIZE_BYTES, columns[3][1])
-        dbb.putFloat(offset + 14 * Float.SIZE_BYTES, columns[3][2])
-        dbb.putFloat(offset + 15 * Float.SIZE_BYTES, columns[3][3])
+
+    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
+        buf.putFloat(offset + 0 * Float.SIZE_BYTES, columns[0][0])
+        buf.putFloat(offset + 1 * Float.SIZE_BYTES, columns[0][1])
+        buf.putFloat(offset + 2 * Float.SIZE_BYTES, columns[0][2])
+        buf.putFloat(offset + 3 * Float.SIZE_BYTES, columns[0][3])
+        buf.putFloat(offset + 4 * Float.SIZE_BYTES, columns[1][0])
+        buf.putFloat(offset + 5 * Float.SIZE_BYTES, columns[1][1])
+        buf.putFloat(offset + 6 * Float.SIZE_BYTES, columns[1][2])
+        buf.putFloat(offset + 7 * Float.SIZE_BYTES, columns[1][3])
+        buf.putFloat(offset + 8 * Float.SIZE_BYTES, columns[2][0])
+        buf.putFloat(offset + 9 * Float.SIZE_BYTES, columns[2][1])
+        buf.putFloat(offset + 10 * Float.SIZE_BYTES, columns[2][2])
+        buf.putFloat(offset + 11 * Float.SIZE_BYTES, columns[2][3])
+        buf.putFloat(offset + 12 * Float.SIZE_BYTES, columns[3][0])
+        buf.putFloat(offset + 13 * Float.SIZE_BYTES, columns[3][1])
+        buf.putFloat(offset + 14 * Float.SIZE_BYTES, columns[3][2])
+        buf.putFloat(offset + 15 * Float.SIZE_BYTES, columns[3][3])
+    }
+
+
+    fun inverse(): Mat4 {
+        val m = Mat4(1f)
+        m.put(this)
+        val res = Mat4(1f)
+
+        val c00 = m[2][2] * m[3][3] - m[3][2] * m[2][3]
+        val c02 = m[1][2] * m[3][3] - m[3][2] * m[1][3]
+        val c03 = m[1][2] * m[2][3] - m[2][2] * m[1][3]
+
+        val c04 = m[2][1] * m[3][3] - m[3][1] * m[2][3]
+        val c06 = m[1][1] * m[3][3] - m[3][1] * m[1][3]
+        val c07 = m[1][1] * m[2][3] - m[2][1] * m[1][3]
+
+        val c08 = m[2][1] * m[3][2] - m[3][1] * m[2][2]
+        val c10 = m[1][1] * m[3][2] - m[3][1] * m[1][2]
+        val c11 = m[1][1] * m[2][2] - m[2][1] * m[1][2]
+
+        val c12 = m[2][0] * m[3][3] - m[3][0] * m[2][3]
+        val c14 = m[1][0] * m[3][3] - m[3][0] * m[1][3]
+        val c15 = m[1][0] * m[2][3] - m[2][0] * m[1][3]
+
+        val c16 = m[2][0] * m[3][2] - m[3][0] * m[2][2]
+        val c18 = m[1][0] * m[3][2] - m[3][0] * m[1][2]
+        val c19 = m[1][0] * m[2][2] - m[2][0] * m[1][2]
+
+        val c20 = m[2][0] * m[3][1] - m[3][0] * m[2][1]
+        val c22 = m[1][0] * m[3][1] - m[3][0] * m[1][1]
+        val c23 = m[1][0] * m[2][1] - m[2][0] * m[1][1]
+
+        val i00 = +(m[1][1] * c00 - m[1][2] * c04 + m[1][3] * c08)
+        val i01 = -(m[0][1] * c00 - m[0][2] * c04 + m[0][3] * c08)
+        val i02 = +(m[0][1] * c02 - m[0][2] * c06 + m[0][3] * c10)
+        val i03 = -(m[0][1] * c03 - m[0][2] * c07 + m[0][3] * c11)
+
+        val i10 = -(m[1][0] * c00 - m[1][2] * c12 + m[1][3] * c16)
+        val i11 = +(m[0][0] * c00 - m[0][2] * c12 + m[0][3] * c16)
+        val i12 = -(m[0][0] * c02 - m[0][2] * c14 + m[0][3] * c18)
+        val i13 = +(m[0][0] * c03 - m[0][2] * c15 + m[0][3] * c19)
+
+        val i20 = +(m[1][0] * c04 - m[1][1] * c12 + m[1][3] * c20)
+        val i21 = -(m[0][0] * c04 - m[0][1] * c12 + m[0][3] * c20)
+        val i22 = +(m[0][0] * c06 - m[0][1] * c14 + m[0][3] * c22)
+        val i23 = -(m[0][0] * c07 - m[0][1] * c15 + m[0][3] * c23)
+
+        val i30 = -(m[1][0] * c08 - m[1][1] * c16 + m[1][2] * c20)
+        val i31 = +(m[0][0] * c08 - m[0][1] * c16 + m[0][2] * c20)
+        val i32 = -(m[0][0] * c10 - m[0][1] * c18 + m[0][2] * c22)
+        val i33 = +(m[0][0] * c11 - m[0][1] * c19 + m[0][2] * c23)
+
+        val oneOverDet = 1 / (m[0][0] * i00 + m[0][1] * i10 + m[0][2] * i20 + m[0][3] * i30)
+
+        res[0][0] = i00 * oneOverDet
+        res[0][1] = i01 * oneOverDet
+        res[0][2] = i02 * oneOverDet
+        res[0][3] = i03 * oneOverDet
+
+        res[1][0] = i10 * oneOverDet
+        res[1][1] = i11 * oneOverDet
+        res[1][2] = i12 * oneOverDet
+        res[1][3] = i13 * oneOverDet
+
+        res[2][0] = i20 * oneOverDet
+        res[2][1] = i21 * oneOverDet
+        res[2][2] = i22 * oneOverDet
+        res[2][3] = i23 * oneOverDet
+
+        res[3][0] = i30 * oneOverDet
+        res[3][1] = i31 * oneOverDet
+        res[3][2] = i32 * oneOverDet
+        res[3][3] = i33 * oneOverDet
+
+        return res
     }
 }

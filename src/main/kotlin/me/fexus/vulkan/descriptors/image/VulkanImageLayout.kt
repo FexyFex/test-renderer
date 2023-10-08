@@ -19,6 +19,5 @@ data class VulkanImageLayout(
     val imageAspect: IImageAspect,
     val imageUsage: IImageUsage,
     val memoryProperties: MemoryProperties,
-    val finalLayout: ImageLayout,
     val sharingMode: Int = VK_SHARING_MODE_EXCLUSIVE
 )

@@ -10,19 +10,19 @@ import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 
 
-class VulkanBuffer(private val device: Device, val bufferHandle: Long, val memoryHandle: Long, val layout: VulkanBufferLayout) {
+class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkMemoryHandle: Long, val layout: VulkanBufferLayout) {
     private var mappingHandle: Long = -1L
 
     fun hasProperty(memProp: MemoryProperties) = memProp in layout.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in layout.usage
 
-    fun put(device: Device, data: ByteBuffer) {
+    fun put(device: Device, data: ByteBuffer, offset: Int) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
             // Copy can be done without staging
-            val address = getMemoryMappingHandle(device)
+            val address = getMemoryMappingHandle(device) + offset
             repeat(data.capacity()) {
-                val offset = address + it
-                MemoryUtil.memPutByte(offset, data[it])
+                val lOffset = address + it
+                MemoryUtil.memPutByte(lOffset, data[it])
             }
         } else {
             throw Exception("Device Local Buffers require Staging")
@@ -32,15 +32,15 @@ class VulkanBuffer(private val device: Device, val bufferHandle: Long, val memor
     private fun getMemoryMappingHandle(device: Device): Long = runMemorySafe {
         if (mappingHandle == -1L) {
             val ppMappingHandle = allocatePointer(1)
-            vkMapMemory(device.vkHandle, memoryHandle, 0, layout.size, 0, ppMappingHandle)
+            vkMapMemory(device.vkHandle, vkMemoryHandle, 0, layout.size, 0, ppMappingHandle)
             this@VulkanBuffer.mappingHandle = ppMappingHandle[0]
             return@runMemorySafe this@VulkanBuffer.mappingHandle
         } else return@runMemorySafe mappingHandle
     }
 
     fun destroy() {
-        vkFreeMemory(device.vkHandle, memoryHandle, null)
-        vkDestroyBuffer(device.vkHandle, bufferHandle, null)
+        vkFreeMemory(device.vkHandle, vkMemoryHandle, null)
+        vkDestroyBuffer(device.vkHandle, vkBufferHandle, null)
         mappingHandle = -1L
     }
 }

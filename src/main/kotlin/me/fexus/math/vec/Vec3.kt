@@ -1,6 +1,7 @@
 package me.fexus.math.vec
 
 import me.fexus.math.inverseSqrt
+import java.nio.ByteBuffer
 
 data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float>() {
     constructor(s: Float): this(s,s,s)
@@ -41,4 +42,9 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
     }
 
 
+    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
+        buf.putFloat(offset, x)
+        buf.putFloat(offset + 4, y)
+        buf.putFloat(offset + 8, z)
+    }
 }

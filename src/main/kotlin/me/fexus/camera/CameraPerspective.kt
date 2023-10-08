@@ -28,8 +28,7 @@ class CameraPerspective(var aspect: Float) {
     }
 
     fun calculateProjection(): Mat4 {
-
-        if (abs(aspect - epsilonF) > 0f) throw Exception("WeeeeWooo")
+        if (abs(aspect - epsilonF) <= 0f) throw Exception("WeeeeWooo")
 
         val tanHalfFov = tan(fov.rad / 2f)
 
