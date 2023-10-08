@@ -39,4 +39,6 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
         val z = this.z * invSqrtDotThis
         return Vec3(x,y,z)
     }
+
+
 }

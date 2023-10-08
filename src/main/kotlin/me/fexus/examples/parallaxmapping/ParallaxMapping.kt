@@ -38,14 +38,35 @@ import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
+import me.fexus.window.input.InputHandler
+import me.fexus.window.input.Key
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 
 class ParallaxMapping: VulkanRendererBase(createWindow()) {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            ParallaxMapping().start()
+        }
+
+        private fun createWindow() = Window("Parallax Mapping") {
+            windowVisible()
+            enableResizable()
+            setInitialWindowSize(1067,600)
+            enableDecoration()
+            setInitialWindowPosition(400, 300)
+            enableAutoIconify()
+        }
+
+        private fun Boolean.toInt(): Int = if (this) 1 else 0
+    }
+
     private val camera = CameraPerspective(window.aspect)
 
     private lateinit var depthAttachment: VulkanImage
@@ -59,6 +80,8 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     private val pipeline = GraphicsPipeline()
 
     private val modelMatrix = Mat4(1f).translate(Vec3(0f, 0f, -5f))
+
+    private val inputHandler = InputHandler(window)
 
 
     fun start() {
@@ -80,14 +103,10 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         // -- VERTEX BUFFER --
         val vertexBufferData = ByteBuffer.allocate(ParallaxMappingQuadModel.SIZE_BYTES)
+        vertexBufferData.order(ByteOrder.LITTLE_ENDIAN)
         ParallaxMappingQuadModel.vertices.forEachIndexed { index, fl ->
             val offset = index * Float.SIZE_BYTES
-            val lBuf = ByteBuffer.allocate(4)
-            lBuf.putFloat(0, fl)
-            var iPlus = 0
-            for (iNeg in 3 downTo 0) {
-                vertexBufferData.put(offset + iPlus++, lBuf[iNeg])
-            }
+            vertexBufferData.putFloat(offset, fl)
         }
         val vertexBufferLayout = VulkanBufferLayout(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
@@ -203,9 +222,12 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     }
 
     override fun recordFrame(preparation: FramePreparation): FrameSubmitData = runMemorySafe {
+        handleInput()
+
         val view = camera.calculateView()
         val proj = camera.calculateReverseZProjection()
         val data = ByteBuffer.allocate(128)
+        data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBuffer(data, 0)
         proj.toByteBuffer(data, 64)
         cameraBuffer.put(device, data)
@@ -364,6 +386,21 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         return@runMemorySafe FrameSubmitData(preparation.acquireSuccessful, preparation.imageIndex)
     }
 
+    private fun handleInput() {
+        val sideways = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
+        val forward = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
+        val upward = inputHandler.isKeyDown(Key.LSHIFT).toInt() - inputHandler.isKeyDown(Key.SPACE).toInt()
+
+        camera.position.x += sideways * 0.1f
+        camera.position.y += upward * 0.1f
+        camera.position.z += forward * 0.1f
+
+        val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
+        val rotX = inputHandler.isKeyDown(Key.ARROW_DOWN).toInt() - inputHandler.isKeyDown(Key.ARROW_UP).toInt()
+        camera.rotation.x += rotX.toFloat() * 1.2f
+        camera.rotation.y += rotY.toFloat() * 1.2f
+    }
+
     override fun onResizeDestroy() {
         depthAttachment.destroy()
     }
@@ -391,22 +428,5 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         descriptorSetLayout.destroy(device)
         pipeline.destroy(device)
         super.destroy()
-    }
-
-
-    companion object {
-        @JvmStatic
-        fun main(args: Array<String>) {
-            ParallaxMapping().start()
-        }
-
-        private fun createWindow() = Window("Parallax Mapping") {
-            windowVisible()
-            enableResizable()
-            setInitialWindowSize(1067,600)
-            enableDecoration()
-            setInitialWindowPosition(400, 300)
-            enableAutoIconify()
-        }
     }
 }
