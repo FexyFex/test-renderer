@@ -95,15 +95,17 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             )
             val imageIndex = pImageIndex[0]
 
-            val pResetFence = allocateLong(1)
-            pResetFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
-            vkResetFences(device.vkHandle, pResetFence)
-
-            if (resultAcquire == VK_SUCCESS) return@runMemorySafe FramePreparation(true, imageIndex)
             if (resultAcquire == VK_ERROR_OUT_OF_DATE_KHR) {
                 resizeSwapchain()
                 return@runMemorySafe FramePreparation(false, imageIndex)
             }
+
+            val pResetFence = allocateLong(1)
+            pResetFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
+            vkResetFences(device.vkHandle, pResetFence)
+
+            if (resultAcquire == VK_SUCCESS || resultAcquire == VK_SUBOPTIMAL_KHR)
+                return@runMemorySafe FramePreparation(true, imageIndex)
 
             resultAcquire.catchVK()
             throw Exception()

@@ -2,8 +2,6 @@ package me.fexus.texture
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import org.lwjgl.stb.STBImage
-import org.lwjgl.system.MemoryUtil
-import java.lang.NullPointerException
 import java.nio.ByteBuffer
 
 
@@ -31,7 +29,7 @@ class TextureLoader(imagePath: String) {
     }
 
 
-    fun freeImage(){
+    fun freeImage() {
         STBImage.stbi_image_free(pixels)
     }
 }

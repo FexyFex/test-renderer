@@ -159,9 +159,9 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         // -- BLOCK BUFFER --
 
         // -- IMAGES --
-        val diffTexture = TextureLoader("textures/parallaxmapping/diffuse.png")
+        val diffTexture = TextureLoader("textures/parallaxmapping/diffuse.jpg")
         val dispTexture = TextureLoader("textures/parallaxmapping/displacement.png")
-        val normTexture = TextureLoader("textures/parallaxmapping/normal.png")
+        val normTexture = TextureLoader("textures/parallaxmapping/normal.jpg")
         val imageArrayLayout = VulkanImageLayout(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(diffTexture.width, diffTexture.height, 1),
             1, 1, 3, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
