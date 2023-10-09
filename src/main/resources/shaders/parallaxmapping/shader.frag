@@ -13,9 +13,8 @@ layout (location = 4) in vec3 inTangentFragPos;
 layout (location = 5) in vec3 inNormal;
 layout (location = 6) in mat3 inTBN;
 
-layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffer;
-layout (set = 0, binding = 2) uniform texture2DArray maps;
-layout (set = 0, binding = 3) uniform sampler defaultSampler;
+layout (set = 0, binding = 1) uniform texture2DArray maps;
+layout (set = 0, binding = 2) uniform sampler defaultSampler;
 
 layout(push_constant) uniform PushConstants{
     mat4 modelMatrix;
