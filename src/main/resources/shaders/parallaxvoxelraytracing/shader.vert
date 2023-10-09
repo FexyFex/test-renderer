@@ -1,6 +1,11 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+struct BoundingBox {
+    vec3 min;
+    vec3 max;
+};
+
 layout (location = 0) in vec4 inPosition;
 layout (location = 1) in vec4 inNormal;
 layout (location = 2) in vec4 inTexCoords;
@@ -22,6 +27,7 @@ layout (location = 1) out vec2 outTexCoords;
 layout (location = 2) out vec3 outTangentViewPos;
 layout (location = 3) out vec3 outTangentFragPos;
 layout (location = 4) out vec3 outNormal;
+layout (location = 5) out BoundingBox outBounds;
 
 void main() {
     gl_Position  = cameraBuffer.proj * cameraBuffer.view * modelMatrix * inPosition;

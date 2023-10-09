@@ -151,7 +151,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // -- BLOCK BUFFER --
         val blockBufferLayout = VulkanBufferLayout(
-            4 * 4 * 4L,
+            2 * 2 * 2L,
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
             BufferUsage.STORAGE_BUFFER
         )
