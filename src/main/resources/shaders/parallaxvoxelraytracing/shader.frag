@@ -49,6 +49,16 @@ int indexOfMax(vec3 choices) {
     if (choices.x >= choices.y && choices.y >= choices.z) return 2;
 }
 
+vec3 transformPointToLocalCoords(vec3 point) {
+    vec3 boundsSize = (inBounds.max - inBounds.min);
+    vec3 progress = (point.xyz - inBounds.min) / boundsSize;
+    return vec3(
+    mix(0.0, boundsSize.x, progress.x),
+    mix(0.0, boundsSize.y, progress.y),
+    mix(0.0, boundsSize.z, progress.z)
+    );
+}
+
 void main() {
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
@@ -62,16 +72,35 @@ void main() {
     // TODO: finding the intersection between the inBounds box and the ray that is cast from the cam to the inFragPos
     // TODO: We must also consider the scenario in which the player stands within the cube. The entrypoint would
     // TODO: be inside of the voxel grid in that case...
-    vec3 boundsSize = (inBounds.max - inBounds.min);
-    vec3 progress = (inFragPos.xyz - inBounds.min) / boundsSize;
-    vec3 entryPoint = vec3(
-            mix(0.0, boundsSize.x, progress.x),
-            mix(0.0, boundsSize.y, progress.y),
-            mix(0.0, boundsSize.z, progress.z)
-    );
+    vec3 exitPoint = transformPointToLocalCoords(inFragPos);
 
-    vec3 direction = normalize(inFragPos.xyz - viewPos.xyz);
-    vec3 origin = inFragPos - inBounds.min; // Not sure if this is right
+    vec3 direction = inFragPos.xyz - viewPos.xyz;
+
+    vec3 entryPoint;
+    vec3 localViewPos = transformPointToLocalCoords(viewPos.xyz);
+    if (posIsInBounds(ivec3(localViewPos))) {
+        entryPoint = localViewPos;
+    }
+    else {
+        float entryX = direction.x < 0 ? EXTENT : 0;
+        float tX = (entryX-exitPoint.x)/direction.x;
+        vec3 entryPointX = tX*direction + exitPoint;
+        float lenX = length(entryPointX - exitPoint);
+
+        float entryY = direction.y < 0 ? EXTENT : 0;
+        float tY = (entryY-exitPoint.y)/direction.y;
+        vec3 entryPointY = tY*direction + exitPoint;
+        float lenY = length(entryPointY - exitPoint);
+
+        float entryZ = direction.z < 0 ? EXTENT : 0;
+        float tZ = (entryZ-exitPoint.z)/direction.z;
+        vec3 entryPointZ = tZ*direction + exitPoint;
+        float lenZ = length(entryPointZ - exitPoint);
+
+        if (lenX < lenY && lenX < lenZ) entryPoint = entryPointX;
+        else if (lenY < lenZ) exitPoint = entryPointY;
+        else entryPoint = entryPointZ;
+    }
 
     ivec3 pos = ivec3(round(entryPoint.x), round(entryPoint.y), round(entryPoint.z));
 
@@ -85,8 +114,10 @@ void main() {
     int faceNormalIndex = -1;
     ivec3 faces = ivec3(-step);
     int block = 0;
+    bool wasIn = false;
 
     while (posIsInBounds(pos)) {
+        wasIn = true;
         block = getBlockAt(pos);
 
         if (block != 0) break;
@@ -98,7 +129,8 @@ void main() {
     }
 
     if (block == 0) {
-        discard;
+        if (!wasIn) outColor = vec4(entryPoint.x/EXTENT, entryPoint.y/EXTENT, entryPoint.z/EXTENT, 1.0);
+        else discard;
     } else {
         if (faceNormalIndex == 0) outColor = vec4(0.9, 0.5, 0.5, 1.0);
         else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.9, 0.5, 1.0);

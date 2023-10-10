@@ -239,7 +239,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.NONE
+            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
         // Wireframe Pipeline
