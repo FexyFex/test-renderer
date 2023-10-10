@@ -9,11 +9,8 @@ struct BoundingBox {
 };
 
 layout (location = 0) in vec3 inFragPos;
-layout (location = 1) in vec2 inTexCoords;
-layout (location = 2) in vec3 inTangentViewPos;
-layout (location = 3) in vec3 inTangentFragPos;
-layout (location = 4) in vec3 inNormal;
-layout (location = 5) in BoundingBox inBounds;
+layout (location = 1) in vec3 inNormal;
+layout (location = 2) in BoundingBox inBounds;
 
 layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffer;
 
@@ -61,6 +58,10 @@ void main() {
         return;
     }
 
+    // TODO: New logic! Since we will be doing frontface culling, we must calculate the entryPoint by
+    // TODO: finding the intersection between the inBounds box and the ray that is cast from the cam to the inFragPos
+    // TODO: We must also consider the scenario in which the player stands within the cube. The entrypoint would
+    // TODO: be inside of the voxel grid in that case...
     vec3 boundsSize = (inBounds.max - inBounds.min);
     vec3 progress = (inFragPos.xyz - inBounds.min) / boundsSize;
     vec3 entryPoint = vec3(
@@ -99,8 +100,8 @@ void main() {
     if (block == 0) {
         discard;
     } else {
-        if (faceNormalIndex == 0) outColor = vec4(0.7, 0.5, 0.5, 1.0);
-        else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.7, 0.5, 1.0);
-        else  outColor = vec4(0.5, 0.5, 0.7, 1.0);
+        if (faceNormalIndex == 0) outColor = vec4(0.9, 0.5, 0.5, 1.0);
+        else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.9, 0.5, 1.0);
+        else  outColor = vec4(0.5, 0.5, 0.9, 1.0);
     }
 }
