@@ -8,6 +8,8 @@ data class GraphicsPipelineConfiguration(
     val vertShaderCode: ByteArray,
     val fragShaderCode: ByteArray,
 
+    val dynamicStates: List<DynamicState> = emptyList(),
+
     val blendEnable: Boolean = false,
     val primitive: Primitive = Primitive.TRIANGLES,
     val polygonMode: PolygonMode = PolygonMode.FILL,

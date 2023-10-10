@@ -166,9 +166,10 @@ class GraphicsPipeline {
             stencilTestEnable(false)
         }
 
-        val pDynamicStates = allocateInt(2)
-        pDynamicStates.put(0, VK_DYNAMIC_STATE_VIEWPORT)
-        pDynamicStates.put(1, VK_DYNAMIC_STATE_SCISSOR)
+        val pDynamicStates = allocateInt(config.dynamicStates.size)
+        config.dynamicStates.forEachIndexed { index, dynamicState ->
+            pDynamicStates.put(index, dynamicState.vkValue)
+        }
 
         val dynamicState = calloc<VkPipelineDynamicStateCreateInfo>() {
             sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)

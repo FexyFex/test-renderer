@@ -286,6 +286,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxmapping/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxmapping/frag.spv").readBytes(),
+            listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)

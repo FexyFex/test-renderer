@@ -12,7 +12,7 @@ import me.fexus.vulkan.component.queuefamily.QueueFamily
 
 class VulkanCore {
     private val enabledLayers = listOf<VulkanLayer>(ValidationLayer)
-    private val enabledExtensions = listOf(
+    val enabledExtensions = mutableListOf<DeviceExtension>(
         SwapchainExtension,
         DynamicRenderingExtension,
         DepthStencilResolveExtension,

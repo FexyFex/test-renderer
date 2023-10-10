@@ -16,6 +16,7 @@ import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.component.Fence
 import me.fexus.vulkan.component.Semaphore
+import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
@@ -30,7 +31,7 @@ import org.lwjgl.vulkan.VkSubmitInfo
 
 
 abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
-    protected val core = VulkanCore()
+    private val core = VulkanCore()
     protected val bufferFactory = VulkanBufferFactory()
     protected val imageFactory = VulkanImageFactory()
     protected val surface = Surface()
@@ -50,7 +51,8 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val device; get() = core.device
 
 
-    fun initVulkanCore(): VulkanRendererBase {
+    fun initVulkanCore(extensions: List<DeviceExtension> = emptyList()): VulkanRendererBase {
+        core.enabledExtensions.addAll(extensions)
         core.createInstance()
         surface.create(core.instance, window)
         core.createPhysicalDevice()

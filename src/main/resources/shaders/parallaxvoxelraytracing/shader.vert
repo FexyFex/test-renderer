@@ -20,6 +20,7 @@ layout (set = 0, binding = 0) uniform UBO {
 layout(push_constant) uniform PushConstants{
     mat4 modelMatrix;
     vec4 viewPos;
+    int doWireFrame;
 };
 
 layout (location = 0) out vec3 outFragPos;

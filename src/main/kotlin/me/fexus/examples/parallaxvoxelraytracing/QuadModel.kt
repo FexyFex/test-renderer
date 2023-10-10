@@ -4,7 +4,7 @@ import me.fexus.math.vec.Vec2
 import me.fexus.math.vec.Vec3
 
 
-object ParallaxMappingQuadModel {
+object QuadModel {
     private val pos1 = Vec3(-1.0f, +1.0f, 0.0f)
     private val pos2 = Vec3(-1.0f, -1.0f, 0.0f)
     private val pos3 = Vec3(+1.0f, -1.0f, 0.0f)
