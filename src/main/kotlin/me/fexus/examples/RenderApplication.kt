@@ -41,7 +41,7 @@ interface RenderApplication {
 
             val prep = renderer.prepareFrame()
             if (prep.acquireSuccessful) {
-                val frameData = renderer.recordFrame(prep)
+                val frameData = renderer.recordFrame(prep, updateLength)
                 renderer.submitFrame(frameData)
             }
 

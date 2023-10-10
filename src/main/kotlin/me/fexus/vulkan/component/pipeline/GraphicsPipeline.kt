@@ -3,6 +3,8 @@ package me.fexus.vulkan.component.pipeline
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
+import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantFloat
+import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
@@ -56,6 +58,22 @@ class GraphicsPipeline {
                 .offset(vertexAttribute.offset)
         }
 
+        val specMap = calloc<VkSpecializationMapEntry, VkSpecializationMapEntry.Buffer>(config.specializationConstants.size)
+        val pSpecData = allocate(config.specializationConstants.size * 4)
+        config.specializationConstants.forEachIndexed { index, specConst ->
+            specMap[index].constantID(specConst.id).size(4L).offset(index * 4)
+            when (specConst) {
+                is SpecializationConstantInt -> pSpecData.putInt(index * 4, specConst.value)
+                is SpecializationConstantFloat -> pSpecData.putFloat(index * 4, specConst.value)
+                else -> throw Exception("meh")
+            }
+        }
+
+        val specInfo = calloc<VkSpecializationInfo>() {
+            pMapEntries(specMap)
+            pData(pSpecData)
+        }
+
         val shaderStages = calloc<VkPipelineShaderStageCreateInfo, VkPipelineShaderStageCreateInfo.Buffer>(2)
         shaderStages[0]
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
@@ -63,12 +81,14 @@ class GraphicsPipeline {
             .stage(VK_SHADER_STAGE_VERTEX_BIT)
             .module(this@GraphicsPipeline.vkVertShaderModuleHandle)
             .pName(MemoryUtil.memUTF8("main"))
+            .pSpecializationInfo(specInfo)
         shaderStages[1]
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
             .pNext(0)
             .stage(VK_SHADER_STAGE_FRAGMENT_BIT)
             .module(this@GraphicsPipeline.vkFragShaderModuleHandle)
             .pName(MemoryUtil.memUTF8("main"))
+            .pSpecializationInfo(specInfo)
 
         val vertexInputInfo = calloc<VkPipelineVertexInputStateCreateInfo>() {
             sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)

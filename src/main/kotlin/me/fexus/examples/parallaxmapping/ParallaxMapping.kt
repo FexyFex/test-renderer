@@ -286,7 +286,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxmapping/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxmapping/frag.spv").readBytes(),
-            listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
+            dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
@@ -310,7 +310,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteTextures, descWriteSampler)
     }
 
-    override fun recordFrame(preparation: FramePreparation): FrameSubmitData = runMemorySafe {
+    override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
         handleInput()
 
         val view = camera.calculateView()

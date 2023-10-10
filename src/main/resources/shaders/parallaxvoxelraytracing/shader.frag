@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-const int EXTENT = 8;
+layout (constant_id = 0) const int EXTENT = 2;
 
 struct BoundingBox {
     vec3 min;
@@ -61,13 +61,24 @@ void main() {
         return;
     }
 
-    vec3 direction = inFragPos.xyz - viewPos.xyz;
+    vec3 boundsSize = (inBounds.max - inBounds.min);
+    vec3 progress = (inFragPos.xyz - inBounds.min) / boundsSize;
+    vec3 entryPoint = vec3(
+            mix(0.0, boundsSize.x, progress.x),
+            mix(0.0, boundsSize.y, progress.y),
+            mix(0.0, boundsSize.z, progress.z)
+    );
+
+    vec3 direction = normalize(inFragPos.xyz - viewPos.xyz);
     vec3 origin = inFragPos - inBounds.min; // Not sure if this is right
 
-    ivec3 pos = ivec3(round(origin.x), round(origin.y), round(origin.z));
+    ivec3 pos = ivec3(round(entryPoint.x), round(entryPoint.y), round(entryPoint.z));
 
     ivec3 step = ivec3(sign(direction.x), sign(direction.y), sign(direction.z));
-    vec3 tMax = vec3(intbound(origin.x-0.5f, direction.x), intbound(origin.y-0.5f, direction.y), intbound(origin.z-0.5f, direction.z));
+    vec3 tMax = vec3(
+        intbound(entryPoint.x - 0.5, direction.x),
+        intbound(entryPoint.y - 0.5, direction.y),
+        intbound(entryPoint.z, direction.z));
     vec3 tDelta = step / direction;
 
     int faceNormalIndex = -1;

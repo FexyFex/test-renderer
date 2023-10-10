@@ -21,6 +21,7 @@ import me.fexus.vulkan.component.descriptor.set.layout.createflags.DescriptorSet
 import me.fexus.vulkan.component.descriptor.write.DescriptorBufferInfo
 import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
 import me.fexus.vulkan.component.pipeline.*
+import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
@@ -30,25 +31,24 @@ import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.component.pipeline.stage.PipelineStage
-import me.fexus.vulkan.extension.ExtendedDynamicState3Extension
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.EXTExtendedDynamicState3.vkCmdSetPolygonModeEXT
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-
+import kotlin.math.cos
+import kotlin.math.sin
 
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 8
+        private const val EXTENT = 4
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -67,6 +67,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         private fun Boolean.toInt(): Int = if (this) 1 else 0
     }
 
+    private var time: Double = 0.0
+
     private val camera = CameraPerspective(window.aspect)
 
     private lateinit var depthAttachment: VulkanImage
@@ -80,8 +82,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val pipeline = GraphicsPipeline()
     private val pipelineWireframe = GraphicsPipeline()
 
-    private val planePosition = Vec3(3f, 3f, 7.4999f)
-    private val modelMatrix = Mat4(1f).translate(planePosition).scale(Vec3(4f))
+    private val planePosition = Vec3(-0.5f, -0.5f, -0.5f)
 
     private val inputHandler = InputHandler(window)
 
@@ -93,7 +94,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        camera.position = Vec3(0f, 0f, -3f)
+        camera.position = Vec3(0f, 0f, -5f)
 
         val depthAttachmentImageLayout = VulkanImageLayout(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
@@ -192,8 +193,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         blockBuffoon.order(ByteOrder.LITTLE_ENDIAN)
         repeatCubed(EXTENT) { x, y, z ->
             val offset = ((z * EXTENT * EXTENT) + (y * EXTENT) + x) * Int.SIZE_BYTES
-            val block = if (x == 0 && y == 0 && z == 0) 1 else
-                if (Math.random() < 0.3) 1 else 0
+            val sum = x + y + z
+            val block = if (sum < EXTENT / 2 || sum >= (EXTENT * 2)) 1 else 0
             blockBuffoon.putInt(offset, block)
         }
         this.blockBuffer.put(device, blockBuffoon, 0)
@@ -232,6 +233,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/frag.spv").readBytes(),
+            listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.TRIANGLES
         )
@@ -248,6 +250,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/frag.spv").readBytes(),
+            listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.LINES
         )
@@ -266,7 +269,9 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteBlockBuf)
     }
 
-    override fun recordFrame(preparation: FramePreparation): FrameSubmitData = runMemorySafe {
+    override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
+        time += delta
+
         handleInput()
 
         val view = camera.calculateView()
@@ -394,7 +399,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            modelMatrix.toByteBuffer(pPushConstants, 0)
+            val mat = Mat4(1f).translate(Vec3(0f, sin(time), cos(time)) + planePosition).scale(Vec3(EXTENT.toFloat()))
+            mat.toByteBuffer(pPushConstants, 0)
             (-camera.position).toByteBuffer(pPushConstants, 64)
             pPushConstants.putInt(80, 0)
 

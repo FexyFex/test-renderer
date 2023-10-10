@@ -114,7 +114,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         }
     }
 
-    abstract fun recordFrame(preparation: FramePreparation): FrameSubmitData
+    abstract fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData
 
     fun submitFrame(frameSubmitData: FrameSubmitData) {
         if (!frameSubmitData.doSubmit) return

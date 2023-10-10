@@ -1,5 +1,7 @@
 package me.fexus.vulkan.component.pipeline
 
+import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstant
+
 data class GraphicsPipelineConfiguration(
     val vertexAttributes: List<VertexAttribute>,
 
@@ -7,6 +9,8 @@ data class GraphicsPipelineConfiguration(
 
     val vertShaderCode: ByteArray,
     val fragShaderCode: ByteArray,
+
+    val specializationConstants: List<SpecializationConstant<*>> = emptyList(),
 
     val dynamicStates: List<DynamicState> = emptyList(),
 

@@ -5,9 +5,9 @@ import me.fexus.math.vec.Vec3
 
 
 object QuadModel {
-    private val pos1 = Vec3(-1.0f, +1.0f, 0.0f)
-    private val pos2 = Vec3(-1.0f, -1.0f, 0.0f)
-    private val pos3 = Vec3(+1.0f, -1.0f, 0.0f)
+    private val pos1 = Vec3(0.0f, +1.0f, 0.0f)
+    private val pos2 = Vec3(0.0f, 0.0f, 0.0f)
+    private val pos3 = Vec3(+1.0f, 0.0f, 0.0f)
     private val pos4 = Vec3(+1.0f, +1.0f, 0.0f)
 
     private val uv1 = Vec2(0.0f, 1.0f)

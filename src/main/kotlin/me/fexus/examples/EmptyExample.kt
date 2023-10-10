@@ -14,7 +14,7 @@ class EmptyExample: VulkanRendererBase(createWindow()) {
         startRenderLoop(window, this)
     }
 
-    override fun recordFrame(preparation: FramePreparation): FrameSubmitData {
+    override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData {
         if (!preparation.acquireSuccessful) return FrameSubmitData(false, preparation.imageIndex)
         return FrameSubmitData(true, preparation.imageIndex)
     }

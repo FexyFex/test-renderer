@@ -1,6 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+layout (constant_id = 0) const int EXTENT = 2;
+
 struct BoundingBox {
     vec3 min;
     vec3 max;
@@ -45,6 +47,7 @@ void main() {
 
     outNormal = inNormal.xyz;
 
-    outBounds.min = vec3(-0.5,-0.5,0.0);
-    outBounds.max = vec3(7.5,7.5,0.0);
+    vec3 pos = vec3(modelMatrix[3][0], modelMatrix[3][1], modelMatrix[3][2]);
+    outBounds.min = pos + vec3(0.5, 0.5, 1.0 - EXTENT);
+    outBounds.max = outBounds.min + EXTENT;
 }
