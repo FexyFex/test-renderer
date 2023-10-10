@@ -48,7 +48,7 @@ import kotlin.math.sin
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 4
+        private const val EXTENT = 8
 
         @JvmStatic
         fun main(args: Array<String>) {

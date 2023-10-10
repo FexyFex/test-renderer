@@ -78,7 +78,7 @@ void main() {
     vec3 tMax = vec3(
         intbound(entryPoint.x - 0.5, direction.x),
         intbound(entryPoint.y - 0.5, direction.y),
-        intbound(entryPoint.z, direction.z));
+        intbound(entryPoint.z - 0.000001, direction.z));
     vec3 tDelta = step / direction;
 
     int faceNormalIndex = -1;
