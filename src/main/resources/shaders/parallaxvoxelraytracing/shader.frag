@@ -82,17 +82,17 @@ void main() {
         entryPoint = localViewPos;
     }
     else {
-        float entryX = direction.x < 0 ? EXTENT : 0;
+        float entryX = direction.x < 0 ? EXTENT-1 : 0;
         float tX = (entryX-exitPoint.x)/direction.x;
         vec3 entryPointX = tX*direction + exitPoint;
         float lenX = length(entryPointX - exitPoint);
 
-        float entryY = direction.y < 0 ? EXTENT : 0;
+        float entryY = direction.y < 0 ? EXTENT-1 : 0;
         float tY = (entryY-exitPoint.y)/direction.y;
         vec3 entryPointY = tY*direction + exitPoint;
         float lenY = length(entryPointY - exitPoint);
 
-        float entryZ = direction.z < 0 ? EXTENT : 0;
+        float entryZ = direction.z < 0 ? EXTENT-1 : 0;
         float tZ = (entryZ-exitPoint.z)/direction.z;
         vec3 entryPointZ = tZ*direction + exitPoint;
         float lenZ = length(entryPointZ - exitPoint);
@@ -108,7 +108,7 @@ void main() {
     vec3 tMax = vec3(
         intbound(entryPoint.x - 0.5, direction.x),
         intbound(entryPoint.y - 0.5, direction.y),
-        intbound(entryPoint.z - 0.000001, direction.z));
+        intbound(entryPoint.z - 0.5, direction.z));
     vec3 tDelta = step / direction;
 
     int faceNormalIndex = -1;
@@ -129,7 +129,7 @@ void main() {
     }
 
     if (block == 0) {
-        if (!wasIn) outColor = vec4(entryPoint.x/EXTENT, entryPoint.y/EXTENT, entryPoint.z/EXTENT, 1.0);
+        if (!wasIn) outColor = vec4(entryPoint.x/EXTENT/2, entryPoint.y/EXTENT/2, entryPoint.z/EXTENT/2, 1.0);
         else discard;
     } else {
         if (faceNormalIndex == 0) outColor = vec4(0.9, 0.5, 0.5, 1.0);
