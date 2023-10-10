@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-const int EXTENT = 2;
+const int EXTENT = 8;
 
 struct BoundingBox {
     vec3 min;
@@ -46,9 +46,10 @@ bool posIsInBounds(ivec3 pos) {
 }
 
 int indexOfMax(vec3 choices) {
-    if (choices.x >= choices.y && choices.x >= choices.z) return 0;
-    if (choices.y >= choices.x && choices.y >= choices.z) return 1;
-    if (choices.z >= choices.z && choices.z >= choices.y) return 2;
+    if (choices.x < choices.y && choices.x < choices.z) return 0;
+    if (choices.x < choices.y && choices.x >= choices.z) return 2;
+    if (choices.x >= choices.y && choices.y < choices.z) return 1;
+    if (choices.x >= choices.y && choices.y >= choices.z) return 2;
 }
 
 void main() {
@@ -60,13 +61,13 @@ void main() {
         return;
     }
 
-    vec3 direction = (inFragPos.xyz - viewPos.xyz);
+    vec3 direction = inFragPos.xyz - viewPos.xyz;
     vec3 origin = inFragPos - inBounds.min; // Not sure if this is right
 
     ivec3 pos = ivec3(round(origin.x), round(origin.y), round(origin.z));
 
     ivec3 step = ivec3(sign(direction.x), sign(direction.y), sign(direction.z));
-    vec3 tMax = vec3(intbound(origin.x, direction.x), intbound(origin.y, direction.y), intbound(origin.z, direction.z));
+    vec3 tMax = vec3(intbound(origin.x-0.5f, direction.x), intbound(origin.y-0.5f, direction.y), intbound(origin.z-0.5f, direction.z));
     vec3 tDelta = step / direction;
 
     int faceNormalIndex = -1;
@@ -87,6 +88,8 @@ void main() {
     if (block == 0) {
         discard;
     } else {
-        outColor = vec4(0.5, 0.5, 0.5, 1.0);
+        if (faceNormalIndex == 0) outColor = vec4(0.7, 0.5, 0.5, 1.0);
+        else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.7, 0.5, 1.0);
+        else  outColor = vec4(0.5, 0.5, 0.7, 1.0);
     }
 }

@@ -44,4 +44,7 @@ void main() {
     outTangentFragPos  = tbn * outFragPos;
 
     outNormal = inNormal.xyz;
+
+    outBounds.min = vec3(-0.5,-0.5,0.0);
+    outBounds.max = vec3(7.5,7.5,0.0);
 }

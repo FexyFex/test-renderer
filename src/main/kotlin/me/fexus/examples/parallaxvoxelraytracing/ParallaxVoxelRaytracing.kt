@@ -48,7 +48,7 @@ import java.nio.ByteOrder
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 2
+        private const val EXTENT = 8
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -80,8 +80,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val pipeline = GraphicsPipeline()
     private val pipelineWireframe = GraphicsPipeline()
 
-    private val planePosition = Vec3(0f, 0f, 0f)
-    private val modelMatrix = Mat4(1f).translate(planePosition)
+    private val planePosition = Vec3(3f, 3f, 7.4999f)
+    private val modelMatrix = Mat4(1f).translate(planePosition).scale(Vec3(4f))
 
     private val inputHandler = InputHandler(window)
 
@@ -190,9 +190,10 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this.blockBuffer = bufferFactory.createBuffer(blockBufferLayout)
         val blockBuffoon = ByteBuffer.allocate(blockBufferSize)
         blockBuffoon.order(ByteOrder.LITTLE_ENDIAN)
-        repeatCubed(2) { x, y, z ->
+        repeatCubed(EXTENT) { x, y, z ->
             val offset = ((z * EXTENT * EXTENT) + (y * EXTENT) + x) * Int.SIZE_BYTES
-            val block = if (x == 0 && y == 0 && z == 0) 1 else 0
+            val block = if (x == 0 && y == 0 && z == 0) 1 else
+                if (Math.random() < 0.3) 1 else 0
             blockBuffoon.putInt(offset, block)
         }
         this.blockBuffer.put(device, blockBuffoon, 0)
