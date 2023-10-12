@@ -107,6 +107,8 @@ void main() {
 //        entryPoint.x = clamp(entryPoint.x, 0, EXTENT);
 //        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
 //        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
+
+        entryPoint += 0.00001 * sign(direction);
     }
 
     ivec3 pos = ivec3(floor(entryPoint.x), floor(entryPoint.y), floor(entryPoint.z));
