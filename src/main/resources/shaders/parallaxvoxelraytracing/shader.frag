@@ -59,6 +59,10 @@ vec3 transformPointToLocalCoords(vec3 point) {
     );
 }
 
+float trueRound(float x) {
+    return floor(x+0.5);
+}
+
 void main() {
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
@@ -82,33 +86,39 @@ void main() {
         entryPoint = localViewPos;
     }
     else {
-        float entryX = direction.x < 0 ? EXTENT-1 : 0;
+        float entryX = direction.x < 0 ? EXTENT : 0.0;
         float tX = (entryX-exitPoint.x)/direction.x;
         vec3 entryPointX = tX*direction + exitPoint;
         float lenX = length(entryPointX - exitPoint);
 
-        float entryY = direction.y < 0 ? EXTENT-1 : 0;
+        float entryY = direction.y < 0 ? EXTENT : 0.0;
         float tY = (entryY-exitPoint.y)/direction.y;
         vec3 entryPointY = tY*direction + exitPoint;
         float lenY = length(entryPointY - exitPoint);
 
-        float entryZ = direction.z < 0 ? EXTENT-1 : 0;
+        float entryZ = direction.z < 0 ? EXTENT : 0.0;
         float tZ = (entryZ-exitPoint.z)/direction.z;
         vec3 entryPointZ = tZ*direction + exitPoint;
         float lenZ = length(entryPointZ - exitPoint);
 
-        if (lenX < lenY && lenX < lenZ) entryPoint = entryPointX;
-        else if (lenY < lenZ) exitPoint = entryPointY;
-        else entryPoint = entryPointZ;
+        if (lenX < lenY && lenX < lenZ) { entryPoint = entryPointX;}//outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
+        else if (lenY < lenZ) { exitPoint = entryPointY;}//outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
+        else { entryPoint = entryPointZ;}//outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
+//        entryPoint.x = clamp(entryPoint.x, 0, EXTENT);
+//        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
+//        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
     }
 
-    ivec3 pos = ivec3(round(entryPoint.x), round(entryPoint.y), round(entryPoint.z));
+    ivec3 pos = ivec3(floor(entryPoint.x), floor(entryPoint.y), floor(entryPoint.z));
+    if (entryPoint.x == EXTENT) pos.x = EXTENT-1;
+    if (entryPoint.y == EXTENT) pos.y = EXTENT-1;
+    if (entryPoint.z == EXTENT) pos.z = EXTENT-1;
 
     ivec3 step = ivec3(sign(direction.x), sign(direction.y), sign(direction.z));
     vec3 tMax = vec3(
-        intbound(entryPoint.x - 0.5, direction.x),
-        intbound(entryPoint.y - 0.5, direction.y),
-        intbound(entryPoint.z - 0.5, direction.z));
+        intbound(entryPoint.x, direction.x),
+        intbound(entryPoint.y, direction.y),
+        intbound(entryPoint.z, direction.z));
     vec3 tDelta = step / direction;
 
     int faceNormalIndex = -1;

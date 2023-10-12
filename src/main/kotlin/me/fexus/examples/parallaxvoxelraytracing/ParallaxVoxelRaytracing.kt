@@ -200,7 +200,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         repeatCubed(EXTENT) { x, y, z ->
             val offset = ((z * EXTENT * EXTENT) + (y * EXTENT) + x) * Int.SIZE_BYTES
             val sum = x + y + z
-            val block = if (sum < EXTENT / 2 || sum >= (EXTENT * 2)) 1 else 0
+            var block = if (sum < EXTENT / 2 || sum >= (EXTENT * 2)) 1 else 0
+            if (x == 2 && y == 3 && z == 4) block = 1;
             blockBuffoon.putInt(offset, block)
         }
         this.blockBuffer.put(device, blockBuffoon, 0)

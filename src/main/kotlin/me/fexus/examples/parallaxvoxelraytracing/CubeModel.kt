@@ -5,14 +5,14 @@ import me.fexus.math.vec.Vec3
 
 
 object CubeModel {
-    private val pos1 = Vec3(1f, 1f, -1f)
-    private val pos2 = Vec3(1f, 0f, -1f)
-    private val pos3 = Vec3(1f, 1f, 0f)
-    private val pos4 = Vec3(1f, 0f, 0f)
-    private val pos5 = Vec3(0f, 1f, -1f)
-    private val pos6 = Vec3(0f, 0f, -1f)
-    private val pos7 = Vec3(0f, 1f, 0f)
-    private val pos8 = Vec3(0f, 0f, 0f)
+    private val pos1 = Vec3(1f, 1f, 0f)
+    private val pos2 = Vec3(1f, 0f, 0f)
+    private val pos3 = Vec3(1f, 1f, 1f)
+    private val pos4 = Vec3(1f, 0f, 1f)
+    private val pos5 = Vec3(0f, 1f, 0f)
+    private val pos6 = Vec3(0f, 0f, 0f)
+    private val pos7 = Vec3(0f, 1f, 1f)
+    private val pos8 = Vec3(0f, 0f, 1f)
 
     private val uv1 = Vec2(1f, 1f)
     private val uv2 = Vec2(0f, 0f)
