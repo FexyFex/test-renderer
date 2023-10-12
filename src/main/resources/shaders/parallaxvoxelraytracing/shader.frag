@@ -53,9 +53,9 @@ vec3 transformPointToLocalCoords(vec3 point) {
     vec3 boundsSize = (inBounds.max - inBounds.min);
     vec3 progress = (point.xyz - inBounds.min) / boundsSize;
     return vec3(
-    mix(0.0, boundsSize.x, progress.x),
-    mix(0.0, boundsSize.y, progress.y),
-    mix(0.0, boundsSize.z, progress.z)
+        mix(0.0, boundsSize.x, progress.x),
+        mix(0.0, boundsSize.y, progress.y),
+        mix(0.0, boundsSize.z, progress.z)
     );
 }
 
@@ -82,28 +82,27 @@ void main() {
 
     vec3 entryPoint;
     vec3 localViewPos = transformPointToLocalCoords(viewPos.xyz);
-    if (posIsInBounds(ivec3(localViewPos))) {
+    if (posIsInBounds(ivec3(floor(localViewPos)))) {
         entryPoint = localViewPos;
-    }
-    else {
+    } else {
         float entryX = direction.x < 0 ? EXTENT : 0.0;
-        float tX = (entryX-exitPoint.x)/direction.x;
-        vec3 entryPointX = tX*direction + exitPoint;
-        float lenX = length(entryPointX - exitPoint);
+        float tX = (entryX - exitPoint.x) / direction.x;
+        vec3 entryPointX = tX * direction + exitPoint;
+        float lenX = distance(entryPointX, exitPoint);
 
         float entryY = direction.y < 0 ? EXTENT : 0.0;
-        float tY = (entryY-exitPoint.y)/direction.y;
-        vec3 entryPointY = tY*direction + exitPoint;
-        float lenY = length(entryPointY - exitPoint);
+        float tY = (entryY - exitPoint.y) / direction.y;
+        vec3 entryPointY = tY * direction + exitPoint;
+        float lenY = distance(entryPointY, exitPoint);
 
         float entryZ = direction.z < 0 ? EXTENT : 0.0;
-        float tZ = (entryZ-exitPoint.z)/direction.z;
-        vec3 entryPointZ = tZ*direction + exitPoint;
-        float lenZ = length(entryPointZ - exitPoint);
+        float tZ = (entryZ - exitPoint.z) / direction.z;
+        vec3 entryPointZ = tZ * direction + exitPoint;
+        float lenZ = distance(entryPointZ, exitPoint);
 
-        if (lenX < lenY && lenX < lenZ) { entryPoint = entryPointX;}//outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
-        else if (lenY < lenZ) { exitPoint = entryPointY;}//outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
-        else { entryPoint = entryPointZ;}//outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
+        if (lenY < lenX && lenY < lenZ) entryPoint = entryPointY; //outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
+        else if (lenX < lenZ) entryPoint = entryPointX; //outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
+        else entryPoint = entryPointZ; //outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
 //        entryPoint.x = clamp(entryPoint.x, 0, EXTENT);
 //        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
 //        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
@@ -112,9 +111,6 @@ void main() {
     }
 
     ivec3 pos = ivec3(floor(entryPoint.x), floor(entryPoint.y), floor(entryPoint.z));
-    if (entryPoint.x == EXTENT) pos.x = EXTENT-1;
-    if (entryPoint.y == EXTENT) pos.y = EXTENT-1;
-    if (entryPoint.z == EXTENT) pos.z = EXTENT-1;
 
     ivec3 step = ivec3(sign(direction.x), sign(direction.y), sign(direction.z));
     vec3 tMax = vec3(

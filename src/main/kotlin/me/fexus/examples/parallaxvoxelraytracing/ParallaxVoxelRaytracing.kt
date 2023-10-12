@@ -402,7 +402,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            val mat = Mat4(1f).translate(Vec3(0f, sin(time), cos(time)) + cubePosition).scale(Vec3(EXTENT.toFloat()))
+            val mat = Mat4(1f).translate(cubePosition).scale(Vec3(EXTENT.toFloat()))
             mat.toByteBuffer(pPushConstants, 0)
             (-camera.position).toByteBuffer(pPushConstants, 64)
             pPushConstants.putInt(80, 0)
@@ -473,6 +473,11 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         camera.position.x += xMove * 0.1f
         camera.position.y += yMove * 0.1f
         camera.position.z += zMove * 0.1f
+
+        if (inputHandler.isKeyDown(Key.P)) {
+            println("Camera Pos: ${-camera.position}")
+            println("Camera Rot: ${camera.rotation}")
+        }
     }
 
     override fun onResizeDestroy() {
