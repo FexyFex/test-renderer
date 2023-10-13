@@ -11,14 +11,14 @@ class DescriptorPool {
     var vkHandle: Long = 0L; private set
 
     fun create(device: Device, plan: DescriptorPoolPlan) = runMemorySafe {
-        val poolSizes = calloc<VkDescriptorPoolSize, VkDescriptorPoolSize.Buffer>(plan.sizes.size)
+        val poolSizes = calloc(VkDescriptorPoolSize::calloc, plan.sizes.size)
         plan.sizes.forEachIndexed { index, poolSize ->
             poolSizes[index]
                 .type(poolSize.descriptorType.vkValue)
                 .descriptorCount(poolSize.count)
         }
 
-        val poolInfo = calloc<VkDescriptorPoolCreateInfo>() {
+        val poolInfo = calloc(VkDescriptorPoolCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
             pNext(0)
             flags(plan.flags.vkBits)

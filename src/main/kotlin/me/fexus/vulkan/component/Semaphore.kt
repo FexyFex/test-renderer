@@ -11,7 +11,7 @@ class Semaphore {
 
     fun create(device: Device) {
         this.vkHandle = runMemorySafe {
-            val createInfo = calloc<VkSemaphoreCreateInfo>() {
+            val createInfo = calloc(VkSemaphoreCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
                 pNext(0)
                 flags(0)

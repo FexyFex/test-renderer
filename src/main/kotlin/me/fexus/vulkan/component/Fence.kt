@@ -11,7 +11,7 @@ class Fence {
 
     fun create(device: Device) {
         this.vkHandle = runMemorySafe {
-            val fenceInfo = calloc<VkFenceCreateInfo>() {
+            val fenceInfo = calloc(VkFenceCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
                 pNext(0)
                 flags(VK_FENCE_CREATE_SIGNALED_BIT)

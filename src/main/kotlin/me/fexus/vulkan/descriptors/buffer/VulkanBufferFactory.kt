@@ -29,7 +29,7 @@ class VulkanBufferFactory: DescriptorFactory {
         // TODO: Check if layout preferences are valid and can be fulfilled
 
         val buffer = runMemorySafe {
-            val bufferInfo = calloc<VkBufferCreateInfo>() {
+            val bufferInfo = calloc(VkBufferCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
                 pNext(0)
                 size(preferredBufferLayout.size)
@@ -41,7 +41,7 @@ class VulkanBufferFactory: DescriptorFactory {
             vkCreateBuffer(device.vkHandle, bufferInfo, null, pBufferHandle).catchVK()
             val bufferHandle = pBufferHandle[0]
 
-            val memRequirements = calloc<VkMemoryRequirements>()
+            val memRequirements = calloc(VkMemoryRequirements::calloc)
             vkGetBufferMemoryRequirements(device.vkHandle, bufferHandle, memRequirements)
 
             val memoryTypeIndex = findMemoryTypeIndex(
@@ -49,7 +49,7 @@ class VulkanBufferFactory: DescriptorFactory {
                 preferredBufferLayout.memoryProperties
             )
 
-            val allocInfo = calloc<VkMemoryAllocateInfo>() {
+            val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
                 pNext(0)
                 allocationSize(memRequirements.size())

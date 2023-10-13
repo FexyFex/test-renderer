@@ -14,7 +14,7 @@ class Instance() {
 
     fun create(layers: List<VulkanLayer>): Instance {
         this.vkHandle = OffHeapSafeAllocator.runMemorySafe {
-            val appInfo = calloc<VkApplicationInfo>() {
+            val appInfo = calloc(VkApplicationInfo::calloc) {
                 sType(VK12.VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 pNext(0)
                 apiVersion(VK12.VK_API_VERSION_1_2)
@@ -36,9 +36,9 @@ class Instance() {
             }
             ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 1, allocateString("VK_EXT_debug_utils"))
 
-            val debugCreateInfo = DebugUtilsMessenger.getCreateInfo()
+            val debugCreateInfo = DebugUtilsMessenger.getCreateInfo(this)
 
-            val instanceCreateInfo = calloc<VkInstanceCreateInfo>() {
+            val instanceCreateInfo = calloc(VkInstanceCreateInfo::calloc) {
                 sType(VK12.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
                 pNext(debugCreateInfo.address())
                 flags(0)
@@ -49,7 +49,6 @@ class Instance() {
 
             val pInstance = allocatePointer(1)
             VK12.vkCreateInstance(instanceCreateInfo, null, pInstance)
-            debugCreateInfo.free()
             return@runMemorySafe VkInstance(pInstance.get(0), instanceCreateInfo)
         }
 

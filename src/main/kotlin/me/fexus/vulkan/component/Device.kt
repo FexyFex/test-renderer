@@ -26,7 +26,7 @@ class Device {
         queueFamilies: List<QueueFamily>
     ): Device {
         this.vkHandle = runMemorySafe {
-            val queueCreateInfos = calloc<VkDeviceQueueCreateInfo, VkDeviceQueueCreateInfo.Buffer>(queueFamilies.size)
+            val queueCreateInfos = calloc(VkDeviceQueueCreateInfo::calloc, queueFamilies.size)
             queueFamilies.forEachIndexed { index, queueFamily ->
                 val pQueuePriority = allocateFloat(1)
                 pQueuePriority.put(0, 1f)
@@ -48,24 +48,24 @@ class Device {
                 ppEnabledExtensions.put(index, allocateString(deviceExtension.name))
             }
 
-            val deviceFeatures = calloc<VkPhysicalDeviceFeatures>() {
+            val deviceFeatures = calloc(VkPhysicalDeviceFeatures::calloc) {
                 samplerAnisotropy(true)
                 sampleRateShading(true)
                 multiDrawIndirect(true)
             }
 
-            val dynamicRenderingFeatures = calloc<VkPhysicalDeviceDynamicRenderingFeatures>() {
+            val dynamicRenderingFeatures = calloc(VkPhysicalDeviceDynamicRenderingFeatures::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES)
                 dynamicRendering(true)
             }
 
-            val descriptorBufferFeatures = calloc<VkPhysicalDeviceDescriptorBufferFeaturesEXT>() {
+            val descriptorBufferFeatures = calloc(VkPhysicalDeviceDescriptorBufferFeaturesEXT::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT)
                 pNext(dynamicRenderingFeatures.address())
                 descriptorBuffer(true)
             }
 
-            val deviceCreateInfo = calloc<VkDeviceCreateInfo>() {
+            val deviceCreateInfo = calloc(VkDeviceCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
                 pNext(dynamicRenderingFeatures.address())
                 flags(0)

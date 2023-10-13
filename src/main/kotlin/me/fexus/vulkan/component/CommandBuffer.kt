@@ -12,7 +12,7 @@ class CommandBuffer {
 
     fun create(device: Device, commandPool: CommandPool, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): CommandBuffer {
         this.vkHandle = runMemorySafe {
-            val cmdBufAllocInfo = calloc<VkCommandBufferAllocateInfo>() {
+            val cmdBufAllocInfo = calloc(VkCommandBufferAllocateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
                 pNext(0)
                 commandBufferCount(1)

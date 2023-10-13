@@ -42,8 +42,6 @@ import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_K
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.cos
-import kotlin.math.sin
 
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
@@ -133,7 +131,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
-            val copyRegion = calloc<VkBufferCopy, VkBufferCopy.Buffer>(1)
+            val copyRegion = calloc(VkBufferCopy::calloc, 1)
             copyRegion[0]
                 .srcOffset(0)
                 .dstOffset(0)
@@ -168,7 +166,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
-            val copyRegion = calloc<VkBufferCopy, VkBufferCopy.Buffer>(1)
+            val copyRegion = calloc(VkBufferCopy::calloc, 1)
             copyRegion[0]
                 .srcOffset(0)
                 .dstOffset(0)
@@ -201,7 +199,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             val offset = ((z * EXTENT * EXTENT) + (y * EXTENT) + x) * Int.SIZE_BYTES
             val sum = x + y + z
             var block = if (sum < EXTENT / 2 || sum >= (EXTENT * 2)) 1 else 0
-            if (x == 2 && y == 3 && z == 4) block = 1;
+            if (x == 2 && y == 3 && z == 4) block = 1
             blockBuffoon.putInt(offset, block)
         }
         this.blockBuffer.put(device, blockBuffoon, 0)
@@ -288,7 +286,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
 
-        val cmdBeginInfo = calloc<VkCommandBufferBeginInfo>() {
+        val cmdBeginInfo = calloc(VkCommandBufferBeginInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
             pNext(0)
             flags(0)
@@ -299,7 +297,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val swapchainImage = swapchain.images[preparation.imageIndex]
         val swapchainImageView = swapchain.imageViews[preparation.imageIndex]
 
-        val clearValueColor = calloc<VkClearValue> {
+        val clearValueColor = calloc(VkClearValue::calloc) {
             color()
                 .float32(0, 0.5f)
                 .float32(1, 0.2f)
@@ -307,7 +305,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 .float32(3, 1.0f)
         }
 
-        val clearValueDepth = calloc<VkClearValue> {
+        val clearValueDepth = calloc(VkClearValue::calloc) {
             color()
                 .float32(0, 0f)
                 .float32(1, 0f)
@@ -315,7 +313,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 .float32(3, 0f)
         }
 
-        val defaultColorAttachment = calloc<VkRenderingAttachmentInfoKHR, VkRenderingAttachmentInfoKHR.Buffer>(1)
+        val defaultColorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
         defaultColorAttachment[0]
             .sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             .pNext(0)
@@ -328,7 +326,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             .clearValue(clearValueColor)
             .imageView(swapchainImageView)
 
-        val defaultDepthAttachment = calloc<VkRenderingAttachmentInfoKHR>() {
+        val defaultDepthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             pNext(0)
             imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
@@ -341,11 +339,11 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             imageView(depthAttachment.vkImageViewHandle)
         }
 
-        val renderArea = calloc<VkRect2D>() {
+        val renderArea = calloc(VkRect2D::calloc) {
             extent().width(width).height(height)
         }
 
-        val defaultRendering = calloc<VkRenderingInfoKHR>() {
+        val defaultRendering = calloc(VkRenderingInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
             pNext(0)
             flags(0)
@@ -359,7 +357,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
-        val swapToRenderingBarrier = calloc<VkImageMemoryBarrier, VkImageMemoryBarrier.Buffer>(1)
+        val swapToRenderingBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToRenderingBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             pNext(0)
@@ -386,10 +384,10 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
-            val viewport = calloc<VkViewport, VkViewport.Buffer>(1)
+            val viewport = calloc(VkViewport::calloc, 1)
             viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 1f, 0f)
 
-            val scissor = calloc<VkRect2D, VkRect2D.Buffer>(1)
+            val scissor = calloc(VkRect2D::calloc, 1)
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
 
@@ -430,7 +428,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
         // Transition Swapchain Image Layouts:
-        val swapToPresentBarrier = calloc<VkImageMemoryBarrier, VkImageMemoryBarrier.Buffer>(1)
+        val swapToPresentBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToPresentBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             pNext(0)

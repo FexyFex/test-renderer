@@ -15,7 +15,7 @@ interface DescriptorFactory {
 
     fun findMemoryTypeIndex(typeBits: Int, memProps: MemoryProperties): Int {
         return OffHeapSafeAllocator.runMemorySafe {
-            val deviceMemProps = calloc<VkPhysicalDeviceMemoryProperties>()
+            val deviceMemProps = calloc(VkPhysicalDeviceMemoryProperties::calloc)
             VK12.vkGetPhysicalDeviceMemoryProperties(physicalDevice.vkHandle, deviceMemProps)
 
             for (i in 0 until deviceMemProps.memoryTypeCount()) {

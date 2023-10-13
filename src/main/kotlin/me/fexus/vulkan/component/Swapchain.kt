@@ -32,7 +32,7 @@ class Swapchain {
     ): Swapchain {
         this.vkHandle = runMemorySafe {
             // Capabilities
-            val capabilities = calloc<VkSurfaceCapabilitiesKHR>()
+            val capabilities = calloc(VkSurfaceCapabilitiesKHR::calloc)
             vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice.vkHandle, surface.vkHandle, capabilities).catchVK()
 
             // Formats
@@ -40,7 +40,7 @@ class Swapchain {
             vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.vkHandle, surface.vkHandle, pFormatCount, null).catchVK()
             val formatCount = pFormatCount[0]
             if (formatCount <= 0) throw Exception()
-            val formats = calloc<VkSurfaceFormatKHR, VkSurfaceFormatKHR.Buffer>(formatCount)
+            val formats = calloc(VkSurfaceFormatKHR::calloc, formatCount)
             vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.vkHandle, surface.vkHandle, pFormatCount, formats).catchVK()
             val surfaceFormat = chooseSurfaceFormat(formats)
             this@Swapchain.imageFormat = ImageColorFormat.values().first { it.vkValue == surfaceFormat.format() }
@@ -74,14 +74,14 @@ class Swapchain {
             else
                 capabilities.currentTransform()
 
-            val swapchainCreateInfo = calloc<VkSwapchainCreateInfoKHR>() {
+            val swapchainCreateInfo = calloc(VkSwapchainCreateInfoKHR::calloc) {
                 sType(VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
                 pNext(0)
                 flags(0)
                 minImageCount(imagesTotal)
                 imageFormat(surfaceFormat.format())
                 imageColorSpace(surfaceFormat.colorSpace())
-                imageExtent(calloc<VkExtent2D> { width(imageExtent.width); height(imageExtent.height) })
+                imageExtent(calloc(VkExtent2D::calloc) { width(imageExtent.width); height(imageExtent.height) })
                 imageArrayLayers(1)
                 imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
                 imageSharingMode(imageSharingMode)
@@ -140,7 +140,7 @@ class Swapchain {
             val image = pImages[it]
             this@Swapchain.images[it] = image
 
-            val imageViewCreateInfo = calloc<VkImageViewCreateInfo>() {
+            val imageViewCreateInfo = calloc(VkImageViewCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 pNext(0)
                 image(image)

@@ -16,8 +16,8 @@ import kotlin.reflect.KTypeParameter
 
 class OffHeapSafeAllocator private constructor(
     private val offHeapBuffersAddresses: MutableList<Long>,
-    val vkStructs: MutableList<Struct>,
-    val vkStructBuffers: MutableList<StructBuffer<*,*>>
+    private val vkStructs: MutableList<Struct>,
+    private val vkStructBuffers: MutableList<StructBuffer<*,*>>
 ) {
     fun allocate(size: Int): ByteBuffer {
         val buf = MemoryUtil.memAlloc(size)
@@ -61,26 +61,18 @@ class OffHeapSafeAllocator private constructor(
         return buf
     }
 
-    inline fun <reified S: Struct> calloc(configure: S.() -> Unit = {}): S {
-        val cl = S::class
-        val callocFun = cl.members.first { it.name == "calloc" && it.parameters.isEmpty() }
-        val struct: S = callocFun.call() as S
+    fun <S: Struct> calloc(callocFun: () -> S, configure: S.() -> Unit = {}): S {
+        val struct: S = callocFun()
         struct.configure()
         vkStructs.add(struct)
         return struct
     }
 
-    inline fun <reified S: Struct, C> calloc(count: Int): C {
-        val cl = S::class
-        val callocFun = cl.members.first {
-            val paramName = it.parameters.firstOrNull()?.type.toString()
-            it.name == "calloc" && it.parameters.size == 1 && paramName == "kotlin.Int"
-        }
-        val structBuffer = callocFun.call(count) as StructBuffer<*, *>
+    fun <B: StructBuffer<*,*>> calloc(callocFun: (Int) -> B, count: Int): B {
+        val structBuffer = callocFun(count)
         vkStructBuffers.add(structBuffer)
-        return structBuffer as C
+        return structBuffer
     }
-
 
     companion object {
         @OptIn(ExperimentalContracts::class)

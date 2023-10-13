@@ -10,7 +10,7 @@ class CommandPool {
 
     fun create(device: Device, queueFamily: QueueFamily) {
         this.vkHandle = runMemorySafe {
-            val poolCreateInfo = calloc<VkCommandPoolCreateInfo>() {
+            val poolCreateInfo = calloc(VkCommandPoolCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
                 pNext(0)
                 flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)

@@ -22,7 +22,7 @@ class GraphicsPipeline {
         this@GraphicsPipeline.vkVertShaderModuleHandle = createShaderModule(device, config.vertShaderCode)
         this@GraphicsPipeline.vkFragShaderModuleHandle = createShaderModule(device, config.fragShaderCode)
 
-        val pushConstantRange = calloc<VkPushConstantRange, VkPushConstantRange.Buffer>(1)
+        val pushConstantRange = calloc(VkPushConstantRange::calloc, 1)
         pushConstantRange[0]
             .size(config.pushConstantsLayout.size)
             .offset(config.pushConstantsLayout.offset)
@@ -31,7 +31,7 @@ class GraphicsPipeline {
         val pSetLayout = allocateLong(1)
         pSetLayout.put(0, setLayout.vkHandle) // TODO: descriptor set layout
 
-        val pipelineLayoutInfo = calloc<VkPipelineLayoutCreateInfo>() {
+        val pipelineLayoutInfo = calloc(VkPipelineLayoutCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
             pNext(0)
             flags(0)
@@ -43,13 +43,13 @@ class GraphicsPipeline {
         vkCreatePipelineLayout(device.vkHandle, pipelineLayoutInfo, null, pPipelineLayoutHandle)
         this@GraphicsPipeline.vkLayoutHandle = pPipelineLayoutHandle[0]
 
-        val vertexBindingDescription = calloc<VkVertexInputBindingDescription, VkVertexInputBindingDescription.Buffer>(1)
+        val vertexBindingDescription = calloc(VkVertexInputBindingDescription::calloc,1)
         vertexBindingDescription[0]
             .binding(0)
             .stride(config.vertexStride)
             .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
 
-        val vertexAttributeDescription = calloc<VkVertexInputAttributeDescription, VkVertexInputAttributeDescription.Buffer>(config.vertexAttributes.size)
+        val vertexAttributeDescription = calloc(VkVertexInputAttributeDescription::calloc, config.vertexAttributes.size)
         config.vertexAttributes.forEachIndexed { index, vertexAttribute ->
             vertexAttributeDescription[index]
                 .binding(0)
@@ -58,7 +58,7 @@ class GraphicsPipeline {
                 .offset(vertexAttribute.offset)
         }
 
-        val specMap = calloc<VkSpecializationMapEntry, VkSpecializationMapEntry.Buffer>(config.specializationConstants.size)
+        val specMap = calloc(VkSpecializationMapEntry::calloc, config.specializationConstants.size)
         val pSpecData = allocate(config.specializationConstants.size * 4)
         config.specializationConstants.forEachIndexed { index, specConst ->
             specMap[index].constantID(specConst.id).size(4L).offset(index * 4)
@@ -69,12 +69,12 @@ class GraphicsPipeline {
             }
         }
 
-        val specInfo = calloc<VkSpecializationInfo>() {
+        val specInfo = calloc(VkSpecializationInfo::calloc) {
             pMapEntries(specMap)
             pData(pSpecData)
         }
 
-        val shaderStages = calloc<VkPipelineShaderStageCreateInfo, VkPipelineShaderStageCreateInfo.Buffer>(2)
+        val shaderStages = calloc(VkPipelineShaderStageCreateInfo::calloc, 2)
         shaderStages[0]
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
             .pNext(0)
@@ -90,14 +90,14 @@ class GraphicsPipeline {
             .pName(MemoryUtil.memUTF8("main"))
             .pSpecializationInfo(specInfo)
 
-        val vertexInputInfo = calloc<VkPipelineVertexInputStateCreateInfo>() {
+        val vertexInputInfo = calloc(VkPipelineVertexInputStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
             pNext(0)
             pVertexBindingDescriptions(vertexBindingDescription)
             pVertexAttributeDescriptions(vertexAttributeDescription)
         }
 
-        val inputAssembly = calloc<VkPipelineInputAssemblyStateCreateInfo>() {
+        val inputAssembly = calloc(VkPipelineInputAssemblyStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
             pNext(0)
             topology(config.primitive.vkValue)
@@ -105,17 +105,17 @@ class GraphicsPipeline {
         }
 
         // Dynamic states cover viewport and scissors so no there is need to give them any serious values
-        val viewport = calloc<VkViewport, VkViewport.Buffer>(1)
+        val viewport = calloc(VkViewport::calloc, 1)
         viewport[0]
             .x(0f).y(0f)
             .width(1f).height(1f)
             .minDepth(1f).maxDepth(0f)
 
-        val scissors = calloc<VkRect2D, VkRect2D.Buffer>(1)
+        val scissors = calloc(VkRect2D::calloc, 1)
         scissors[0].offset().x(0).y(0)
         scissors[0].extent().width(1).height(1)
 
-        val viewportState = calloc<VkPipelineViewportStateCreateInfo>() {
+        val viewportState = calloc(VkPipelineViewportStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
             pNext(0)
             viewportCount(1)
@@ -125,7 +125,7 @@ class GraphicsPipeline {
             flags(0)
         }
 
-        val rasterizer = calloc<VkPipelineRasterizationStateCreateInfo>() {
+        val rasterizer = calloc(VkPipelineRasterizationStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
             pNext(0)
             depthClampEnable(false)
@@ -140,7 +140,7 @@ class GraphicsPipeline {
             depthBiasSlopeFactor(0.0f)
         }
 
-        val multisampling = calloc<VkPipelineMultisampleStateCreateInfo>() {
+        val multisampling = calloc(VkPipelineMultisampleStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
             pNext(0)
             sampleShadingEnable(true)
@@ -151,7 +151,7 @@ class GraphicsPipeline {
             rasterizationSamples(config.multisampling)
         }
 
-        val colorBlendAttachment = calloc<VkPipelineColorBlendAttachmentState, VkPipelineColorBlendAttachmentState.Buffer>(1)
+        val colorBlendAttachment = calloc(VkPipelineColorBlendAttachmentState::calloc, 1)
         colorBlendAttachment[0]
             .colorWriteMask(0xF) // RGBA
             .blendEnable(config.blendEnable)
@@ -162,7 +162,7 @@ class GraphicsPipeline {
             .dstAlphaBlendFactor(VK_BLEND_FACTOR_ZERO)
             .alphaBlendOp(VK_BLEND_OP_ADD)
 
-        val colorBlending = calloc<VkPipelineColorBlendStateCreateInfo>() {
+        val colorBlending = calloc(VkPipelineColorBlendStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             pNext(0)
             logicOpEnable(false)
@@ -174,7 +174,7 @@ class GraphicsPipeline {
             blendConstants(3, 0f)
         }
 
-        val depthStencil = calloc<VkPipelineDepthStencilStateCreateInfo>() {
+        val depthStencil = calloc(VkPipelineDepthStencilStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
             pNext(0)
             depthTestEnable(config.depthTest)
@@ -191,7 +191,7 @@ class GraphicsPipeline {
             pDynamicStates.put(index, dynamicState.vkValue)
         }
 
-        val dynamicState = calloc<VkPipelineDynamicStateCreateInfo>() {
+        val dynamicState = calloc(VkPipelineDynamicStateCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
             pNext(0)
             flags(0)
@@ -201,7 +201,7 @@ class GraphicsPipeline {
         val pColorAttachmentFormats = allocateInt(1)
         pColorAttachmentFormats.put(0, VK_FORMAT_B8G8R8A8_SRGB)
 
-        val renderingInfo = calloc<VkPipelineRenderingCreateInfoKHR>() {
+        val renderingInfo = calloc(VkPipelineRenderingCreateInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR)
             pNext(0)
             viewMask(0)
@@ -211,7 +211,7 @@ class GraphicsPipeline {
             stencilAttachmentFormat(VK_FORMAT_UNDEFINED)
         }
 
-        val pipelineInfo = calloc<VkGraphicsPipelineCreateInfo, VkGraphicsPipelineCreateInfo.Buffer>(1)
+        val pipelineInfo = calloc(VkGraphicsPipelineCreateInfo::calloc, 1)
         pipelineInfo[0]
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
             .pNext(renderingInfo.address())
@@ -240,7 +240,7 @@ class GraphicsPipeline {
         val pCode = allocate(shaderCode.size)
         shaderCode.forEachIndexed { index, byte -> pCode.put(index, byte) }
 
-        val moduleCreateInfo = calloc<VkShaderModuleCreateInfo>() {
+        val moduleCreateInfo = calloc(VkShaderModuleCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
             pNext(0)
             pCode(pCode)

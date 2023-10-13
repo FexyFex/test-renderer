@@ -13,7 +13,7 @@ class DescriptorSetLayout {
     var vkHandle: Long = 0L; private set
 
     fun create(device: Device, plan: DescriptorSetLayoutPlan) = runMemorySafe {
-        val layoutBindings = calloc<VkDescriptorSetLayoutBinding, VkDescriptorSetLayoutBinding.Buffer>(plan.bindings.size)
+        val layoutBindings = calloc(VkDescriptorSetLayoutBinding::calloc, plan.bindings.size)
         plan.bindings.forEachIndexed { index, binding ->
             layoutBindings[index]
                 .binding(binding.dstBinding)
@@ -28,14 +28,14 @@ class DescriptorSetLayout {
             pBindingFlags.put(index, binding.flags.vkBits)
         }
 
-        val bindingFlags = calloc<VkDescriptorSetLayoutBindingFlagsCreateInfo>() {
+        val bindingFlags = calloc(VkDescriptorSetLayoutBindingFlagsCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO)
             pNext(0)
             bindingCount(plan.bindings.size)
             pBindingFlags(pBindingFlags)
         }
 
-        val layoutCreateInfo = calloc<VkDescriptorSetLayoutCreateInfo>() {
+        val layoutCreateInfo = calloc(VkDescriptorSetLayoutCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
             pNext(bindingFlags.address())
             pBindings(layoutBindings)

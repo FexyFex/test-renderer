@@ -145,7 +145,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
                 pWaitStages.put(index + 1, waitStage.vkBits)
             }
 
-            val submitInfo = calloc<VkSubmitInfo>() {
+            val submitInfo = calloc(VkSubmitInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 pNext(0)
                 waitSemaphoreCount(pWaitSemaphores.capacity())
@@ -163,7 +163,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             val pSwapchains = allocateLong(1)
             pSwapchains.put(0, swapchain.vkHandle)
 
-            val presentInfo = calloc<VkPresentInfoKHR>() {
+            val presentInfo = calloc(VkPresentInfoKHR::calloc) {
                 sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
                 pNext(0)
                 pWaitSemaphores(pSignalSemaphores)
@@ -218,7 +218,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             vkGetPhysicalDeviceQueueFamilyProperties(core.physicalDevice.vkHandle, pQueueFamilyCount, null)
             val queueFamilyCount = pQueueFamilyCount[0]
 
-            val pQueueFamilies = calloc<VkQueueFamilyProperties, VkQueueFamilyProperties.Buffer>(queueFamilyCount)
+            val pQueueFamilies = calloc(VkQueueFamilyProperties::calloc, queueFamilyCount)
             vkGetPhysicalDeviceQueueFamilyProperties(core.physicalDevice.vkHandle, pQueueFamilyCount, pQueueFamilies)
 
             for (i in 0 until queueFamilyCount) {
@@ -250,7 +250,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected fun beginSingleTimeCommandBuffer(): CommandBuffer = runMemorySafe {
         val cmdBuf = CommandBuffer().create(device, commandPool)
 
-        val beginInfo = calloc<VkCommandBufferBeginInfo>() {
+        val beginInfo = calloc(VkCommandBufferBeginInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
             pNext(0)
             flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
@@ -268,7 +268,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         val pCommandBuffers = allocatePointer(1)
         pCommandBuffers.put(0, cmdBuf.vkHandle)
 
-        val submitInfo = calloc<VkSubmitInfo>() {
+        val submitInfo = calloc(VkSubmitInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             pNext(0)
             pCommandBuffers(pCommandBuffers)

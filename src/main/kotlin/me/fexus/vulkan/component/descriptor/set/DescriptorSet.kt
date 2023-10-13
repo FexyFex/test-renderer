@@ -23,7 +23,7 @@ class DescriptorSet {
         val pSetLayouts = allocateLong(1)
         pSetLayouts.put(0, layout.vkHandle)
 
-        val descAllocInfo = calloc<VkDescriptorSetAllocateInfo>() {
+        val descAllocInfo = calloc(VkDescriptorSetAllocateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
             pNext(0)
             descriptorPool(pool.vkHandle)

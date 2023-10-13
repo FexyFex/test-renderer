@@ -29,7 +29,7 @@ class VulkanImageFactory: DescriptorFactory {
      */
     fun createImage(preferredLayout: VulkanImageLayout): VulkanImage {
         val image = runMemorySafe {
-            val imageInfo = calloc<VkImageCreateInfo>() {
+            val imageInfo = calloc(VkImageCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
                 pNext(0)
                 imageType(preferredLayout.imageType.vkValue)
@@ -51,11 +51,11 @@ class VulkanImageFactory: DescriptorFactory {
             vkCreateImage(device.vkHandle, imageInfo, null, pImageHandle).catchVK()
             val imageHandle = pImageHandle[0]
 
-            val memRequirements = calloc<VkMemoryRequirements>()
+            val memRequirements = calloc(VkMemoryRequirements::calloc)
             vkGetImageMemoryRequirements(device.vkHandle, imageHandle, memRequirements)
             val memoryTypeIndex = findMemoryTypeIndex(memRequirements.memoryTypeBits(), preferredLayout.memoryProperties)
 
-            val allocInfo = calloc<VkMemoryAllocateInfo>() {
+            val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
                 pNext(0)
                 allocationSize(memRequirements.size())
@@ -68,7 +68,7 @@ class VulkanImageFactory: DescriptorFactory {
 
             vkBindImageMemory(device.vkHandle, imageHandle, imageMemoryHandle, 0)
 
-            val viewInfo = calloc<VkImageViewCreateInfo>() {
+            val viewInfo = calloc(VkImageViewCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 pNext(0)
                 image(imageHandle)
@@ -107,7 +107,7 @@ class VulkanImageFactory: DescriptorFactory {
     }
 
     fun createSampler(layout: VulkanSamplerLayout): VulkanSampler = runMemorySafe{
-        val createInfo = calloc<VkSamplerCreateInfo>() {
+        val createInfo = calloc(VkSamplerCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             pNext(0)
             flags(0)

@@ -129,7 +129,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
-            val copyRegion = calloc<VkBufferCopy, VkBufferCopy.Buffer>(1)
+            val copyRegion = calloc(VkBufferCopy::calloc, 1)
             copyRegion[0]
                 .srcOffset(0)
                 .dstOffset(0)
@@ -171,14 +171,14 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
-            val subResourceRange = calloc<VkImageSubresourceRange>() {
+            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
                 aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                 baseMipLevel(0)
                 levelCount(1)
                 baseArrayLayer(0)
                 layerCount(3)
             }
-            val imageBarrier = calloc<VkImageMemoryBarrier, VkImageMemoryBarrier.Buffer>(1)
+            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
             imageBarrier[0]
                 .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                 .pNext(0)
@@ -196,7 +196,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
                 null, null, imageBarrier
             )
 
-            val copyRegions = calloc<VkBufferImageCopy, VkBufferImageCopy.Buffer>(3)
+            val copyRegions = calloc(VkBufferImageCopy::calloc, 3)
             copyRegions[0].bufferOffset(0L)
             copyRegions[0].imageExtent().width(diffTexture.width).height(diffTexture.height).depth(1)
             copyRegions[0].imageOffset().x(0).y(0).z(0)
@@ -324,7 +324,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
 
-        val cmdBeginInfo = calloc<VkCommandBufferBeginInfo>() {
+        val cmdBeginInfo = calloc(VkCommandBufferBeginInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
             pNext(0)
             flags(0)
@@ -335,7 +335,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val swapchainImage = swapchain.images[preparation.imageIndex]
         val swapchainImageView = swapchain.imageViews[preparation.imageIndex]
 
-        val clearValueColor = calloc<VkClearValue> {
+        val clearValueColor = calloc(VkClearValue::calloc) {
             color()
                 .float32(0, 0.5f)
                 .float32(1, 0.2f)
@@ -343,7 +343,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
                 .float32(3, 1.0f)
         }
 
-        val clearValueDepth = calloc<VkClearValue> {
+        val clearValueDepth = calloc(VkClearValue::calloc) {
             color()
                 .float32(0, 0f)
                 .float32(1, 0f)
@@ -351,7 +351,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
                 .float32(3, 0f)
         }
 
-        val defaultColorAttachment = calloc<VkRenderingAttachmentInfoKHR, VkRenderingAttachmentInfoKHR.Buffer>(1)
+        val defaultColorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
         defaultColorAttachment[0]
             .sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             .pNext(0)
@@ -364,7 +364,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             .clearValue(clearValueColor)
             .imageView(swapchainImageView)
 
-        val defaultDepthAttachment = calloc<VkRenderingAttachmentInfoKHR>() {
+        val defaultDepthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             pNext(0)
             imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
@@ -377,11 +377,11 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             imageView(depthAttachment.vkImageViewHandle)
         }
 
-        val renderArea = calloc<VkRect2D>() {
+        val renderArea = calloc(VkRect2D::calloc) {
             extent().width(width).height(height)
         }
 
-        val defaultRendering = calloc<VkRenderingInfoKHR>() {
+        val defaultRendering = calloc(VkRenderingInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
             pNext(0)
             flags(0)
@@ -395,7 +395,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
-        val swapToRenderingBarrier = calloc<VkImageMemoryBarrier, VkImageMemoryBarrier.Buffer>(1)
+        val swapToRenderingBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToRenderingBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             pNext(0)
@@ -422,10 +422,10 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
-            val viewport = calloc<VkViewport, VkViewport.Buffer>(1)
+            val viewport = calloc(VkViewport::calloc, 1)
             viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 1f, 0f)
 
-            val scissor = calloc<VkRect2D, VkRect2D.Buffer>(1)
+            val scissor = calloc(VkRect2D::calloc, 1)
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
 
@@ -456,7 +456,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
         // Transition Swapchain Image Layouts:
-        val swapToPresentBarrier = calloc<VkImageMemoryBarrier, VkImageMemoryBarrier.Buffer>(1)
+        val swapToPresentBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToPresentBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             pNext(0)
