@@ -80,7 +80,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val pipeline = GraphicsPipeline()
     private val pipelineWireframe = GraphicsPipeline()
 
-    private val cubePosition = Vec3(-0.5f, -0.5f, -0.5f)
+    private val cubePosition = Vec3(-0.5f, -0.5f, -0.5f - EXTENT)
 
     private val inputHandler = InputHandler(window)
 
