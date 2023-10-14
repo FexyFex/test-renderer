@@ -20,6 +20,7 @@ layout(push_constant) uniform PushConstants{
     mat4 modelMatrix;
     vec4 viewPos;
     int doWireFrame;
+    int firstBlockIndex;
 };
 
 layout (location = 0) out vec4 outColor;
@@ -27,7 +28,7 @@ layout (location = 0) out vec4 outColor;
 
 int getBlockAt(ivec3 pos) {
     int index = pos.z * EXTENT * EXTENT + pos.y * EXTENT + pos.x;
-    return blockBuffer.blocks[index];
+    return blockBuffer.blocks[index + firstBlockIndex];
 }
 
 float intbound(float s, float ds) {
@@ -165,6 +166,7 @@ void main() {
         else if (faceNormalIndex == 2) outColor *= 0.6;
         else if (faceNormalIndex == 1 && step.y > 0) outColor *= 0.4;
         outColor[3] = 1.0;
+        gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos) + inBounds.min) / 10000.0;
     }
 
     outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);

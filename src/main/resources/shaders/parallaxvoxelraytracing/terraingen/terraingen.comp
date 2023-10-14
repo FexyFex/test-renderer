@@ -1,0 +1,35 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+
+layout (constant_id = 0) const int EXTENT = 8;
+
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+layout (set = 0, binding = 0) buffer SBO { int blocks[]; } blockBuffer;
+
+
+layout(push_constant) uniform PushConstants {
+    ivec3 chunkPos;
+    int firstBlockIndex;
+};
+
+
+float semiRandom(uint seed) {
+    float s = float(seed);
+    float rand = sqrt(s) * pow(s - 1.244343, 0.1234545);
+    return fract(rand * 15.45);
+}
+
+int blockLocalPosToGlobalIndex(ivec3 pos) {
+    return pos.z * EXTENT * EXTENT + pos.y * EXTENT + pos.x + firstBlockIndex;
+}
+
+void main() {
+    uvec3 gID = gl_GlobalInvocationID;
+
+    ivec3 blockLocalPos = ivec3(gID.x, gID.y, gID.z);
+    ivec3 blockPos = blockLocalPos + (chunkPos * EXTENT);
+
+    blockBuffer.blocks[blockLocalPosToGlobalIndex(blockLocalPos)] = int(blockPos.y < 4);
+}

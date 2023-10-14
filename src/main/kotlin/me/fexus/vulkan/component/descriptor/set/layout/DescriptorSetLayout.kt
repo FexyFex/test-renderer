@@ -45,6 +45,8 @@ class DescriptorSetLayout {
         val pDescSetLayoutHandle = allocateLong(1)
         vkCreateDescriptorSetLayout(device.vkHandle, layoutCreateInfo, null, pDescSetLayoutHandle).catchVK()
         this@DescriptorSetLayout.vkHandle = pDescSetLayoutHandle[0]
+
+        return@runMemorySafe this@DescriptorSetLayout
     }
 
     fun destroy(device: Device) {

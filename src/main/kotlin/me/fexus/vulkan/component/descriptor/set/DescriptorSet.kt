@@ -33,6 +33,8 @@ class DescriptorSet {
         val pDescriptorSetHandle = allocateLong(1)
         vkAllocateDescriptorSets(device.vkHandle, descAllocInfo, pDescriptorSetHandle).catchVK()
         this@DescriptorSet.vkHandle = pDescriptorSetHandle[0]
+
+        return@runMemorySafe this@DescriptorSet
     }
 
     fun update(device: Device, vararg descriptorWrites: DescriptorWrite) = update(device, descriptorWrites.toList())

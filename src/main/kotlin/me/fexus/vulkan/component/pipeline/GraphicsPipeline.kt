@@ -11,11 +11,11 @@ import org.lwjgl.vulkan.KHRDynamicRendering.VK_STRUCTURE_TYPE_PIPELINE_RENDERING
 import org.lwjgl.vulkan.VK12.*
 
 
-class GraphicsPipeline {
+class GraphicsPipeline: IPipeline {
     private var vkVertShaderModuleHandle: Long = 0L
     private var vkFragShaderModuleHandle: Long = 0L
-    var vkLayoutHandle: Long = 0L; private set
-    var vkHandle: Long = 0L; private set
+    override var vkLayoutHandle: Long = 0L; private set
+    override var vkHandle: Long = 0L; private set
 
 
     fun create(device: Device, setLayout: DescriptorSetLayout, config: GraphicsPipelineConfiguration) = runMemorySafe {
@@ -234,22 +234,6 @@ class GraphicsPipeline {
         val pPipelineHandle = allocateLong(1)
         vkCreateGraphicsPipelines(device.vkHandle, 0, pipelineInfo, null, pPipelineHandle)
         this@GraphicsPipeline.vkHandle = pPipelineHandle[0]
-    }
-
-    private fun createShaderModule(device: Device, shaderCode: ByteArray): Long = runMemorySafe {
-        val pCode = allocate(shaderCode.size)
-        shaderCode.forEachIndexed { index, byte -> pCode.put(index, byte) }
-
-        val moduleCreateInfo = calloc(VkShaderModuleCreateInfo::calloc) {
-            sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
-            pNext(0)
-            pCode(pCode)
-            flags(0)
-        }
-
-        val pShaderModule = allocateLong(1)
-        vkCreateShaderModule(device.vkHandle, moduleCreateInfo, null, pShaderModule)
-        return@runMemorySafe pShaderModule[0]
     }
 
     fun destroy(device: Device) {

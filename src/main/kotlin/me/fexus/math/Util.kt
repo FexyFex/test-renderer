@@ -6,7 +6,7 @@ import kotlin.math.sqrt
 fun inverseSqrt(value: Double) = 1.0 / sqrt(value)
 fun inverseSqrt(value: Float) = 1f / sqrt(value)
 
-fun repeatSqaued(times: Int, block: (x: Int, y: Int) -> Unit) {
+fun repeatSquared(times: Int, block: (x: Int, y: Int) -> Unit) {
     for (x in 0 until times) {
         for (y in 0 until times) {
             block(x,y)

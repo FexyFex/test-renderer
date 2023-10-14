@@ -2,7 +2,8 @@ package me.fexus.examples.parallaxvoxelraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.math.mat.Mat4
-import me.fexus.math.repeatCubed
+import me.fexus.math.repeatSquared
+import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.texture.TextureLoader
@@ -54,13 +55,15 @@ import java.nio.ByteOrder
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
         private const val EXTENT = 8
+        private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
+        private const val RENDER_DISTANCE = 4
 
         @JvmStatic
         fun main(args: Array<String>) {
             ParallaxVoxelRaytracing().start()
         }
 
-        private fun createWindow() = Window("Parallax Mapping") {
+        private fun createWindow() = Window("Parallax Voxel Raytracing") {
             windowVisible()
             enableResizable()
             setInitialWindowSize(1067,600)
@@ -102,6 +105,16 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun initObjects() {
         camera.position = Vec3(0f, 0f, -5f)
+
+        val poolPlan = DescriptorPoolPlan(
+            10, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 1),
+                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 1),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 1),
+                DescriptorPoolSize(DescriptorType.SAMPLER, 1)
+            )
+        )
+        this.descriptorPool.create(device, poolPlan)
 
         val depthAttachmentImageLayout = VulkanImageLayout(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
@@ -195,23 +208,61 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
 
         // -- BLOCK BUFFER --
-        val blockBufferSize = EXTENT * EXTENT * EXTENT * Int.SIZE_BYTES
+        val blockBufferSize = (BLOCKS_PER_CHUNK * Int.SIZE_BYTES) * (RENDER_DISTANCE * 2)
         val blockBufferLayout = VulkanBufferLayout(
             blockBufferSize.toLong(),
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
             BufferUsage.STORAGE_BUFFER
         )
         this.blockBuffer = bufferFactory.createBuffer(blockBufferLayout)
-        val blockBuffoon = ByteBuffer.allocate(blockBufferSize)
-        blockBuffoon.order(ByteOrder.LITTLE_ENDIAN)
-        repeatCubed(EXTENT) { x, y, z ->
-            val offset = ((z * EXTENT * EXTENT) + (y * EXTENT) + x) * Int.SIZE_BYTES
-            val sum = x + y + z
-            var block = if (sum < EXTENT / 2 || sum >= (EXTENT * 2)) 1 else 0
-            if (x == 2 && y == 3 && z == 4) block = 1
-            blockBuffoon.putInt(offset, block)
+
+        val computeDescPlan = DescriptorSetLayoutPlan (
+            DescriptorSetLayoutCreateFlag.NONE,
+            listOf(
+                DescriptorSetLayoutBinding(0, 1, DescriptorType.STORAGE_BUFFER, ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.NONE)
+            )
+        )
+        val descSetLayoutCompute = DescriptorSetLayout().create(device, computeDescPlan)
+        val descSetCompute = DescriptorSet().create(device, descriptorPool, descSetLayoutCompute)
+        val shaderCode = ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/terraingen/comp.spv").readBytes()
+        val computeConfig = ComputePipelineConfiguration(shaderCode, listOf(SpecializationConstantInt(0, EXTENT)))
+        val compPipleine = ComputePipeline().create(device, descSetLayoutCompute, computeConfig)
+
+        val bufferWrite = DescriptorBufferWrite(
+            0, DescriptorType.STORAGE_BUFFER, 1, descSetCompute, 0,
+            listOf(DescriptorBufferInfo(blockBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+        descSetCompute.update(device, bufferWrite)
+
+        runMemorySafe {
+            val cmdBuf = beginSingleTimeCommandBuffer()
+
+            var chunkIndex = 0
+            val dispatchGroupSize = EXTENT / 4
+            val bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE
+            val pPushConst = allocate(128)
+
+            val pDescSets = allocateLong(1)
+            pDescSets.put(0, descSetCompute.vkHandle)
+            vkCmdBindDescriptorSets(cmdBuf.vkHandle, bindPoint, compPipleine.vkLayoutHandle, 0, pDescSets, null)
+            vkCmdBindPipeline(cmdBuf.vkHandle, bindPoint, compPipleine.vkHandle)
+
+            repeatSquared(RENDER_DISTANCE) { x, z ->
+                val chunkPos = IVec3(x, 0, z)
+
+                pPushConst.putInt(0, chunkPos.x)
+                pPushConst.putInt(4, chunkPos.y)
+                pPushConst.putInt(8, chunkPos.z)
+                pPushConst.putInt(12, chunkIndex++ * BLOCKS_PER_CHUNK)
+
+                vkCmdPushConstants(cmdBuf.vkHandle, compPipleine.vkLayoutHandle, VK_SHADER_STAGE_COMPUTE_BIT, 0, pPushConst)
+                vkCmdDispatch(cmdBuf.vkHandle, dispatchGroupSize, dispatchGroupSize, dispatchGroupSize)
+            }
+
+            endSingleTimeCommandBuffer(cmdBuf)
         }
-        this.blockBuffer.put(device, blockBuffoon, 0)
+        descSetLayoutCompute.destroy(device)
+        compPipleine.destroy(device)
         // -- BLOCK BUFFER --
 
         val cobbleTex = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
@@ -293,16 +344,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this.sampler = imageFactory.createSampler(samplerLayout)
 
         // Descriptor Sets and Pipeline
-        val poolPlan = DescriptorPoolPlan(
-            FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 1),
-                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 1),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 1),
-                DescriptorPoolSize(DescriptorType.SAMPLER, 1)
-            )
-        )
-        this.descriptorPool.create(device, poolPlan)
-
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE, listOf(
                 DescriptorSetLayoutBinding(0, 1, DescriptorType.UNIFORM_BUFFER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
@@ -323,8 +364,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 VertexAttribute(2, VertexAttributeFormat.VEC4, 32)
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
@@ -338,8 +379,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 VertexAttribute(2, VertexAttributeFormat.VEC4, 32),
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.LINES, cullMode = CullMode.NONE
@@ -492,35 +533,60 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             pDescriptorSets.put(0, descriptorSet.vkHandle)
 
             val pVertexBuffers = allocateLong(1)
-            pVertexBuffers.put(0, vertexBuffer.vkBufferHandle)
             val pOffsets = allocateLong(1)
             pOffsets.put(0, 0L)
 
-            val pPushConstants = allocate(128)
-            val mat = Mat4(1f).translate(cubePosition).scale(Vec3(EXTENT.toFloat()))
-            mat.toByteBuffer(pPushConstants, 0)
-            (-camera.position).toByteBuffer(pPushConstants, 64)
-            pPushConstants.putInt(80, 0)
-
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 
-            // parallax voxel rendering
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
-            vkCmdBindDescriptorSets(commandBuffer.vkHandle, bindPoint, pipeline.vkLayoutHandle, 0, pDescriptorSets, null)
-            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
-            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-            vkCmdPushConstants(commandBuffer.vkHandle, pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
-            vkCmdDraw(commandBuffer.vkHandle, CubeModel.vertices.size, 1, 0, 0)
 
-            // outline rendering
-            pPushConstants.putInt(80, 1)
-            pVertexBuffers.put(0, vertexBufferWireFrame.vkBufferHandle)
+            vkCmdBindDescriptorSets(
+                commandBuffer.vkHandle,
+                bindPoint,
+                pipeline.vkLayoutHandle,
+                0,
+                pDescriptorSets,
+                null
+            )
 
-            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipelineWireframe.vkHandle)
-            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-            vkCmdPushConstants(commandBuffer.vkHandle, pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
-            vkCmdDraw(commandBuffer.vkHandle, CubeModel.verticesWireframe.size, 1, 0, 0)
+            val pPushConstants = allocate(128)
+            var chunkIndex = 0
+            repeatSquared(RENDER_DISTANCE) { x, z ->
+                val mat = Mat4(1f).translate(cubePosition + Vec3(x * EXTENT, 0, -z * EXTENT)).scale(Vec3(EXTENT.toFloat()))
+                mat.toByteBuffer(pPushConstants, 0)
+                (-camera.position).toByteBuffer(pPushConstants, 64)
+                pPushConstants.putInt(80, 0)
+                pPushConstants.putInt(84, chunkIndex++ * BLOCKS_PER_CHUNK)
+
+                // chunk model
+                vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
+                pVertexBuffers.put(0, vertexBuffer.vkBufferHandle)
+                vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+                vkCmdPushConstants(
+                    commandBuffer.vkHandle,
+                    pipeline.vkLayoutHandle,
+                    ShaderStage.BOTH.vkBits,
+                    0,
+                    pPushConstants
+                )
+                vkCmdDraw(commandBuffer.vkHandle, CubeModel.vertices.size, 1, 0, 0)
+
+                // outline rendering
+                pPushConstants.putInt(80, 1)
+                pVertexBuffers.put(0, vertexBufferWireFrame.vkBufferHandle)
+
+                vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipelineWireframe.vkHandle)
+                vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+                vkCmdPushConstants(
+                    commandBuffer.vkHandle,
+                    pipeline.vkLayoutHandle,
+                    ShaderStage.BOTH.vkBits,
+                    0,
+                    pPushConstants
+                )
+                vkCmdDraw(commandBuffer.vkHandle, CubeModel.verticesWireframe.size, 1, 0, 0)
+            }
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 

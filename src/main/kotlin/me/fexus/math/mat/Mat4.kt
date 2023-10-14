@@ -1,7 +1,7 @@
 package me.fexus.math.mat
 
 import me.fexus.math.inverseSqrt
-import me.fexus.math.repeatSqaued
+import me.fexus.math.repeatSquared
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
 import java.nio.ByteBuffer
@@ -42,7 +42,7 @@ class Mat4(val columns: Array<Vec4>) {
     operator fun get(index: Int) = columns[index]
 
     fun put(other: Mat4) {
-        repeatSqaued(4) { x, y ->
+        repeatSquared(4) { x, y ->
             this.columns[x][y] = other.columns[x][y]
         }
     }
