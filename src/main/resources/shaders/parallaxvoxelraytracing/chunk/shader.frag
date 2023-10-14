@@ -166,7 +166,7 @@ void main() {
         else if (faceNormalIndex == 2) outColor *= 0.6;
         else if (faceNormalIndex == 1 && step.y > 0) outColor *= 0.4;
         outColor[3] = 1.0;
-        gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos) + inBounds.min) / 10000.0;
+        gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos) + inBounds.min) / 2000.0;
     }
 
     outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
