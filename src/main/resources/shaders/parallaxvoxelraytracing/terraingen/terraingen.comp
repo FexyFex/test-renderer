@@ -15,12 +15,6 @@ layout(push_constant) uniform PushConstants {
 };
 
 
-float semiRandom(uint seed) {
-    float s = float(seed);
-    float rand = sqrt(s) * pow(s - 1.244343, 0.1234545);
-    return fract(rand * 15.45);
-}
-
 int blockLocalPosToGlobalIndex(ivec3 pos) {
     return pos.z * EXTENT * EXTENT + pos.y * EXTENT + pos.x + firstBlockIndex;
 }

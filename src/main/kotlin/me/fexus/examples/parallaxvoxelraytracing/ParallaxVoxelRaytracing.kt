@@ -54,7 +54,7 @@ import java.nio.ByteOrder
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 8
+        private const val EXTENT = 16
         private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
         private const val RENDER_DISTANCE = 4
 
@@ -208,7 +208,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
 
         // -- BLOCK BUFFER --
-        val blockBufferSize = (BLOCKS_PER_CHUNK * Int.SIZE_BYTES) * (RENDER_DISTANCE * 2)
+        val blockBufferSize = (BLOCKS_PER_CHUNK * Int.SIZE_BYTES) * (RENDER_DISTANCE * RENDER_DISTANCE)
         val blockBufferLayout = VulkanBufferLayout(
             blockBufferSize.toLong(),
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
@@ -237,7 +237,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
-            var chunkIndex = 0
             val dispatchGroupSize = EXTENT / 4
             val bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE
             val pPushConst = allocate(128)
@@ -247,6 +246,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             vkCmdBindDescriptorSets(cmdBuf.vkHandle, bindPoint, compPipleine.vkLayoutHandle, 0, pDescSets, null)
             vkCmdBindPipeline(cmdBuf.vkHandle, bindPoint, compPipleine.vkHandle)
 
+            var chunkIndex = 0
             repeatSquared(RENDER_DISTANCE) { x, z ->
                 val chunkPos = IVec3(x, 0, z)
 
