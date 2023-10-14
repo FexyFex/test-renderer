@@ -50,7 +50,7 @@ int indexOfMax(vec3 choices) {
 }
 
 vec3 transformPointToLocalCoords(vec3 point) {
-    vec3 boundsSize = (inBounds.max - inBounds.min);
+    vec3 boundsSize = inBounds.max - inBounds.min;
     vec3 progress = (point.xyz - inBounds.min) / boundsSize;
     return vec3(
         mix(0.0, boundsSize.x, progress.x),
@@ -60,22 +60,15 @@ vec3 transformPointToLocalCoords(vec3 point) {
 }
 
 float trueRound(float x) {
-    return floor(x+0.5);
+    return floor(x + 0.5);
 }
 
 void main() {
-    // Based on the fast voxel traversal "Amanatides & Woo" from:
-    // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
-
     if (doWireFrame == 1) {
         outColor = vec4(0.6, 1.0, 0.1, 1.0);
         return;
     }
 
-    // TODO: New logic! Since we will be doing frontface culling, we must calculate the entryPoint by
-    // TODO: finding the intersection between the inBounds box and the ray that is cast from the cam to the inFragPos
-    // TODO: We must also consider the scenario in which the player stands within the cube. The entrypoint would
-    // TODO: be inside of the voxel grid in that case...
     vec3 exitPoint = transformPointToLocalCoords(inFragPos);
 
     vec3 direction = inFragPos.xyz - viewPos.xyz;
@@ -107,7 +100,7 @@ void main() {
 //        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
 //        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
 
-        entryPoint += 0.00001 * sign(direction);
+        entryPoint += 0.0001 * sign(direction);
     }
 
     ivec3 pos = ivec3(floor(entryPoint.x), floor(entryPoint.y), floor(entryPoint.z));
@@ -124,6 +117,8 @@ void main() {
     int block = 0;
     bool wasIn = false;
 
+    // Based on the fast voxel traversal "Amanatides & Woo" from:
+    // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
     while (posIsInBounds(pos)) {
         wasIn = true;
         block = getBlockAt(pos);
@@ -144,4 +139,6 @@ void main() {
         else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.9, 0.5, 1.0);
         else  outColor = vec4(0.5, 0.5, 0.9, 1.0);
     }
+
+    outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
 }

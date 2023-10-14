@@ -34,6 +34,6 @@ void main() {
     outNormal = inNormal.xyz;
 
     vec3 pos = vec3(modelMatrix[3][0], modelMatrix[3][1], modelMatrix[3][2]);
-    outBounds.min = pos + vec3(0.0, 0.0, 0.0);
+    outBounds.min = pos;
     outBounds.max = outBounds.min + EXTENT;
 }
