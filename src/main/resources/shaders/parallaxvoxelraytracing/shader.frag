@@ -142,22 +142,29 @@ void main() {
         if (faceNormalIndex == 0) {
             float t = (pos.x + (step.x - 1) / -2 - entryPoint.x) / direction.x;
             vec3 hitpos = entryPoint + direction * t;
-            texCoords.x = fract(hitpos.y);
-            texCoords.y = fract(hitpos.z);
+            if (step.x < 0) texCoords.x = 1 - fract(hitpos.z);
+            else texCoords.x = fract(hitpos.z);
+            texCoords.y = 1 - fract(hitpos.y);
         }
         else if (faceNormalIndex == 1) {
             float t = (pos.y + (step.y - 1) / -2 - entryPoint.y) / direction.y;
             vec3 hitpos = entryPoint + direction * t;
             texCoords.x = fract(hitpos.x);
-            texCoords.y = fract(hitpos.z);
+            if (step.y < 0) texCoords.y = fract(hitpos.z);
+            else texCoords.y = 1 - fract(hitpos.z);
         }
         else {
             float t = (pos.z + (step.z - 1) / -2 - entryPoint.z) / direction.z;
             vec3 hitpos = entryPoint + direction * t;
-            texCoords.x = fract(hitpos.y);
-            texCoords.y = fract(hitpos.x);
+            if (step.z < 0) texCoords.x = fract(hitpos.x);
+            else texCoords.x = 1 - fract(hitpos.x);
+            texCoords.y = 1 - fract(hitpos.y);
         }
         outColor = texture(sampler2D(cobbleTex, sampleroni), texCoords, 1.0);
+        if (faceNormalIndex == 0) outColor *= 0.8;
+        else if (faceNormalIndex == 2) outColor *= 0.6;
+        else if (faceNormalIndex == 1 && step.y > 0) outColor *= 0.4;
+        outColor[3] = 1.0;
     }
 
     outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
