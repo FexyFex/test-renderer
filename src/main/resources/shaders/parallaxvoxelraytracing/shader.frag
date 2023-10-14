@@ -13,6 +13,8 @@ layout (location = 1) in vec3 inNormal;
 layout (location = 2) in BoundingBox inBounds;
 
 layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffer;
+layout (set = 0, binding = 2) uniform texture2D cobbleTex;
+layout (set = 0, binding = 3) uniform sampler sampleroni;
 
 layout(push_constant) uniform PushConstants{
     mat4 modelMatrix;
@@ -136,27 +138,26 @@ void main() {
         if (!wasIn) outColor = vec4(entryPoint.x/EXTENT/2, entryPoint.y/EXTENT/2, entryPoint.z/EXTENT/2, 1.0);
         else discard;
     } else {
+        vec2 texCoords = vec2(0.0);
         if (faceNormalIndex == 0) {
-            float t = (pos.x + (step.x-1)/-2 -entryPoint.x)/direction.x;
-            vec3 hitpos = entryPoint + direction*t;
-            float u = fract(hitpos.y);
-            float v = fract(hitpos.z);
-            outColor = vec4(u, v, 0.0, 1.0);
+            float t = (pos.x + (step.x - 1) / -2 - entryPoint.x) / direction.x;
+            vec3 hitpos = entryPoint + direction * t;
+            texCoords.x = fract(hitpos.y);
+            texCoords.y = fract(hitpos.z);
         }
         else if (faceNormalIndex == 1) {
-            float t = (pos.y + (step.y-1)/-2 -entryPoint.y)/direction.y;
-            vec3 hitpos = entryPoint + direction*t;
-            float u = fract(hitpos.x);
-            float v = fract(hitpos.z);
-            outColor = vec4(u, v, 0.0, 1.0);
+            float t = (pos.y + (step.y - 1) / -2 - entryPoint.y) / direction.y;
+            vec3 hitpos = entryPoint + direction * t;
+            texCoords.x = fract(hitpos.x);
+            texCoords.y = fract(hitpos.z);
         }
         else {
-            float t = (pos.z + (step.z-1)/-2 -entryPoint.z)/direction.z;
-            vec3 hitpos = entryPoint + direction*t;
-            float u = fract(hitpos.y);
-            float v = fract(hitpos.x);
-            outColor = vec4(u, v, 0.0, 1.0);
+            float t = (pos.z + (step.z - 1) / -2 - entryPoint.z) / direction.z;
+            vec3 hitpos = entryPoint + direction * t;
+            texCoords.x = fract(hitpos.y);
+            texCoords.y = fract(hitpos.x);
         }
+        outColor = texture(sampler2D(cobbleTex, sampleroni), texCoords, 1.0);
     }
 
     outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
