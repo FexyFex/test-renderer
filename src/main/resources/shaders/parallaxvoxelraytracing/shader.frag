@@ -74,6 +74,7 @@ void main() {
     vec3 direction = inFragPos.xyz - viewPos.xyz;
 
     vec3 entryPoint;
+    int entryFaceIndex = -1;
     vec3 localViewPos = transformPointToLocalCoords(viewPos.xyz);
     if (posIsInBounds(ivec3(floor(localViewPos)))) {
         entryPoint = localViewPos;
@@ -93,9 +94,9 @@ void main() {
         vec3 entryPointZ = tZ * direction + exitPoint;
         float lenZ = distance(entryPointZ, exitPoint);
 
-        if (lenY < lenX && lenY < lenZ) entryPoint = entryPointY; //outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
-        else if (lenX < lenZ) entryPoint = entryPointX; //outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
-        else entryPoint = entryPointZ; //outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
+        if (lenY < lenX && lenY < lenZ) { entryPoint = entryPointY; entryFaceIndex = 1; } //outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
+        else if (lenX < lenZ) { entryPoint = entryPointX; entryFaceIndex = 0; } //outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
+        else { entryPoint = entryPointZ; entryFaceIndex = 2; } //outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
 //        entryPoint.x = clamp(entryPoint.x, 0, EXTENT);
 //        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
 //        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
@@ -112,7 +113,7 @@ void main() {
         intbound(entryPoint.z, direction.z));
     vec3 tDelta = step / direction;
 
-    int faceNormalIndex = -1;
+    int faceNormalIndex = entryFaceIndex;
     ivec3 faces = ivec3(-step);
     int block = 0;
     bool wasIn = false;
@@ -135,9 +136,27 @@ void main() {
         if (!wasIn) outColor = vec4(entryPoint.x/EXTENT/2, entryPoint.y/EXTENT/2, entryPoint.z/EXTENT/2, 1.0);
         else discard;
     } else {
-        if (faceNormalIndex == 0) outColor = vec4(0.9, 0.5, 0.5, 1.0);
-        else if (faceNormalIndex == 1) outColor = vec4(0.5, 0.9, 0.5, 1.0);
-        else  outColor = vec4(0.5, 0.5, 0.9, 1.0);
+        if (faceNormalIndex == 0) {
+            float t = (pos.x + (step.x-1)/-2 -entryPoint.x)/direction.x;
+            vec3 hitpos = entryPoint + direction*t;
+            float u = fract(hitpos.y);
+            float v = fract(hitpos.z);
+            outColor = vec4(u, v, 0.0, 1.0);
+        }
+        else if (faceNormalIndex == 1) {
+            float t = (pos.y + (step.y-1)/-2 -entryPoint.y)/direction.y;
+            vec3 hitpos = entryPoint + direction*t;
+            float u = fract(hitpos.x);
+            float v = fract(hitpos.z);
+            outColor = vec4(u, v, 0.0, 1.0);
+        }
+        else {
+            float t = (pos.z + (step.z-1)/-2 -entryPoint.z)/direction.z;
+            vec3 hitpos = entryPoint + direction*t;
+            float u = fract(hitpos.y);
+            float v = fract(hitpos.x);
+            outColor = vec4(u, v, 0.0, 1.0);
+        }
     }
 
     outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
