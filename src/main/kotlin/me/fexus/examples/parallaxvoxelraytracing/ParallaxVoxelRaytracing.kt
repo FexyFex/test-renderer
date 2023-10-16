@@ -101,7 +101,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private fun initObjects() {
         chunkDataBufferArray.init(bufferFactory, renderDistance)
 
-        camera.position = Vec3(5f, 5f, 5f)
+        camera.position = Vec3(0f)
 
         val poolPlan = DescriptorPoolPlan(
             10, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
@@ -166,9 +166,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
-
-        val dummyVertLayout = VulkanBufferLayout(4L, MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER)
-        this.vertexBuffer = bufferFactory.createBuffer(dummyVertLayout)
 
         // -- TEXTURES --
         val cobbleTex = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
