@@ -8,27 +8,34 @@ struct BoundingBox {
     vec3 max;
 };
 
-layout (location = 0) in vec3 inFragPos;
-layout (location = 1) in vec3 inNormal;
-layout (location = 2) in BoundingBox inBounds;
+layout (location = 0) in vec2 inTexCoords;
+layout (location = 1) in vec3 inRayDirection;
 
-layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffer;
+layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffers[16];
 layout (set = 0, binding = 2) uniform texture2D cobbleTex;
 layout (set = 0, binding = 3) uniform sampler sampleroni;
+layout (set = 0, binding = 4) buffer SBO2 { uint addresses[]; } addressBuffer;
 
 layout(push_constant) uniform PushConstants{
-    mat4 modelMatrix;
     vec4 viewPos;
-    int doWireFrame;
-    int firstBlockIndex;
+    vec4 viewDirection;
+    ivec4 chunkAddressOffset;
+    ivec4 renderDistanceMin;
+    ivec4 renderDistanceMax;
 };
 
 layout (location = 0) out vec4 outColor;
 
 
-int getBlockAt(ivec3 pos) {
-    int index = pos.z * EXTENT * EXTENT + pos.y * EXTENT + pos.x;
-    return blockBuffer.blocks[index + firstBlockIndex];
+int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
+    ivec3 renderDistanceSize = renderDistanceMin.xyz - renderDistanceMax.xyz;
+    ivec3 chunkAddressVector = (chunkPos + chunkAddressOffset.xyz) % renderDistanceSize;
+    int chunkAddressIndex = chunkAddressVector.z * renderDistanceSize.z * renderDistanceSize.z + chunkAddressVector.y * renderDistanceSize.y + chunkAddressVector.x;
+    uint chunkAddress = addressBuffer.addresses[chunkAddressIndex];
+    uint chunkBufferIndex = chunkAddress & 15u;
+    uint chunkOffset = chunkAddress >> 28;
+    int index = chunkLocalPos.z * EXTENT * EXTENT + chunkLocalPos.y * EXTENT + chunkLocalPos.x;
+    return blockBuffers[chunkBufferIndex].blocks[index + chunkOffset];
 }
 
 float intbound(float s, float ds) {
@@ -39,10 +46,16 @@ float intbound(float s, float ds) {
     }
 }
 
-bool posIsInBounds(ivec3 pos) {
+bool posIsInChunkBounds(ivec3 pos) {
     return pos.x >= 0 && pos.x < EXTENT &&
-            pos.y >= 0 && pos.y < EXTENT &&
-            pos.z >= 0 && pos.z < EXTENT;
+    pos.y >= 0 && pos.y < EXTENT &&
+    pos.z >= 0 && pos.z < EXTENT;
+}
+
+bool chunkPosIsInRenderBounds(ivec3 chunkPos) {
+    return chunkPos.x >= renderDistanceMin.x && chunkPos.x <= renderDistanceMax.x &&
+    chunkPos.y >= renderDistanceMin.y && chunkPos.y <= renderDistanceMax.y &&
+    chunkPos.z >= renderDistanceMin.z && chunkPos.z <= renderDistanceMax.z;
 }
 
 int indexOfMax(vec3 choices) {
@@ -52,14 +65,22 @@ int indexOfMax(vec3 choices) {
     if (choices.x >= choices.y && choices.y >= choices.z) return 2;
 }
 
-vec3 transformPointToLocalCoords(vec3 point) {
-    vec3 boundsSize = inBounds.max - inBounds.min;
-    vec3 progress = (point.xyz - inBounds.min) / boundsSize;
-    return vec3(
-        mix(0.0, boundsSize.x, progress.x),
-        mix(0.0, boundsSize.y, progress.y),
-        mix(0.0, boundsSize.z, progress.z)
+ivec3 blockPosToChunkPos(ivec3 blockPos) {
+    return ivec3(
+        blockPos.x / EXTENT - ((blockPos.x < 0 && blockPos.x % EXTENT != 0) ? 1 : 0),
+        blockPos.y / EXTENT - ((blockPos.y < 0 && blockPos.y % EXTENT != 0) ? 1 : 0),
+        blockPos.z / EXTENT - ((blockPos.z < 0 && blockPos.z % EXTENT != 0) ? 1 : 0)
     );
+}
+
+ivec3 blockPosToChunkLocalPos(ivec3 blockPos) {
+    int blockPosX = blockPos.x % EXTENT;
+    int blockPosY = blockPos.y % EXTENT;
+    int blockPosZ = blockPos.z % EXTENT;
+    if (blockPosX < 0) blockPosX += EXTENT;
+    if (blockPosY < 0) blockPosY += EXTENT;
+    if (blockPosZ < 0) blockPosZ += EXTENT;
+    return ivec3(blockPosX, blockPosY, blockPosZ);
 }
 
 float trueRound(float x) {
@@ -67,96 +88,62 @@ float trueRound(float x) {
 }
 
 void main() {
-    if (doWireFrame == 1) {
-        outColor = vec4(0.6, 1.0, 0.1, 1.0);
-        return;
-    }
+    vec3 rayStartPoint = viewPos.xyz;
 
-    vec3 exitPoint = transformPointToLocalCoords(inFragPos);
+    vec3 direction = inRayDirection;
 
-    vec3 direction = inFragPos.xyz - viewPos.xyz;
 
-    vec3 entryPoint;
-    int entryFaceIndex = -1;
-    vec3 localViewPos = transformPointToLocalCoords(viewPos.xyz);
-    if (posIsInBounds(ivec3(floor(localViewPos)))) {
-        entryPoint = localViewPos;
-    } else {
-        float entryX = direction.x < 0 ? EXTENT : 0.0;
-        float tX = (entryX - exitPoint.x) / direction.x;
-        vec3 entryPointX = tX * direction + exitPoint;
-        float lenX = distance(entryPointX, exitPoint);
-
-        float entryY = direction.y < 0 ? EXTENT : 0.0;
-        float tY = (entryY - exitPoint.y) / direction.y;
-        vec3 entryPointY = tY * direction + exitPoint;
-        float lenY = distance(entryPointY, exitPoint);
-
-        float entryZ = direction.z < 0 ? EXTENT : 0.0;
-        float tZ = (entryZ - exitPoint.z) / direction.z;
-        vec3 entryPointZ = tZ * direction + exitPoint;
-        float lenZ = distance(entryPointZ, exitPoint);
-
-        if (lenY < lenX && lenY < lenZ) { entryPoint = entryPointY; entryFaceIndex = 1; } //outColor = vec4(1.0, 0.0, 0.0, 1.0);return; }
-        else if (lenX < lenZ) { entryPoint = entryPointX; entryFaceIndex = 0; } //outColor = vec4(0.0, 1.0, 0.0, 1.0);return; }
-        else { entryPoint = entryPointZ; entryFaceIndex = 2; } //outColor = vec4(0.0, 0.0, 1.0, 1.0);return;}
-//        entryPoint.x = clamp(entryPoint.x, 0, EXTENT);
-//        entryPoint.y = clamp(entryPoint.y, 0, EXTENT);
-//        entryPoint.z = clamp(entryPoint.z, 0, EXTENT);
-
-        entryPoint += 0.0001 * sign(direction);
-    }
-
-    ivec3 pos = ivec3(floor(entryPoint.x), floor(entryPoint.y), floor(entryPoint.z));
+    ivec3 pos = ivec3(floor(rayStartPoint.x), floor(rayStartPoint.y), floor(rayStartPoint.z));
+    ivec3 chunkPos = blockPosToChunkPos(pos);
+    ivec3 chunkLocalPos = blockPosToChunkLocalPos(pos);
 
     ivec3 step = ivec3(sign(direction.x), sign(direction.y), sign(direction.z));
     vec3 tMax = vec3(
-        intbound(entryPoint.x, direction.x),
-        intbound(entryPoint.y, direction.y),
-        intbound(entryPoint.z, direction.z));
+        intbound(rayStartPoint.x, direction.x),
+        intbound(rayStartPoint.y, direction.y),
+        intbound(rayStartPoint.z, direction.z));
     vec3 tDelta = step / direction;
 
-    int faceNormalIndex = entryFaceIndex;
+    int faceNormalIndex = -1;
     ivec3 faces = ivec3(-step);
     int block = 0;
-    bool wasIn = false;
 
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
-    while (posIsInBounds(pos)) {
-        wasIn = true;
-        block = getBlockAt(pos);
+    while (chunkPosIsInRenderBounds(chunkPos)) {
+        block = getBlockAt(chunkPos, chunkLocalPos);
 
         if (block != 0) break;
 
         int dirIndex = indexOfMax(tMax);
         pos[dirIndex] += step[dirIndex];
+        chunkPos = blockPosToChunkPos(pos);
+        chunkLocalPos = blockPosToChunkLocalPos(pos);
         tMax[dirIndex] += tDelta[dirIndex];
         faceNormalIndex = dirIndex;
     }
 
     if (block == 0) {
-        if (!wasIn) outColor = vec4(entryPoint.x/EXTENT/2, entryPoint.y/EXTENT/2, entryPoint.z/EXTENT/2, 1.0);
-        else discard;
+        discard;
     } else {
         vec2 texCoords = vec2(0.0);
         if (faceNormalIndex == 0) {
-            float t = (pos.x + (step.x - 1) / -2 - entryPoint.x) / direction.x;
-            vec3 hitpos = entryPoint + direction * t;
+            float t = (pos.x + (step.x - 1) / -2 - rayStartPoint.x) / direction.x;
+            vec3 hitpos = rayStartPoint + direction * t;
             if (step.x < 0) texCoords.x = 1 - fract(hitpos.z);
             else texCoords.x = fract(hitpos.z);
             texCoords.y = 1 - fract(hitpos.y);
         }
         else if (faceNormalIndex == 1) {
-            float t = (pos.y + (step.y - 1) / -2 - entryPoint.y) / direction.y;
-            vec3 hitpos = entryPoint + direction * t;
+            float t = (pos.y + (step.y - 1) / -2 - rayStartPoint.y) / direction.y;
+            vec3 hitpos = rayStartPoint + direction * t;
             texCoords.x = fract(hitpos.x);
             if (step.y < 0) texCoords.y = fract(hitpos.z);
             else texCoords.y = 1 - fract(hitpos.z);
         }
         else {
-            float t = (pos.z + (step.z - 1) / -2 - entryPoint.z) / direction.z;
-            vec3 hitpos = entryPoint + direction * t;
+            float t = (pos.z + (step.z - 1) / -2 - rayStartPoint.z) / direction.z;
+            vec3 hitpos = rayStartPoint + direction * t;
             if (step.z < 0) texCoords.x = fract(hitpos.x);
             else texCoords.x = 1 - fract(hitpos.x);
             texCoords.y = 1 - fract(hitpos.y);
@@ -166,8 +153,8 @@ void main() {
         else if (faceNormalIndex == 2) outColor *= 0.6;
         else if (faceNormalIndex == 1 && step.y > 0) outColor *= 0.4;
         outColor[3] = 1.0;
-        gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos) + inBounds.min) / 2000.0;
+        gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos)) / 2000.0;
     }
 
-    outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos) + inBounds.min) / 32.0);
+    outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos)) / 32.0);
 }
