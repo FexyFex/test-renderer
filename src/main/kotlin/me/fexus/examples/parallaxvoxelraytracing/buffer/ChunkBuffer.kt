@@ -9,12 +9,12 @@ class ChunkBuffer(val index: Int, val vulkanBuffer: VulkanBuffer, size: Int) {
 
 
     fun allocate(data: ByteBuffer): Int? {
-        val offset = reserveFreeOffset(data.capacity()) ?: return null
+        val offset = reserveAndGetFreeOffset(data.capacity()) ?: return null
         vulkanBuffer.put(offset, data)
         return offset
     }
 
-    private fun reserveFreeOffset(size: Int): Int? {
+    private fun reserveAndGetFreeOffset(size: Int): Int? {
         val targetRange = freeRanges.firstOrNull { it.size >= size } ?: return null
         freeRanges.remove(targetRange)
         if (targetRange.size > size) {
