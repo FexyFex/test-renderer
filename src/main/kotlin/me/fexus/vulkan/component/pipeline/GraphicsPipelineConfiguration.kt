@@ -24,5 +24,5 @@ data class GraphicsPipelineConfiguration(
     val depthTest: Boolean = true,
     val depthWrite: Boolean = true
 ) {
-    val vertexStride: Int = vertexAttributes.last().offset + vertexAttributes.last().format.size
+    val vertexStride: Int = if (vertexAttributes.isEmpty()) 0 else vertexAttributes.last().offset + vertexAttributes.last().format.size
 }

@@ -12,9 +12,9 @@ layout (location = 0) in vec2 inTexCoords;
 layout (location = 1) in vec3 inRayDirection;
 
 layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffers[16];
+layout (set = 0, binding = 4) buffer SBO2 { uint addresses[]; } addressBuffer;
 layout (set = 0, binding = 2) uniform texture2D cobbleTex;
 layout (set = 0, binding = 3) uniform sampler sampleroni;
-layout (set = 0, binding = 4) buffer SBO2 { uint addresses[]; } addressBuffer;
 
 layout(push_constant) uniform PushConstants{
     vec4 viewPos;
@@ -27,11 +27,15 @@ layout(push_constant) uniform PushConstants{
 layout (location = 0) out vec4 outColor;
 
 
-int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
-    ivec3 renderDistanceSize = renderDistanceMin.xyz - renderDistanceMax.xyz;
+uint getChunkAddressFromChunkPos(ivec3 chunkPos) {
+    ivec3 renderDistanceSize = renderDistanceMax.xyz - renderDistanceMin.xyz + 1;
     ivec3 chunkAddressVector = (chunkPos + chunkAddressOffset.xyz) % renderDistanceSize;
     int chunkAddressIndex = chunkAddressVector.z * renderDistanceSize.z * renderDistanceSize.z + chunkAddressVector.y * renderDistanceSize.y + chunkAddressVector.x;
-    uint chunkAddress = addressBuffer.addresses[chunkAddressIndex];
+    return addressBuffer.addresses[chunkAddressIndex];
+}
+
+int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
+    uint chunkAddress = getChunkAddressFromChunkPos(chunkPos);
     uint chunkBufferIndex = chunkAddress & 15u;
     uint chunkOffset = chunkAddress >> 28;
     int index = chunkLocalPos.z * EXTENT * EXTENT + chunkLocalPos.y * EXTENT + chunkLocalPos.x;
@@ -53,6 +57,7 @@ bool posIsInChunkBounds(ivec3 pos) {
 }
 
 bool chunkPosIsInRenderBounds(ivec3 chunkPos) {
+    if (getChunkAddressFromChunkPos(chunkPos) == -1) return false;
     return chunkPos.x >= renderDistanceMin.x && chunkPos.x <= renderDistanceMax.x &&
     chunkPos.y >= renderDistanceMin.y && chunkPos.y <= renderDistanceMax.y &&
     chunkPos.z >= renderDistanceMin.z && chunkPos.z <= renderDistanceMax.z;
@@ -62,7 +67,8 @@ int indexOfMax(vec3 choices) {
     if (choices.x < choices.y && choices.x < choices.z) return 0;
     if (choices.x < choices.y && choices.x >= choices.z) return 2;
     if (choices.x >= choices.y && choices.y < choices.z) return 1;
-    if (choices.x >= choices.y && choices.y >= choices.z) return 2;
+    //if (choices.x >= choices.y && choices.y >= choices.z) return 2;
+    return 2;
 }
 
 ivec3 blockPosToChunkPos(ivec3 blockPos) {

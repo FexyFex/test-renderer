@@ -2,7 +2,6 @@ package me.fexus.examples.parallaxvoxelraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkDataBufferArray
-import me.fexus.math.repeatSquared
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
@@ -80,17 +79,15 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val camera = CameraPerspective(window.aspect)
 
     private lateinit var depthAttachment: VulkanImage
-    private lateinit var vertexBuffer: VulkanBuffer
-    private lateinit var vertexBufferWireFrame: VulkanBuffer
     private lateinit var cameraBuffer: VulkanBuffer
     private lateinit var cobbleImage: VulkanImage
     private lateinit var sampler: VulkanSampler
+    private lateinit var dummyVertexBuffer: VulkanBuffer
     private val chunkDataBufferArray = ChunkDataBufferArray()
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val pipelineWireframe = GraphicsPipeline()
     private val renderDistance = IVec3(8, 8, 8)
 
     private val inputHandler = InputHandler(window)
@@ -127,86 +124,15 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
-        // -- VERTEX BUFFERS --
-        val cubeVertexBufSize = CubeModel.vertices.size * CubeModel.Vertex.SIZE_BYTES
-        val vertexBufferData = ByteBuffer.allocate(cubeVertexBufSize)
-        vertexBufferData.order(ByteOrder.LITTLE_ENDIAN)
-        CubeModel.vertices.forEachIndexed { vertIndex, vert ->
-            vert.toFloatArray().forEachIndexed { flIndex, fl ->
-                val offset = vertIndex * CubeModel.Vertex.SIZE_BYTES + (flIndex * Float.SIZE_BYTES)
-                vertexBufferData.putFloat(offset, fl)
-            }
-        }
-        val vertexBufferLayout = VulkanBufferLayout(
-            cubeVertexBufSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
-        )
-        this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
-        // Staging
-        val stagingVertexBufferLayout = VulkanBufferLayout(
-            cubeVertexBufSize.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
-            BufferUsage.TRANSFER_SRC
-        )
-        val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
-        stagingVertexBuffer.put(0, vertexBufferData)
-        // Copy from Staging to Vertex Buffer
-        runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
-
-            val copyRegion = calloc(VkBufferCopy::calloc, 1)
-            copyRegion[0]
-                .srcOffset(0)
-                .dstOffset(0)
-                .size(cubeVertexBufSize.toLong())
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, vertexBuffer.vkBufferHandle, copyRegion)
-
-            endSingleTimeCommandBuffer(cmdBuf)
-        }
-        stagingVertexBuffer.destroy()
-
-        val cubeWireframeVertexBufSize = CubeModel.verticesWireframe.size * CubeModel.Vertex.SIZE_BYTES
-        val wireFrameBuffoon = ByteBuffer.allocate(cubeWireframeVertexBufSize)
-        wireFrameBuffoon.order(ByteOrder.LITTLE_ENDIAN)
-        CubeModel.verticesWireframe.forEachIndexed { vertIndex, vert ->
-            vert.toFloatArray().forEachIndexed { flIndex, fl ->
-                val offset = vertIndex * CubeModel.Vertex.SIZE_BYTES + flIndex * Float.SIZE_BYTES
-                wireFrameBuffoon.putFloat(offset, fl)
-            }
-        }
-        val wireFrameBufLayout = VulkanBufferLayout(
-            cubeWireframeVertexBufSize.toLong(), MemoryProperty.DEVICE_LOCAL,
-            BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
-        )
-        this.vertexBufferWireFrame = bufferFactory.createBuffer(wireFrameBufLayout)
-        val stagingBufWireFrameLayout = VulkanBufferLayout(
-            cubeWireframeVertexBufSize.toLong(), MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
-            BufferUsage.TRANSFER_SRC
-        )
-        val stagingBufWireFrame = bufferFactory.createBuffer(stagingBufWireFrameLayout)
-        stagingBufWireFrame.put(0, wireFrameBuffoon)
-
-        runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
-
-            val copyRegion = calloc(VkBufferCopy::calloc, 1)
-            copyRegion[0]
-                .srcOffset(0)
-                .dstOffset(0)
-                .size(cubeWireframeVertexBufSize.toLong())
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingBufWireFrame.vkBufferHandle, vertexBufferWireFrame.vkBufferHandle, copyRegion)
-
-            endSingleTimeCommandBuffer(cmdBuf)
-        }
-        stagingBufWireFrame.destroy()
-        // -- VERTEX BUFFERS --
-
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferLayout(
             128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
+
+        val dummyVertLayout = VulkanBufferLayout(4L, MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER)
+        this.dummyVertexBuffer = bufferFactory.createBuffer(dummyVertLayout)
 
         // -- TEXTURES --
         val cobbleTex = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
@@ -304,11 +230,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // Solid Pipelines
         val pipelineConfig = GraphicsPipelineConfiguration(
-            listOf(
-                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
-                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
-                VertexAttribute(2, VertexAttributeFormat.VEC4, 32)
-            ),
+            listOf(),
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
@@ -318,20 +240,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
         // Wireframe Pipeline
-        val pipelineWireframeConfig = GraphicsPipelineConfiguration(
-            listOf(
-                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
-                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
-                VertexAttribute(2, VertexAttributeFormat.VEC4, 32),
-            ),
-            PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
-            listOf(SpecializationConstantInt(0, EXTENT)),
-            listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true, primitive = Primitive.LINES, cullMode = CullMode.NONE
-        )
-        this.pipelineWireframe.create(device, descriptorSetLayout, pipelineWireframeConfig)
 
         // Update Descrfiptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(
@@ -352,6 +260,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
 
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteCobbleImg, descSampler, addressBufferWrite)
+
+        Chunk(IVec3(0), EXTENT, chunkDataBufferArray)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -364,7 +274,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 DescriptorBufferInfo(it.vulkanBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE)
             }
             val descWrite = DescriptorBufferWrite(
-                1, DescriptorType.STORAGE_BUFFER, 16,
+                1, DescriptorType.STORAGE_BUFFER, descriptorBufferInfos.size,
                 this@ParallaxVoxelRaytracing.descriptorSet, 0, descriptorBufferInfos
             )
             this@ParallaxVoxelRaytracing.descriptorSet.update(device, descWrite)
@@ -487,12 +397,12 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
 
-            val pDescriptorSets = allocateLong(1)
-            pDescriptorSets.put(0, descriptorSet.vkHandle)
-
             val pVertexBuffers = allocateLong(1)
+            pVertexBuffers.put(0, dummyVertexBuffer.vkBufferHandle)
             val pOffsets = allocateLong(1)
             pOffsets.put(0, 0L)
+            val pDescriptorSets = allocateLong(1)
+            pDescriptorSets.put(0, descriptorSet.vkHandle)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 
@@ -509,40 +419,26 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             )
 
             val pPushConstants = allocate(128)
-            var chunkIndex = 0
-            repeatSquared(RENDER_DISTANCE) { x, z ->
-                (-camera.position).toByteBuffer(pPushConstants, 64)
-                pPushConstants.putInt(80, 0)
-                pPushConstants.putInt(84, chunkIndex++ * BLOCKS_PER_CHUNK)
+            (-camera.position).toByteBuffer(pPushConstants, 0)
+            view[2].toByteBuffer(pPushConstants, 16)
+            chunkDataBufferArray.chunkAddressOffset.toByteBuffer(pPushConstants, 32)
+            (-renderDistance).toByteBuffer(pPushConstants, 48)
+            renderDistance.toByteBuffer(pPushConstants, 64)
+            view[1].toByteBuffer(pPushConstants, 80)
+            (-view[0]).toByteBuffer(pPushConstants, 96)
+            pPushConstants.putFloat(112, camera.fov)
+            pPushConstants.putFloat(118, camera.aspect)
 
-                // chunk model
-                vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
-                pVertexBuffers.put(0, vertexBuffer.vkBufferHandle)
-                vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-                vkCmdPushConstants(
-                    commandBuffer.vkHandle,
-                    pipeline.vkLayoutHandle,
-                    ShaderStage.BOTH.vkBits,
-                    0,
-                    pPushConstants
-                )
-                vkCmdDraw(commandBuffer.vkHandle, CubeModel.vertices.size, 1, 0, 0)
-
-                // outline rendering
-                pPushConstants.putInt(80, 1)
-                pVertexBuffers.put(0, vertexBufferWireFrame.vkBufferHandle)
-
-                vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipelineWireframe.vkHandle)
-                vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-                vkCmdPushConstants(
-                    commandBuffer.vkHandle,
-                    pipeline.vkLayoutHandle,
-                    ShaderStage.BOTH.vkBits,
-                    0,
-                    pPushConstants
-                )
-                vkCmdDraw(commandBuffer.vkHandle, CubeModel.verticesWireframe.size, 1, 0, 0)
-            }
+            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
+            vkCmdPushConstants(
+                commandBuffer.vkHandle,
+                pipeline.vkLayoutHandle,
+                ShaderStage.BOTH.vkBits,
+                0,
+                pPushConstants
+            )
+            vkCmdDraw(commandBuffer.vkHandle, 6, 1, 0, 0)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
@@ -597,6 +493,18 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
     }
 
+    fun worldPosToChunkPos(worldPos: IVec3): IVec3 {
+        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 && worldPos.x % EXTENT != 0) 1 else 0,
+            worldPos.y / EXTENT - if (worldPos.y < 0 && worldPos.y % EXTENT != 0) 1 else 0,
+            worldPos.z / EXTENT - if (worldPos.z < 0 && worldPos.z % EXTENT != 0) 1 else 0)
+    }
+
+    fun worldPosToChunkPos(worldPos: Vec3): IVec3 {
+        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 || (worldPos.x) % EXTENT == 0f) 1 else 0,
+            worldPos.y / EXTENT - if (worldPos.y < 0 || (worldPos.y) % EXTENT == 0f) 1 else 0,
+            worldPos.z / EXTENT - if (worldPos.z < 0 || (worldPos.z) % EXTENT == 0f) 1 else 0)
+    }
+
     override fun onResizeDestroy() {
         depthAttachment.destroy()
     }
@@ -617,14 +525,11 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         device.waitIdle()
         cobbleImage.destroy()
         sampler.destroy(device)
-        vertexBuffer.destroy()
-        vertexBufferWireFrame.destroy()
         cameraBuffer.destroy()
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)
         pipeline.destroy(device)
-        pipelineWireframe.destroy(device)
         super.destroy()
     }
 }

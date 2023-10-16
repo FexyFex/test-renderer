@@ -31,4 +31,12 @@ data class Vec4(override var x: Float, override var y: Float, override var z: Fl
     override operator fun unaryMinus(): Vec4 = Vec4(-x, -y, -z, -w)
 
     override fun dot(other: TVec4<Float>): Float = this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
+
+
+    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
+        buf.putFloat(offset, x)
+        buf.putFloat(offset + 4, y)
+        buf.putFloat(offset + 8, z)
+        buf.putFloat(offset + 12, w)
+    }
 }

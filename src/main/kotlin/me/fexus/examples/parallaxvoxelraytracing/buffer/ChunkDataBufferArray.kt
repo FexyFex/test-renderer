@@ -19,17 +19,19 @@ class ChunkDataBufferArray {
     lateinit var addressBuffer: VulkanBuffer
     var bufferArrayChanged: Boolean = false
     private lateinit var renderDistance: IVec3
-    private var chunkAddressOffset: IVec3 = IVec3(0,0,0)
+    var chunkAddressOffset: IVec3 = IVec3(0,0,0)
 
 
     fun init(bufferFactory: VulkanBufferFactory, renderDistance: IVec3) {
         this.bufferFactory = bufferFactory
         val addressBufferLayout = VulkanBufferLayout(
-            renderDistance.x * 2 + renderDistance.y + renderDistance.z.toLong(),
+            ((renderDistance.x * 2 + 1) * (renderDistance.y * 2 + 1) * (renderDistance.z.toLong() * 2 + 1)) * Int.SIZE_BYTES,
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
         this.addressBuffer = bufferFactory.createBuffer(addressBufferLayout)
+        this.addressBuffer.set(0, -1, addressBufferLayout.size)
+
         this.renderDistance = renderDistance
     }
 
@@ -55,7 +57,7 @@ class ChunkDataBufferArray {
         }
         val chunkBufferAddress = ChunkBufferAddress(buffers.indexOf(targetBuf), offset)
 
-        val chunkAddressVector = (chunkPos + chunkAddressOffset).mod(renderDistance)
+        val chunkAddressVector = (chunkPos + chunkAddressOffset).mod(renderDistance * 2 + 1)
         val chunkAddressIndex =
             (chunkAddressVector.z * renderDistance.z * renderDistance.z) +
                     (chunkAddressVector.y * renderDistance.y) +
@@ -72,7 +74,9 @@ class ChunkDataBufferArray {
             BufferUsage.STORAGE_BUFFER
         )
         bufferArrayChanged = true
-        return ChunkBuffer(buffers.size, bufferFactory.createBuffer(bufLayout), BUFFER_SIZE)
+        val buf = ChunkBuffer(buffers.size, bufferFactory.createBuffer(bufLayout), BUFFER_SIZE)
+        buffers.add(buf)
+        return buf
     }
 
 

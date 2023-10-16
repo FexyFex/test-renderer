@@ -54,6 +54,7 @@ class Device {
                 samplerAnisotropy(true)
                 sampleRateShading(true)
                 multiDrawIndirect(true)
+                robustBufferAccess(true)
             }
 
             val dynamicRenderingFeatures = calloc(VkPhysicalDeviceDynamicRenderingFeatures::calloc) {
