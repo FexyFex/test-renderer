@@ -95,7 +95,7 @@ float trueRound(float x) {
 void main() {
     vec3 rayStartPoint = viewPos.xyz;
 
-    vec3 direction = inRayDirection;
+    vec3 direction = inFragPos - viewPos.xyz;
 
     ivec3 pos = ivec3(floor(rayStartPoint.x), floor(rayStartPoint.y), floor(rayStartPoint.z));
     ivec3 chunkPos = blockPosToChunkPos(pos);
