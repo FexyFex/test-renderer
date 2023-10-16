@@ -54,10 +54,8 @@ void main() {
     n.y = (int(is5) * 0) + (int(!is5) * n.y);
 
     outTexCoords = n / 2.0;
-    gl_Position = vec4(n - 1.0, 0.5, 1.0);
+    gl_Position = vec4(n - 1.0, 0.5, 0.9);
 
-    if (outTexCoords == vec2(0,0)) {
-        outRayDirection = slerp(viewDirection.xyz, rightDirection.xyz * gl_Position.x, fov/180);
-        outRayDirection = slerp(outRayDirection, upDirection.xyz * gl_Position.y, fov * aspectRatio / 180);
-    }
+    outRayDirection = slerp(viewDirection.xyz, rightDirection.xyz * gl_Position.x, fov/acos(-1));
+    outRayDirection = slerp(outRayDirection, upDirection.xyz * gl_Position.y, fov / aspectRatio / acos(-1));
 }

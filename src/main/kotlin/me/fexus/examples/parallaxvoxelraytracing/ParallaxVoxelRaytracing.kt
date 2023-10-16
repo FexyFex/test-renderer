@@ -102,7 +102,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private fun initObjects() {
         chunkDataBufferArray.init(bufferFactory, renderDistance)
 
-        camera.position = Vec3(0f, 0f, -5f)
+        camera.position = Vec3(5f, 5f, 5f)
 
         val poolPlan = DescriptorPoolPlan(
             10, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
@@ -236,7 +236,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
+            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.NONE
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
         // Wireframe Pipeline
