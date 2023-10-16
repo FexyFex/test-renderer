@@ -87,5 +87,6 @@ class ChunkDataBufferArray {
 
     fun destroy() {
         buffers.forEach { it.destroy() }
+        addressBuffer.destroy()
     }
 }

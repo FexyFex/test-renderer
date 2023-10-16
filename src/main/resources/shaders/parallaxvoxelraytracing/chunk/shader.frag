@@ -99,7 +99,6 @@ void main() {
 
     vec3 direction = inRayDirection;
 
-
     ivec3 pos = ivec3(floor(rayStartPoint.x), floor(rayStartPoint.y), floor(rayStartPoint.z));
     ivec3 chunkPos = blockPosToChunkPos(pos);
     ivec3 chunkLocalPos = blockPosToChunkLocalPos(pos);

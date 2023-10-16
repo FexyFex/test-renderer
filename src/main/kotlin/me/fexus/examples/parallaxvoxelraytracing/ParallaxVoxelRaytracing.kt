@@ -88,7 +88,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(8, 8, 8)
+    private val renderDistance = IVec3(1, 1, 1)
 
     private val inputHandler = InputHandler(window)
 
@@ -524,6 +524,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     override fun destroy() {
         device.waitIdle()
         cobbleImage.destroy()
+        dummyVertexBuffer.destroy()
+        chunkDataBufferArray.destroy()
         sampler.destroy(device)
         cameraBuffer.destroy()
         depthAttachment.destroy()
