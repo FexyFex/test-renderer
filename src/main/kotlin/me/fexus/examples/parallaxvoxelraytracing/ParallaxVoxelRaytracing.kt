@@ -55,7 +55,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
         private const val EXTENT = 16
         private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
-        private const val RENDER_DISTANCE = 4
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -82,7 +81,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private lateinit var cameraBuffer: VulkanBuffer
     private lateinit var cobbleImage: VulkanImage
     private lateinit var sampler: VulkanSampler
-    private lateinit var dummyVertexBuffer: VulkanBuffer
+    private lateinit var vertexBuffer: VulkanBuffer
     private val chunkDataBufferArray = ChunkDataBufferArray()
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
@@ -124,6 +123,43 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
+        val cubeVertexBufSize = CubeModel.vertices.size * CubeModel.Vertex.SIZE_BYTES
+        val vertexBufferData = ByteBuffer.allocate(cubeVertexBufSize)
+        vertexBufferData.order(ByteOrder.LITTLE_ENDIAN)
+        CubeModel.vertices.forEachIndexed { vertIndex, vert ->
+            vert.toFloatArray().forEachIndexed { flIndex, fl ->
+                val offset = vertIndex * CubeModel.Vertex.SIZE_BYTES + (flIndex * Float.SIZE_BYTES)
+                vertexBufferData.putFloat(offset, fl)
+            }
+        }
+        val vertexBufferLayout = VulkanBufferLayout(
+            cubeVertexBufSize.toLong(),
+            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+        )
+        this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
+        // Staging
+        val stagingVertexBufferLayout = VulkanBufferLayout(
+            cubeVertexBufSize.toLong(),
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.TRANSFER_SRC
+        )
+        val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
+        stagingVertexBuffer.put(0, vertexBufferData)
+        // Copy from Staging to Vertex Buffer
+        runMemorySafe {
+            val cmdBuf = beginSingleTimeCommandBuffer()
+
+            val copyRegion = calloc(VkBufferCopy::calloc, 1)
+            copyRegion[0]
+                .srcOffset(0)
+                .dstOffset(0)
+                .size(cubeVertexBufSize.toLong())
+            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, vertexBuffer.vkBufferHandle, copyRegion)
+
+            endSingleTimeCommandBuffer(cmdBuf)
+        }
+        stagingVertexBuffer.destroy()
+
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferLayout(
             128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
@@ -132,7 +168,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
 
         val dummyVertLayout = VulkanBufferLayout(4L, MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER)
-        this.dummyVertexBuffer = bufferFactory.createBuffer(dummyVertLayout)
+        this.vertexBuffer = bufferFactory.createBuffer(dummyVertLayout)
 
         // -- TEXTURES --
         val cobbleTex = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
@@ -230,7 +266,11 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // Solid Pipelines
         val pipelineConfig = GraphicsPipelineConfiguration(
-            listOf(),
+            listOf(
+                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
+                VertexAttribute(2, VertexAttributeFormat.VEC4, 32)
+            ),
             PushConstantsLayout(128),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
@@ -398,7 +438,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             scissor[0].extent().width(width).height(height)
 
             val pVertexBuffers = allocateLong(1)
-            pVertexBuffers.put(0, dummyVertexBuffer.vkBufferHandle)
+            pVertexBuffers.put(0, vertexBuffer.vkBufferHandle)
             val pOffsets = allocateLong(1)
             pOffsets.put(0, 0L)
             val pDescriptorSets = allocateLong(1)
@@ -420,14 +460,9 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
             val pPushConstants = allocate(128)
             (-camera.position).toByteBuffer(pPushConstants, 0)
-            view[2].toByteBuffer(pPushConstants, 16)
-            chunkDataBufferArray.chunkAddressOffset.toByteBuffer(pPushConstants, 32)
-            (-renderDistance).toByteBuffer(pPushConstants, 48)
-            renderDistance.toByteBuffer(pPushConstants, 64)
-            view[1].toByteBuffer(pPushConstants, 80)
-            (-view[0]).toByteBuffer(pPushConstants, 96)
-            pPushConstants.putFloat(112, camera.fov)
-            pPushConstants.putFloat(118, camera.aspect)
+            chunkDataBufferArray.chunkAddressOffset.toByteBuffer(pPushConstants, 16)
+            (-renderDistance).toByteBuffer(pPushConstants, 32)
+            renderDistance.toByteBuffer(pPushConstants, 48)
 
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
@@ -438,7 +473,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 0,
                 pPushConstants
             )
-            vkCmdDraw(commandBuffer.vkHandle, 6, 1, 0, 0)
+            vkCmdDraw(commandBuffer.vkHandle, CubeModel.vertices.size, 1, 0, 0)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
@@ -524,7 +559,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     override fun destroy() {
         device.waitIdle()
         cobbleImage.destroy()
-        dummyVertexBuffer.destroy()
+        vertexBuffer.destroy()
         chunkDataBufferArray.destroy()
         sampler.destroy(device)
         cameraBuffer.destroy()

@@ -8,8 +8,7 @@ struct BoundingBox {
     vec3 max;
 };
 
-layout (location = 0) in vec2 inTexCoords;
-layout (location = 1) in vec3 inRayDirection;
+layout (location = 0) in vec3 inFragPos;
 
 layout (set = 0, binding = 0) uniform UBO { float dummy; } cameraBuffer;
 layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffers[16];
@@ -19,7 +18,6 @@ layout (set = 0, binding = 3) uniform sampler sampleroni;
 
 layout(push_constant) uniform PushConstants{
     vec4 viewPos;
-    vec4 viewDirection;
     ivec4 chunkAddressOffset;
     ivec4 renderDistanceMin;
     ivec4 renderDistanceMax;

@@ -2,19 +2,22 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout (location = 0) out vec2 outTexCoords;
-layout (location = 1) out vec3 outRayDirection;
+layout (set = 0, binding = 0) uniform UBO {
+    mat4 view;
+    mat4 proj;
+} cameraBuffer;
+
+layout (location = 0) in vec4 inPosition;
+layout (location = 1) in vec4 inTexCoords;
+layout (location = 2) in vec4 inNormal;
+
+layout (location = 0) out vec3 outFragPos;
 
 layout(push_constant) uniform PushConstants{
     vec4 viewPos;
-    vec4 viewDirection;
     ivec4 chunkAddressOffset;
     ivec4 renderDistanceMin;
     ivec4 renderDistanceMax;
-    vec4 upDirection;
-    vec4 rightDirection;
-    float fov;
-    float aspectRatio;
 };
 
 //source: https://stackoverflow.com/questions/67919193/how-does-unity-implements-vector3-slerp-exactly
@@ -41,21 +44,10 @@ vec3 slerp(vec3 start, vec3 end, float ratio)
 }
 
 void main() {
-    int vID = gl_VertexIndex;
-
-    vec2 n = vec2(((vID << 1) & 2), vID & 2);
-
-    bool is4 = (vID == 4);
-    bool is5 = (vID == 5);
-
-    n.x = (int(is4) * 0) + (int(!is4) * n.x);
-    n.y = (int(is4) * 2) + (int(!is4) * n.y);
-    n.x = (int(is5) * 2) + (int(!is5) * n.x);
-    n.y = (int(is5) * 0) + (int(!is5) * n.y);
-
-    outTexCoords = n / 2.0;
-    gl_Position = vec4(n - 1.0, 0.5, 0.9);
-
-    outRayDirection = slerp(viewDirection.xyz, rightDirection.xyz * gl_Position.x, 0.5);
-    outRayDirection = slerp(outRayDirection, upDirection.xyz * gl_Position.y, 0.5);
+    mat4 view = cameraBuffer.view;
+    view[3][0] = 0.0;
+    view[3][1] = 0.0;
+    view[3][2] = 0.0;
+    gl_Position = cameraBuffer.proj * cameraBuffer.view * inPosition;
+    outFragPos = inPosition.xyz;
 }
