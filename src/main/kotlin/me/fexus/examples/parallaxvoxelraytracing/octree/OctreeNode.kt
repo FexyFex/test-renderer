@@ -1,4 +1,5 @@
 package me.fexus.examples.parallaxvoxelraytracing.octree
 
-class OctNode(
-)
+interface OctreeNode {
+
+}

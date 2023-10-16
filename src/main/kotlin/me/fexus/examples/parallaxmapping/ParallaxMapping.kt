@@ -124,7 +124,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
-        stagingVertexBuffer.put(device, vertexBufferData, 0)
+        stagingVertexBuffer.put(0, vertexBufferData)
         // Copy from Staging to Vertex Buffer
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
@@ -165,9 +165,9 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             BufferUsage.TRANSFER_SRC
         )
         val imgStagingBuf = bufferFactory.createBuffer(stagingImageBufferLayout)
-        imgStagingBuf.put(device, diffTexture.pixels, 0)
-        imgStagingBuf.put(device, dispTexture.pixels, diffTexture.imageSize.toInt())
-        imgStagingBuf.put(device, normTexture.pixels, dispTexture.imageSize.toInt() * 2)
+        imgStagingBuf.put(0, diffTexture.pixels)
+        imgStagingBuf.put(diffTexture.imageSize.toInt(), dispTexture.pixels)
+        imgStagingBuf.put(dispTexture.imageSize.toInt() * 2, normTexture.pixels)
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
@@ -319,7 +319,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBuffer(data, 0)
         proj.toByteBuffer(data, 64)
-        cameraBuffer.put(device, data, 0)
+        cameraBuffer.put(0, data)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height

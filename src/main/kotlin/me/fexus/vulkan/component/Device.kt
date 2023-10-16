@@ -6,11 +6,13 @@ import me.fexus.vulkan.layer.VulkanLayer
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import org.lwjgl.vulkan.EXTDescriptorBuffer.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
 import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VK13.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
 import org.lwjgl.vulkan.VK13.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkDeviceCreateInfo
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo
 import org.lwjgl.vulkan.VkPhysicalDeviceDescriptorBufferFeaturesEXT
+import org.lwjgl.vulkan.VkPhysicalDeviceDescriptorIndexingFeatures
 import org.lwjgl.vulkan.VkPhysicalDeviceDynamicRenderingFeatures
 import org.lwjgl.vulkan.VkPhysicalDeviceFeatures
 
@@ -65,9 +67,16 @@ class Device {
                 descriptorBuffer(true)
             }
 
+            val descriptorIndexingFeatures = calloc(VkPhysicalDeviceDescriptorIndexingFeatures::calloc) {
+                sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES)
+                pNext(dynamicRenderingFeatures.address())
+                descriptorBindingPartiallyBound(true)
+                descriptorBindingVariableDescriptorCount(true)
+            }
+
             val deviceCreateInfo = calloc(VkDeviceCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                pNext(dynamicRenderingFeatures.address())
+                pNext(descriptorIndexingFeatures.address())
                 flags(0)
                 pQueueCreateInfos(queueCreateInfos)
                 ppEnabledLayerNames(ppEnabledLayerNames)

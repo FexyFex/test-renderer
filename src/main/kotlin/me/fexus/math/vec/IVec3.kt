@@ -31,4 +31,11 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
     override fun dot(other: TVec3<Int>): Int = this.x * other.x + this.y * other.y + this.z * other.z
 
 
+    fun mod(other: IVec3): IVec3 {
+        return IVec3(
+            this.x % other.x,
+            this.y % other.y,
+            this.z % other.z
+        )
+    }
 }

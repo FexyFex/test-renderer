@@ -16,10 +16,10 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     fun hasProperty(memProp: MemoryProperties) = memProp in layout.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in layout.usage
 
-    fun put(device: Device, data: ByteBuffer, offset: Int) {
+    fun put(offset: Int, data: ByteBuffer) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
             // Copy can be done without staging
-            val address = getMemoryMappingHandle(device) + offset
+            val address = getMemoryMappingHandle() + offset
             repeat(data.capacity()) {
                 val lOffset = address + it
                 MemoryUtil.memPutByte(lOffset, data[it])
@@ -29,7 +29,17 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
         }
     }
 
-    private fun getMemoryMappingHandle(device: Device): Long = runMemorySafe {
+    fun putInt(offset: Int, value: Int) {
+        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+            // Copy can be done without staging
+            val address = getMemoryMappingHandle() + offset
+            MemoryUtil.memPutInt(address, value)
+        } else {
+            throw Exception("Device Local Buffers require Staging")
+        }
+    }
+
+    private fun getMemoryMappingHandle(): Long = runMemorySafe {
         if (mappingHandle == -1L) {
             val ppMappingHandle = allocatePointer(1)
             vkMapMemory(device.vkHandle, vkMemoryHandle, 0, layout.size, 0, ppMappingHandle)

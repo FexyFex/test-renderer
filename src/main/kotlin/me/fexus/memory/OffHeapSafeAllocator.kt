@@ -4,6 +4,7 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.Struct
 import org.lwjgl.system.StructBuffer
+import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer

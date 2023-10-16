@@ -12,7 +12,8 @@ layout (location = 0) in vec3 inFragPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in BoundingBox inBounds;
 
-layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffer;
+layout (set = 0, binding = 1) buffer SBO { int blocks[]; } blockBuffers[16];
+layout (set = 0, binding = 4) buffer SBO2 { int addresses[]; } chunkAddressBuffer;
 layout (set = 0, binding = 2) uniform texture2D cobbleTex;
 layout (set = 0, binding = 3) uniform sampler sampleroni;
 
