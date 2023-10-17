@@ -2,6 +2,7 @@ package me.fexus.math.mat
 
 import me.fexus.math.inverseSqrt
 import me.fexus.math.repeatSquared
+import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
 import java.nio.ByteBuffer
@@ -48,6 +49,16 @@ class Mat4(val columns: Array<Vec4>) {
     }
 
     fun translate(translate: Vec3): Mat4 {
+        val m = Mat4()
+        m.put(this)
+        m[3].x = m[0].x * translate.x + m[1].x * translate.y + m[2].x * translate.z + m[3].x
+        m[3].y = m[0].y * translate.x + m[1].y * translate.y + m[2].y * translate.z + m[3].y
+        m[3].z = m[0].z * translate.x + m[1].z * translate.y + m[2].z * translate.z + m[3].z
+        m[3].w = m[0].w * translate.x + m[1].w * translate.y + m[2].w * translate.z + m[3].w
+        return m
+    }
+
+    fun translate(translate: IVec3): Mat4 {
         val m = Mat4()
         m.put(this)
         m[3].x = m[0].x * translate.x + m[1].x * translate.y + m[2].x * translate.z + m[3].x
