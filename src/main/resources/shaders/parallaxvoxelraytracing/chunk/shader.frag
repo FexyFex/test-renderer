@@ -129,9 +129,45 @@ void main() {
     ivec3 faces = ivec3(-step);
     int block = 0;
 
+    int iters = 0;
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
-    while (chunkPosIsInRenderBounds(chunkPos)) {
+    while (chunkPosIsInRenderBounds(chunkPos) && iters < 16) {
+        if (getChunkAddressFromChunkPos(chunkPos) == -1) {
+            iters++;
+            ivec3 nextoChunko = chunkPos + step;
+            float t = (pos.x + (step.x - 1) / -2 - rayStartPoint.x) / direction.x;
+            vec3 hitpos = rayStartPoint + direction * t;
+            ivec3 chonkBordar = nextoChunko * EXTENT;
+            chonkBordar.x += step.x < 0 ? EXTENT : 0;
+            chonkBordar.y += step.y < 0 ? EXTENT : 0;
+            chonkBordar.z += step.z < 0 ? EXTENT : 0;
+            float tX = abs((chonkBordar.x-hitpos.x)/direction.x);
+            float tY = abs((chonkBordar.y-hitpos.y)/direction.y);
+            float tZ = abs((chonkBordar.z-hitpos.z)/direction.z);
+            vec3 chonkHitpos = vec3(0);
+            if (tX < tY && tX < tZ) {
+                chonkHitpos = hitpos + direction * tX;
+                faceNormalIndex = 0;
+            }
+            else if (tY < tZ) {
+                chonkHitpos = hitpos + direction * tY;
+                faceNormalIndex = 1;
+            }
+            else {
+                chonkHitpos = hitpos + direction * tZ;
+                faceNormalIndex = 2;
+            }
+            chonkHitpos += step * 0.0001;
+            pos = ivec3(floor(chonkHitpos.x), floor(chonkHitpos.y), floor(chonkHitpos.z));
+            chunkPos = blockPosToChunkPos(pos);
+            chunkLocalPos = blockPosToChunkLocalPos(pos);
+            tMax = vec3(
+                intbound(chonkHitpos.x, direction.x),
+                intbound(chonkHitpos.y, direction.y),
+                intbound(chonkHitpos.z, direction.z));
+            continue;
+        }
         block = getBlockAt(chunkPos, chunkLocalPos);
 
         if (block != 0) break;
@@ -144,6 +180,9 @@ void main() {
         faceNormalIndex = dirIndex;
     }
 
+//    outColor = vec4(faceNormalIndex/2.0, 0.0, 0.0, 1.0);
+//    return;
+    //outColor = vec4(iters/100.0,0.0,0.0, 1.0);
     //uint address = getChunkAddressFromChunkPos(chunkPos);
     //outColor = vec4((1023u & address)/1023.0, (1048575u & address >> 10)/1023.0, (address >> 20)/4095.0,1.0);
     //outColor = address == 0 ? vec4(1.0,.0,.0,1.0) : address == -1 ? vec4(.0,.0,1.0,1.0) : (address >> 28) == 4095 ? vec4(.0,1.0,.0,1.0) : vec4(1.0,1.0,.0,1.0);

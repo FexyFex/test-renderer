@@ -87,7 +87,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(3, 3, 3)
+    private val renderDistance = IVec3(8, 8, 8)
 
     private val inputHandler = InputHandler(window)
 
@@ -273,7 +273,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.NONE
+            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
         // Wireframe Pipeline
