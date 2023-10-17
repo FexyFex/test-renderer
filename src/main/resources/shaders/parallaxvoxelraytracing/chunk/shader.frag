@@ -30,9 +30,7 @@ ivec3 renderDistanceSize = renderDistanceMax.xyz - renderDistanceMin.xyz + 1;
 int floorDiv(int x, int y) {
     int r = x / y;
     // if the signs are different and modulo not zero, round down
-    if ((x ^ y) < 0 && (r * y != x)) {
-        r--;
-    }
+    r -= int((x ^ y) < 0 && (r * y != x));
     return r;
 }
 
@@ -50,9 +48,8 @@ uint getChunkAddressFromChunkPos(ivec3 chunkPos) {
     return addressBuffer.addresses[chunkAddressIndex];
 }
 
-int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
-    uint chunkAddress = getChunkAddressFromChunkPos(chunkPos);
-    if (getChunkAddressFromChunkPos(chunkPos) == -1) return 0;
+int getBlockAt(uint chunkAddress, ivec3 chunkLocalPos) {
+    if (chunkAddress == -1) return 0;
     uint chunkBufferIndex = chunkAddress & 15u;
     uint chunkOffset = chunkAddress >> 4;
     int index = chunkLocalPos.z * EXTENT * EXTENT + chunkLocalPos.y * EXTENT + chunkLocalPos.x;
@@ -60,11 +57,8 @@ int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
 }
 
 float intbound(float s, float ds) {
-    if (ds < 0.0) {
-        return (1.0 - fract(-s)) / -ds;
-    } else {
-        return (1.0 - fract(s)) / ds;
-    }
+    float signDS = sign(ds);
+    return (1.0 - fract(signDS * s)) /  (signDS * ds);
 }
 
 bool posIsInChunkBounds(ivec3 pos) {
@@ -82,17 +76,15 @@ bool chunkPosIsInRenderBounds(ivec3 chunkPos) {
 
 int indexOfMax(vec3 choices) {
     if (choices.x < choices.y && choices.x < choices.z) return 0;
-    if (choices.x < choices.y && choices.x >= choices.z) return 2;
-    if (choices.x >= choices.y && choices.y < choices.z) return 1;
-    //if (choices.x >= choices.y && choices.y >= choices.z) return 2;
+    else if (choices.y < choices.z) return 1;
     return 2;
 }
 
 ivec3 blockPosToChunkPos(ivec3 blockPos) {
     return ivec3(
-        blockPos.x / EXTENT - ((blockPos.x < 0 && blockPos.x % EXTENT != 0) ? 1 : 0),
-        blockPos.y / EXTENT - ((blockPos.y < 0 && blockPos.y % EXTENT != 0) ? 1 : 0),
-        blockPos.z / EXTENT - ((blockPos.z < 0 && blockPos.z % EXTENT != 0) ? 1 : 0)
+        blockPos.x / EXTENT - int(blockPos.x < 0 && blockPos.x % EXTENT != 0),
+        blockPos.y / EXTENT - int(blockPos.y < 0 && blockPos.y % EXTENT != 0),
+        blockPos.z / EXTENT - int(blockPos.z < 0 && blockPos.z % EXTENT != 0)
     );
 }
 
@@ -100,9 +92,9 @@ ivec3 blockPosToChunkLocalPos(ivec3 blockPos) {
     int blockPosX = blockPos.x % EXTENT;
     int blockPosY = blockPos.y % EXTENT;
     int blockPosZ = blockPos.z % EXTENT;
-    if (blockPosX < 0) blockPosX += EXTENT;
-    if (blockPosY < 0) blockPosY += EXTENT;
-    if (blockPosZ < 0) blockPosZ += EXTENT;
+    blockPosX += int(blockPosX < 0)*EXTENT;
+    blockPosY += int(blockPosY < 0)*EXTENT;
+    blockPosZ += int(blockPosZ < 0)*EXTENT;
     return ivec3(blockPosX, blockPosY, blockPosZ);
 }
 
@@ -135,15 +127,16 @@ void main() {
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
     while (chunkPosIsInRenderBounds(chunkPos) && iters < renderDistanceMax.x * 3) {
-        if (getChunkAddressFromChunkPos(chunkPos) == -1) {
+        uint chunkAddress = getChunkAddressFromChunkPos(chunkPos);
+        if (chunkAddress == -1) {
             iters++;
             ivec3 nextoChunko = chunkPos + step;
             float t = (pos.x + (step.x - 1) / -2 - rayStartPoint.x) / direction.x;
             vec3 hitpos = rayStartPoint + direction * t;
             ivec3 chonkBordar = nextoChunko * EXTENT;
-            chonkBordar.x += step.x < 0 ? EXTENT : 0;
-            chonkBordar.y += step.y < 0 ? EXTENT : 0;
-            chonkBordar.z += step.z < 0 ? EXTENT : 0;
+            chonkBordar.x += int(step.x < 0) * EXTENT;
+            chonkBordar.y += int(step.y < 0) * EXTENT;
+            chonkBordar.z += int(step.z < 0) * EXTENT;
             float tX = abs((chonkBordar.x-hitpos.x)/direction.x);
             float tY = abs((chonkBordar.y-hitpos.y)/direction.y);
             float tZ = abs((chonkBordar.z-hitpos.z)/direction.z);
@@ -168,9 +161,10 @@ void main() {
                 intbound(chonkHitpos.x, direction.x),
                 intbound(chonkHitpos.y, direction.y),
                 intbound(chonkHitpos.z, direction.z));
+            chunkAddress = getChunkAddressFromChunkPos(chunkPos);
             continue;
         }
-        block = getBlockAt(chunkPos, chunkLocalPos);
+        block = getBlockAt(chunkAddress, chunkLocalPos);
 
         if (block != 0) break;
 
