@@ -299,6 +299,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteCobbleImg, descSampler, addressBufferWrite)
 
         Chunk(IVec3(0), EXTENT, chunkDataBufferArray)
+        Chunk(IVec3(1), EXTENT, chunkDataBufferArray)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {

@@ -25,16 +25,33 @@ layout(push_constant) uniform PushConstants{
 
 layout (location = 0) out vec4 outColor;
 
+int floorDiv(int x, int y) {
+    int r = x / y;
+    // if the signs are different and modulo not zero, round down
+    if ((x ^ y) < 0 && (r * y != x)) {
+        r--;
+    }
+    return r;
+}
+
+int floorMod(int dividend, int modulus) {
+    return dividend - (floorDiv(dividend, modulus) * modulus);
+}
+
+ivec3 floorMod(ivec3 x, ivec3 y) {
+    return ivec3(floorMod(x.x,y.x), floorMod(x.y,y.y), floorMod(x.z,y.z));
+}
 
 uint getChunkAddressFromChunkPos(ivec3 chunkPos) {
     ivec3 renderDistanceSize = renderDistanceMax.xyz - renderDistanceMin.xyz + 1;
-    ivec3 chunkAddressVector = (chunkPos + chunkAddressOffset.xyz) % renderDistanceSize;
+    ivec3 chunkAddressVector = floorMod((chunkPos + chunkAddressOffset.xyz), renderDistanceSize);
     int chunkAddressIndex = chunkAddressVector.z * renderDistanceSize.z * renderDistanceSize.z + chunkAddressVector.y * renderDistanceSize.y + chunkAddressVector.x;
     return addressBuffer.addresses[chunkAddressIndex];
 }
 
 int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
     uint chunkAddress = getChunkAddressFromChunkPos(chunkPos);
+    if (getChunkAddressFromChunkPos(chunkPos) == -1) return 0;
     uint chunkBufferIndex = chunkAddress & 15u;
     uint chunkOffset = chunkAddress >> 28;
     int index = chunkLocalPos.z * EXTENT * EXTENT + chunkLocalPos.y * EXTENT + chunkLocalPos.x;
@@ -56,7 +73,7 @@ bool posIsInChunkBounds(ivec3 pos) {
 }
 
 bool chunkPosIsInRenderBounds(ivec3 chunkPos) {
-    if (getChunkAddressFromChunkPos(chunkPos) == -1) return false;
+    //if (getChunkAddressFromChunkPos(chunkPos) == -1) return false;
     return chunkPos.x >= renderDistanceMin.x && chunkPos.x <= renderDistanceMax.x &&
     chunkPos.y >= renderDistanceMin.y && chunkPos.y <= renderDistanceMax.y &&
     chunkPos.z >= renderDistanceMin.z && chunkPos.z <= renderDistanceMax.z;
@@ -126,6 +143,12 @@ void main() {
         tMax[dirIndex] += tDelta[dirIndex];
         faceNormalIndex = dirIndex;
     }
+
+    //uint address = getChunkAddressFromChunkPos(chunkPos);
+    //outColor = vec4((1023u & address)/1023.0, (1048575u & address >> 10)/1023.0, (address >> 20)/4095.0,1.0);
+    //outColor = address == 0 ? vec4(1.0,.0,.0,1.0) : address == -1 ? vec4(.0,.0,1.0,1.0) : (address >> 28) == 4095 ? vec4(.0,1.0,.0,1.0) : vec4(1.0,1.0,.0,1.0);
+    //outColor = vec4(chunkPos * 0.5 + 0.5, 1.0);
+    //return;
 
     if (block == 0) {
         discard;
