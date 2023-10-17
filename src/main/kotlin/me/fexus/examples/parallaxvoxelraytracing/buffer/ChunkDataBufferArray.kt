@@ -57,17 +57,16 @@ class ChunkDataBufferArray {
             break
         }
         val indie = buffers.indexOf(targetBuf)
-        println(indie)
-        println(offset)
-        val chunkBufferAddress = ChunkBufferAddress(indie, offset)
+        val chunkBufferAddress = ChunkBufferAddress(indie, offset / Int.SIZE_BYTES)
 
-        val chunkAddressVector = (chunkPos + chunkAddressOffset).mod(renderDistance * 2 + 1)
-        val chunkAddressIndex = (chunkAddressVector.z * renderDistance.z * renderDistance.z) +
-                (chunkAddressVector.y * renderDistance.y) +
+        val renderDistSize = renderDistance * 2 + 1
+        val chunkAddressVector = (chunkPos + chunkAddressOffset).floorMod(renderDistSize)
+        val chunkAddressIndex = (chunkAddressVector.z * renderDistSize.z * renderDistSize.z) +
+                (chunkAddressVector.y * renderDistSize.y) +
                 (chunkAddressVector.x)
+        println("$chunkPos: $chunkAddressIndex")
         val compressed = chunkBufferAddress.compress()
-        addressBuffer.putInt(chunkAddressIndex, compressed)
-        println(compressed)
+        addressBuffer.putInt(chunkAddressIndex * Int.SIZE_BYTES, compressed)
 
         return chunkBufferAddress
     }

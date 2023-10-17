@@ -42,6 +42,15 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
     }
 
 
+    fun floorMod(other: IVec3): IVec3 {
+        return IVec3(
+            Math.floorMod(this.x, other.x),
+            Math.floorMod(this.y, other.y),
+            Math.floorMod(this.z, other.z)
+        )
+    }
+
+
     fun toByteBuffer(buf: ByteBuffer, offset: Int) {
         buf.putInt(offset, x)
         buf.putInt(offset + 4, y)

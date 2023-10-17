@@ -87,7 +87,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(1, 1, 1)
+    private val renderDistance = IVec3(3, 3, 3)
 
     private val inputHandler = InputHandler(window)
 
