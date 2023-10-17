@@ -36,7 +36,6 @@ class ChunkDataBufferArray {
     }
 
     fun changeRenderDistance(renderDistance: IVec3) {
-
         this.renderDistance = renderDistance
     }
 
@@ -64,7 +63,7 @@ class ChunkDataBufferArray {
         val chunkAddressIndex = (chunkAddressVector.z * renderDistSize.z * renderDistSize.z) +
                 (chunkAddressVector.y * renderDistSize.y) +
                 (chunkAddressVector.x)
-        println("$chunkPos: $chunkAddressIndex")
+        println("$chunkPos: $chunkBufferAddress")
         val compressed = chunkBufferAddress.compress()
         addressBuffer.putInt(chunkAddressIndex * Int.SIZE_BYTES, compressed)
 

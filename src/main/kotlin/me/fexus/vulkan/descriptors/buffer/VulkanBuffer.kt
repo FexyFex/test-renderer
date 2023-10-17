@@ -33,6 +33,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
             // Copy can be done without staging
             val address = getMemoryMappingHandle() + offset
+            println("putting $value")
             MemoryUtil.memPutInt(address, value)
         } else {
             throw Exception("Device Local Buffers require Staging")
