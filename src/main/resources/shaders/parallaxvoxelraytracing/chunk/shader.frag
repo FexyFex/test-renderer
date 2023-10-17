@@ -113,6 +113,7 @@ void main() {
     vec3 rayStartPoint = viewPos.xyz;
 
     vec3 direction = inFragPos;
+    if (abs(direction.x) < 0.001) direction.x = 0.001;
 
     ivec3 pos = ivec3(floor(rayStartPoint.x), floor(rayStartPoint.y), floor(rayStartPoint.z));
     ivec3 chunkPos = blockPosToChunkPos(pos);
@@ -132,7 +133,7 @@ void main() {
     int iters = 0;
     // Based on the fast voxel traversal "Amanatides & Woo" from:
     // https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
-    while (chunkPosIsInRenderBounds(chunkPos) && iters < 16) {
+    while (chunkPosIsInRenderBounds(chunkPos) && iters < renderDistanceMax.x * 3) {
         if (getChunkAddressFromChunkPos(chunkPos) == -1) {
             iters++;
             ivec3 nextoChunko = chunkPos + step;
@@ -222,5 +223,5 @@ void main() {
         gl_FragDepth = 1.0 - distance(viewPos.xyz, vec3(pos)) / 2000.0;
     }
 
-    outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos)) / 32.0);
+    //outColor = mix(outColor, vec4(0.0, 0.0, 0.0, 1.0), distance(viewPos.xyz, vec3(pos)) / 32.0);
 }
