@@ -16,17 +16,19 @@ class Chunk(val chunkPos: IVec3, extent: Int, chunkBufferArray: ChunkDataBufferA
         val chunkData = ByteBuffer.allocate(extent * extent * extent * Int.SIZE_BYTES)
         chunkData.order(ByteOrder.LITTLE_ENDIAN)
         var index = 0
+        var hasBlocks = false
         repeatCubed(extent) { x, y, z ->
             val x2 = x + chunkPos.x * extent
             val y2 = y + chunkPos.y * extent
             val z2 = z + chunkPos.z * extent
             if (y2 < 5*sin((x2+z2)*0.1)) {
-                println(y2)
                 val offset = index * Int.SIZE_BYTES
                 chunkData.putInt(offset, 1)
+                hasBlocks = true
             }
             index++
         }
-        this.address = chunkBufferArray.putChunkData(chunkPos, chunkData)
+        if (hasBlocks) this.address = chunkBufferArray.putChunkData(chunkPos, chunkData)
+        else this.address = ChunkBufferAddress(0,0)
     }
 }

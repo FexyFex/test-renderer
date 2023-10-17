@@ -25,6 +25,8 @@ layout(push_constant) uniform PushConstants{
 
 layout (location = 0) out vec4 outColor;
 
+ivec3 renderDistanceSize = renderDistanceMax.xyz - renderDistanceMin.xyz + 1;
+
 int floorDiv(int x, int y) {
     int r = x / y;
     // if the signs are different and modulo not zero, round down
@@ -43,7 +45,6 @@ ivec3 floorMod(ivec3 x, ivec3 y) {
 }
 
 uint getChunkAddressFromChunkPos(ivec3 chunkPos) {
-    ivec3 renderDistanceSize = renderDistanceMax.xyz - renderDistanceMin.xyz + 1;
     ivec3 chunkAddressVector = floorMod((chunkPos + chunkAddressOffset.xyz), renderDistanceSize);
     int chunkAddressIndex = chunkAddressVector.z * renderDistanceSize.z * renderDistanceSize.z + chunkAddressVector.y * renderDistanceSize.y + chunkAddressVector.x;
     return addressBuffer.addresses[chunkAddressIndex];
@@ -53,7 +54,7 @@ int getBlockAt(ivec3 chunkPos, ivec3 chunkLocalPos) {
     uint chunkAddress = getChunkAddressFromChunkPos(chunkPos);
     if (getChunkAddressFromChunkPos(chunkPos) == -1) return 0;
     uint chunkBufferIndex = chunkAddress & 15u;
-    uint chunkOffset = chunkAddress >> 28;
+    uint chunkOffset = chunkAddress >> 4;
     int index = chunkLocalPos.z * EXTENT * EXTENT + chunkLocalPos.y * EXTENT + chunkLocalPos.x;
     return blockBuffers[chunkBufferIndex].blocks[index + chunkOffset];
 }

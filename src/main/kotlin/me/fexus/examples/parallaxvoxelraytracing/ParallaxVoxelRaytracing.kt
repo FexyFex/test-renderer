@@ -2,6 +2,7 @@ package me.fexus.examples.parallaxvoxelraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkDataBufferArray
+import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
@@ -298,8 +299,11 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteCobbleImg, descSampler, addressBufferWrite)
 
-        Chunk(IVec3(0), EXTENT, chunkDataBufferArray)
-        Chunk(IVec3(1), EXTENT, chunkDataBufferArray)
+        repeatCubed(renderDistance.x*2+1) { x, y, z ->
+            Chunk(IVec3(x - renderDistance.x, y - renderDistance.x, z - renderDistance.x), EXTENT, chunkDataBufferArray)
+        }
+//        Chunk(IVec3(0), EXTENT, chunkDataBufferArray)
+//        Chunk(IVec3(1), EXTENT, chunkDataBufferArray)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
