@@ -24,5 +24,15 @@ fun repeatCubed(times: Int, block: (x: Int, y: Int, z: Int) -> Unit) {
     }
 }
 
+fun repeat3D(timesX: Int, timesY: Int, timesZ: Int, block: (x: Int, y: Int, z: Int) -> Unit) {
+    for (x in 0 until timesX) {
+        for (y in 0 until timesY) {
+            for (z in 0 until timesZ) {
+                block(x, y, z)
+            }
+        }
+    }
+}
+
 val Float.rad get() = Math.toRadians(this.toDouble()).toFloat()
 val Double.rad get() = Math.toRadians(this)
