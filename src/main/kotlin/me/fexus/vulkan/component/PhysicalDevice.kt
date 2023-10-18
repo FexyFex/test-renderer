@@ -13,6 +13,7 @@ class PhysicalDevice {
             val pDeviceCount = allocateInt(1)
             vkEnumeratePhysicalDevices(instance.vkHandle, pDeviceCount, null)
             val deviceCount = pDeviceCount[0]
+            println("Device found: $deviceCount")
             if (deviceCount <= 0) throw Exception()
 
             val ppDevices = allocatePointer(deviceCount)

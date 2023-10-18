@@ -39,6 +39,8 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.extension.AccelerationStructureKHRExtension
+import me.fexus.vulkan.extension.RayTracingPipelineKHRExtension
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -65,7 +67,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         private fun createWindow() = Window("Parallax Voxel Raytracing") {
             windowVisible()
             enableResizable()
-            setInitialWindowSize(1067,600)
+            setInitialWindowSize(1280,720)
             enableDecoration()
             setInitialWindowPosition(400, 300)
             enableAutoIconify()
@@ -88,7 +90,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(4, 4, 4)
+    private val renderDistance = IVec3(8, 8, 8)
 
     private val inputHandler = InputHandler(window)
 

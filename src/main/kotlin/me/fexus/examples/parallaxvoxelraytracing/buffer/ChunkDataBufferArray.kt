@@ -63,7 +63,6 @@ class ChunkDataBufferArray {
         val chunkAddressIndex = (chunkAddressVector.z * renderDistSize.z * renderDistSize.z) +
                 (chunkAddressVector.y * renderDistSize.y) +
                 (chunkAddressVector.x)
-        println("$chunkPos: $chunkBufferAddress")
         val compressed = chunkBufferAddress.compress()
         addressBuffer.putInt(chunkAddressIndex * Int.SIZE_BYTES, compressed)
 
