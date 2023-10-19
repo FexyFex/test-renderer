@@ -52,7 +52,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun getDeviceAddress() = runMemorySafe {
-        if (!hasProperty(MemoryProperty.DEVICE_LOCAL) || !hasUsage(BufferUsage.SHADER_DEVICE_ADDRESS_KHR))
+        if (!hasProperty(MemoryProperty.DEVICE_LOCAL) || !hasUsage(BufferUsage.SHADER_DEVICE_ADDRESS))
             throw Exception("Only device local buffers and buffers flagged with usage DEVICE_ADDRESS_KHR may be assigned a device address")
 
         val addressInfo = calloc(VkBufferDeviceAddressInfo::calloc) {

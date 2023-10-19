@@ -280,6 +280,12 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         vkFreeCommandBuffers(device.vkHandle, commandPool.vkHandle, pCommandBuffers)
     }
 
+    protected fun runSingleTimeCommands(commands: (commandBuffer: CommandBuffer) -> Unit) {
+        val cmdBuf = beginSingleTimeCommandBuffer()
+        commands(cmdBuf)
+        endSingleTimeCommandBuffer(cmdBuf)
+    }
+
 
     open fun destroy() {
         device.waitIdle()

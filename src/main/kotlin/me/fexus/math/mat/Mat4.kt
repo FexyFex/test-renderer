@@ -5,6 +5,7 @@ import me.fexus.math.repeatSquared
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
 import java.nio.ByteBuffer
+import java.nio.FloatBuffer
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -285,5 +286,13 @@ class Mat4(val columns: Array<Vec4>) {
         res[3][3] = i33 * oneOverDet
 
         return res
+    }
+
+
+    fun toFloatBuffer(buf: FloatBuffer, offset: Int) {
+        repeatSquared(4) { x, y ->
+            val bufferIndex = x * 4 + y + offset
+            buf.put(bufferIndex, this[x][y])
+        }
     }
 }

@@ -65,6 +65,12 @@ class OffHeapSafeAllocator private constructor(
         return buf
     }
 
+    fun allocatePointerValues(vararg values: Long): PointerBuffer {
+        val buf = allocatePointer(values.size)
+        values.forEachIndexed { index, l -> buf.put(index, l) }
+        return buf
+    }
+
     fun allocateStringValue(string: String): ByteBuffer {
         val buf = MemoryUtil.memUTF8(string)
         val bufAdr = MemoryUtil.memAddress(buf)
