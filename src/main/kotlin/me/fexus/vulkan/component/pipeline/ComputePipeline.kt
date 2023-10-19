@@ -51,7 +51,7 @@ class ComputePipeline : IPipeline {
             pData(pSpecData)
         }
 
-        val pEntryPoint = allocateString("main")
+        val pEntryPoint = allocateStringValue("main")
         val shaderStageInfo = calloc(VkPipelineShaderStageCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
             pNext(0)

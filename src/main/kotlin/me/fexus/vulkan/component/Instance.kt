@@ -19,14 +19,14 @@ class Instance() {
                 pNext(0)
                 apiVersion(VK12.VK_API_VERSION_1_2)
                 applicationVersion(VK12.VK_MAKE_VERSION(1, 0, 0))
-                pApplicationName(allocateString("Test Renderer"))
-                pEngineName(allocateString("Test Engine"))
+                pApplicationName(allocateStringValue("Test Renderer"))
+                pEngineName(allocateStringValue("Test Engine"))
                 engineVersion(VK12.VK_MAKE_VERSION(1, 0, 0))
             }
 
             val ppEnabledLayers = allocatePointer(layers.size)
             layers.forEachIndexed { index, vulkanLayer ->
-                ppEnabledLayers.put(index, allocateString(vulkanLayer.name))
+                ppEnabledLayers.put(index, allocateStringValue(vulkanLayer.name))
             }
 
             val glfwExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions() ?: throw Exception()
@@ -34,7 +34,7 @@ class Instance() {
             repeat(glfwExtensions.capacity()) {
                 ppEnabledExtensions.put(it, glfwExtensions[it])
             }
-            ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 1, allocateString("VK_EXT_debug_utils"))
+            ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 1, allocateStringValue("VK_EXT_debug_utils"))
 
             val debugCreateInfo = DebugUtilsMessenger.getCreateInfo(this)
 

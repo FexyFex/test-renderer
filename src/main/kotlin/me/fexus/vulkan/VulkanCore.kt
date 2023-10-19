@@ -15,7 +15,7 @@ class VulkanCore {
     val enabledExtensions = mutableListOf<DeviceExtension>(
         SwapchainExtension,
         DynamicRenderingExtension,
-        DepthStencilResolveExtension,
+        DepthStencilResolveKHRExtension,
         Synchronization2Extension,
         //DescriptorBufferExtension,
         DescriptorIndexingExtension

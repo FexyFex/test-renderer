@@ -9,7 +9,7 @@ import me.fexus.vulkan.component.Swapchain
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
 import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.exception.catchVK
-import me.fexus.vulkan.component.pipeline.stage.PipelineStage
+import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.Queue
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability

@@ -4,7 +4,6 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.Struct
 import org.lwjgl.system.StructBuffer
-import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -12,7 +11,6 @@ import java.nio.LongBuffer
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.reflect.KTypeParameter
 
 
 class OffHeapSafeAllocator private constructor(
@@ -55,7 +53,19 @@ class OffHeapSafeAllocator private constructor(
         return buf
     }
 
-    fun allocateString(string: String): ByteBuffer {
+    fun allocateIntValues(vararg values: Int): IntBuffer {
+        val buf = allocateInt(values.size)
+        values.forEachIndexed { index, i -> buf.put(index, i) }
+        return buf
+    }
+
+    fun allocateLongValues(vararg values: Long): LongBuffer {
+        val buf = allocateLong(values.size)
+        values.forEachIndexed { index, l -> buf.put(index, l) }
+        return buf
+    }
+
+    fun allocateStringValue(string: String): ByteBuffer {
         val buf = MemoryUtil.memUTF8(string)
         val bufAdr = MemoryUtil.memAddress(buf)
         offHeapBuffersAddresses.add(bufAdr)

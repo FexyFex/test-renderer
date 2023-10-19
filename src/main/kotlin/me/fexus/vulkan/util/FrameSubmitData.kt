@@ -1,7 +1,7 @@
 package me.fexus.vulkan.util
 
 import me.fexus.vulkan.component.CommandBuffer
-import me.fexus.vulkan.component.pipeline.stage.IPipelineStage
+import me.fexus.vulkan.component.pipeline.pipelinestage.IPipelineStage
 import me.fexus.vulkan.component.Semaphore
 
 

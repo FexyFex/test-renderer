@@ -1,4 +1,4 @@
-package me.fexus.examples.parallaxmapping
+package me.fexus.model
 
 import me.fexus.math.vec.Vec2
 import me.fexus.math.vec.Vec3

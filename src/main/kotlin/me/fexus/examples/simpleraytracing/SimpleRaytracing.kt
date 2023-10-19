@@ -1,8 +1,7 @@
-package me.fexus.examples.parallaxvoxelraytracing
+package me.fexus.examples.simpleraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkDataBufferArray
-import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
@@ -26,7 +25,6 @@ import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
 import me.fexus.vulkan.component.descriptor.write.DescriptorImageInfo
 import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
 import me.fexus.vulkan.component.pipeline.*
-import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
@@ -41,12 +39,19 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.exception.catchVK
+import me.fexus.vulkan.extension.AccelerationStructureKHRExtension
+import me.fexus.vulkan.extension.BufferDeviceAddressKHRExtension
+import me.fexus.vulkan.extension.DeferredHostOperationsKHRExtension
+import me.fexus.vulkan.extension.RayTracingPipelineKHRExtension
+import me.fexus.vulkan.raytracing.RaytracingPipeline
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRAccelerationStructure.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
@@ -54,14 +59,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
+class SimpleRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
         private const val EXTENT = 16
         private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
 
         @JvmStatic
         fun main(args: Array<String>) {
-            ParallaxVoxelRaytracing().start()
+            SimpleRaytracing().start()
         }
 
         private fun createWindow() = Window("Parallax Voxel Raytracing") {
@@ -81,37 +86,42 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val camera = CameraPerspective(window.aspect)
 
     private lateinit var depthAttachment: VulkanImage
+    private lateinit var vertexBuffer: VulkanBuffer
     private lateinit var cameraBuffer: VulkanBuffer
     private lateinit var cobbleImage: VulkanImage
     private lateinit var sampler: VulkanSampler
-    private lateinit var vertexBuffer: VulkanBuffer
-    private val chunkDataBufferArray = ChunkDataBufferArray()
+    private lateinit var objDescBuffer: VulkanBuffer
+    private var vertexBufferDeviceAddress: Long = 0
+    private var accelerationStructureHandle: Long = 0
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
-    private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(8, 8, 8)
+    private val raytracingPipeline = RaytracingPipeline()
 
     private val inputHandler = InputHandler(window)
 
 
     fun start() {
-        initVulkanCore()
+        val extraExtensions = listOf(
+            AccelerationStructureKHRExtension,
+            RayTracingPipelineKHRExtension,
+            BufferDeviceAddressKHRExtension,
+            DeferredHostOperationsKHRExtension
+        )
+        initVulkanCore(extraExtensions)
         initObjects()
         startRenderLoop(window, this)
     }
 
     private fun initObjects() {
-        chunkDataBufferArray.init(bufferFactory, renderDistance)
-
-        camera.position = Vec3(0f)
+        camera.position = Vec3(0f, 0f, 5f)
 
         val poolPlan = DescriptorPoolPlan(
-            10, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 1),
-                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 17),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 1),
-                DescriptorPoolSize(DescriptorType.SAMPLER, 1)
+            16, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET, listOf(
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 16),
+                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16),
+                DescriptorPoolSize(DescriptorType.SAMPLER, 16)
             )
         )
         this.descriptorPool.create(device, poolPlan)
@@ -137,7 +147,10 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
         val vertexBufferLayout = VulkanBufferLayout(
             cubeVertexBufSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST +
+                    BufferUsage.SHADER_DEVICE_ADDRESS_KHR + BufferUsage.STORAGE_BUFFER +
+                    BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
@@ -163,9 +176,13 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
         stagingVertexBuffer.destroy()
 
+        buildInput()
+
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferLayout(
-            128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
+            256L,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
@@ -201,7 +218,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             imageBarrier[0]
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(0)
-                    .image(this@ParallaxVoxelRaytracing.cobbleImage.vkImageHandle)
+                    .image(this@SimpleRaytracing.cobbleImage.vkImageHandle)
                     .srcAccessMask(0)
                     .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                     .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -227,7 +244,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
             vkCmdCopyBufferToImage(
                     cmdBuf.vkHandle,
-                    stagingBufImg.vkBufferHandle, this@ParallaxVoxelRaytracing.cobbleImage.vkImageHandle,
+                    stagingBufImg.vkBufferHandle, this@SimpleRaytracing.cobbleImage.vkImageHandle,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
             )
 
@@ -253,33 +270,35 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // Descriptor Sets and Pipeline
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE, listOf(
-                DescriptorSetLayoutBinding(0, 1, DescriptorType.UNIFORM_BUFFER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
-                DescriptorSetLayoutBinding(1, 16, DescriptorType.STORAGE_BUFFER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND),
-                DescriptorSetLayoutBinding(2, 1, DescriptorType.SAMPLED_IMAGE, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
-                DescriptorSetLayoutBinding(3, 1, DescriptorType.SAMPLER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
-                DescriptorSetLayoutBinding(4, 1, DescriptorType.STORAGE_BUFFER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE)
+                DescriptorSetLayoutBinding(
+                    0, 1,
+                    DescriptorType.UNIFORM_BUFFER,
+                    ShaderStage.VERTEX + ShaderStage.RAYGEN,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    1, 1,
+                    DescriptorType.STORAGE_BUFFER,
+                    ShaderStage.BOTH,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    2, 1,
+                    DescriptorType.SAMPLED_IMAGE,
+                    ShaderStage.FRAGMENT + ShaderStage.CLOSEST_HIT,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    3, 1,
+                    DescriptorType.SAMPLER,
+                    ShaderStage.FRAGMENT + ShaderStage.CLOSEST_HIT,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
             )
         )
         this.descriptorSetLayout.create(device, setLayoutPlan)
 
         this.descriptorSet.create(device, descriptorPool, descriptorSetLayout)
-
-        // Solid Pipelines
-        val pipelineConfig = GraphicsPipelineConfiguration(
-            listOf(
-                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
-                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
-                VertexAttribute(2, VertexAttributeFormat.VEC4, 32)
-            ),
-            PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
-            listOf(SpecializationConstantInt(0, EXTENT)),
-            listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
-        )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
-        // Wireframe Pipeline
 
         // Update Descrfiptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(
@@ -294,18 +313,84 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             3, DescriptorType.SAMPLER, 1, this.descriptorSet, 0,
             listOf(DescriptorImageInfo(this.sampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL))
         )
-        val addressBufferWrite = DescriptorBufferWrite (
-            4, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(this.chunkDataBufferArray.addressBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
-        )
 
-        this.descriptorSet.update(device, descWriteCameraBuf, descWriteCobbleImg, descSampler, addressBufferWrite)
+        this.descriptorSet.update(device, descWriteCameraBuf, descWriteCobbleImg, descSampler)
+    }
 
-        repeatCubed(renderDistance.x*2+1) { x, y, z ->
-            Chunk(IVec3(x - renderDistance.x, y - renderDistance.x, z - renderDistance.x), EXTENT, chunkDataBufferArray)
+    private fun buildInput() = runMemorySafe {
+        this@SimpleRaytracing.vertexBufferDeviceAddress = vertexBuffer.getDeviceAddress()
+
+        // This would be indices.size / 3 if we were using indexed rendering
+        val maxPrimitivesCount = CubeModel.vertices.size / 3
+        val pMaxPrimitivesCount = allocateInt(1)
+        pMaxPrimitivesCount.put(0, maxPrimitivesCount)
+        val type = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_HOST_OR_DEVICE_KHR
+
+        val triangles = calloc(VkAccelerationStructureGeometryTrianglesDataKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR)
+            pNext(0)
+            vertexFormat(VK_FORMAT_R32G32B32A32_SFLOAT)
+            vertexData().deviceAddress(this@SimpleRaytracing.vertexBufferDeviceAddress).hostAddress(0L)
+            vertexStride(CubeModel.Vertex.SIZE_BYTES.toLong())
+            maxVertex(CubeModel.vertices.size - 1)
+            indexType(VK_INDEX_TYPE_UINT32)
+            indexData().deviceAddress(0L).hostAddress(0L)
+            transformData().deviceAddress(0L).hostAddress(0L)
         }
-//        Chunk(IVec3(0), EXTENT, chunkDataBufferArray)
-//        Chunk(IVec3(1), EXTENT, chunkDataBufferArray)
+
+        val asGeometry = calloc(VkAccelerationStructureGeometryKHR::calloc, 1)
+        asGeometry[0]
+            .sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR)
+            .pNext(0L)
+            .flags(VK_GEOMETRY_OPAQUE_BIT_KHR)
+            .geometryType(VK_GEOMETRY_TYPE_TRIANGLES_KHR)
+            .geometry().triangles(triangles)
+
+        val buildGeomInfo = calloc(VkAccelerationStructureBuildGeometryInfoKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR)
+            pNext(0L)
+            type(type)
+            flags(0)
+            mode(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR)
+            srcAccelerationStructure(0L)
+            dstAccelerationStructure(0L)
+            geometryCount(asGeometry.capacity())
+            pGeometries(asGeometry)
+            ppGeometries(null)
+            scratchData().deviceAddress(0L).hostAddress(0L)
+        }
+
+        val offset = calloc(VkAccelerationStructureBuildRangeInfoKHR::calloc) {
+            firstVertex(0)
+            primitiveCount(maxPrimitivesCount)
+            primitiveOffset(0)
+            transformOffset(0)
+        }
+
+        val buildSizes = calloc(VkAccelerationStructureBuildSizesInfoKHR::calloc)
+        vkGetAccelerationStructureBuildSizesKHR(device.vkHandle, type, buildGeomInfo, pMaxPrimitivesCount, buildSizes)
+
+        val blasBufferLayout = VulkanBufferLayout(
+            buildSizes.accelerationStructureSize(),
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS_KHR
+        )
+        val blasBuffer = bufferFactory.createBuffer(blasBufferLayout)
+
+        val accCreateInfo = calloc(VkAccelerationStructureCreateInfoKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
+            pNext(0)
+            createFlags(0)
+            buffer(blasBuffer.vkBufferHandle)
+            offset(0)
+            size(buildSizes.accelerationStructureSize())
+            type(type)
+            deviceAddress(0L)
+        }
+
+        val pAccStructureHandle = allocateLong(1)
+        vkCreateAccelerationStructureKHR(device.vkHandle, accCreateInfo, null, pAccStructureHandle).catchVK()
+        val accelerationStructureHandle = pAccStructureHandle[0]
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -319,9 +404,9 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             }
             val descWrite = DescriptorBufferWrite(
                 1, DescriptorType.STORAGE_BUFFER, descriptorBufferInfos.size,
-                this@ParallaxVoxelRaytracing.descriptorSet, 0, descriptorBufferInfos
+                this@SimpleRaytracing.descriptorSet, 0, descriptorBufferInfos
             )
-            this@ParallaxVoxelRaytracing.descriptorSet.update(device, descWrite)
+            this@SimpleRaytracing.descriptorSet.update(device, descWrite)
             chunkDataBufferArray.bufferArrayChanged = false
         }
 
@@ -570,7 +655,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)
-        pipeline.destroy(device)
         super.destroy()
     }
 }
