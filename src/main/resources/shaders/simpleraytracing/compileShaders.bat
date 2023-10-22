@@ -1,3 +1,4 @@
-glslangValidator -V .\shader.vert
-glslangValidator -V .\shader.frag
+glslangValidator -V --target-env vulkan1.2 .\raygen.rgen
+glslangValidator -V --target-env vulkan1.2 .\miss.rmiss
+glslangValidator -V --target-env vulkan1.2 .\closesthit.rchit
 pause

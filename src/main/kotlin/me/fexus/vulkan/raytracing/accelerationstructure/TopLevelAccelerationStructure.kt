@@ -5,7 +5,7 @@ import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import org.lwjgl.vulkan.*
@@ -24,21 +24,6 @@ class TopLevelAccelerationStructure {
             commandBuffer: CommandBuffer,
             config: TopLevelAccelerationStructureConfiguration
     ) = runMemorySafe {
-        val transform = calloc(VkTransformMatrixKHR::calloc) {
-            val matrixFloatBuffer = allocateFloat(16)
-            config.transformMatrix.toFloatBuffer(matrixFloatBuffer, 0)
-            matrix(matrixFloatBuffer)
-        }
-
-        val instance = calloc(VkAccelerationStructureInstanceKHR::calloc) {
-            transform(transform)
-            instanceCustomIndex(0)
-            mask(0xFF)
-            instanceShaderBindingTableRecordOffset(0)
-            flags(VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR)
-            accelerationStructureReference(config.bottomLevelAccelerationStructure.deviceAddress)
-        }
-
         val accelerationStructureGeometry = calloc(VkAccelerationStructureGeometryKHR::calloc, 1)
         accelerationStructureGeometry[0]
                 .sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR)
@@ -72,7 +57,7 @@ class TopLevelAccelerationStructure {
                 buildSizesInfo
         )
 
-        val asBufferLayout = VulkanBufferLayout(
+        val asBufferLayout = VulkanBufferConfiguration(
                 buildSizesInfo.accelerationStructureSize(),
                 MemoryProperty.DEVICE_LOCAL,
                 BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS
@@ -90,7 +75,7 @@ class TopLevelAccelerationStructure {
         vkCreateAccelerationStructureKHR(device.vkHandle, createInfo, null, pAccelerationStructureHandle)
         this@TopLevelAccelerationStructure.vkHandle = pAccelerationStructureHandle[0]
 
-        val scratchBufferLayout = VulkanBufferLayout(
+        val scratchBufferLayout = VulkanBufferConfiguration(
                 buildSizesInfo.buildScratchSize(),
                 MemoryProperty.DEVICE_LOCAL,
                 BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
@@ -128,5 +113,10 @@ class TopLevelAccelerationStructure {
                 vkGetAccelerationStructureDeviceAddressKHR(device.vkHandle, accDeviceAddressInfo)
 
         scratchBuffer.destroy()
+    }
+
+
+    fun destroy(device: Device) {
+        vkDestroyAccelerationStructureKHR(device.vkHandle, vkHandle, null)
     }
 }

@@ -1,29 +1,17 @@
 package me.fexus.vulkan.component
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
-import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.layer.VulkanLayer
 import me.fexus.vulkan.component.queuefamily.QueueFamily
-import me.fexus.vulkan.extension.DescriptorBufferEXTExtension
-import me.fexus.vulkan.extension.DescriptorIndexingExtension
-import me.fexus.vulkan.extension.RayTracingPipelineKHRExtension
+import me.fexus.vulkan.extension.*
 import org.lwjgl.system.Struct
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDescriptorBuffer.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
+import org.lwjgl.vulkan.KHRAccelerationStructure.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
 import org.lwjgl.vulkan.KHRRayQuery.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR
 import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR
 import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
 import org.lwjgl.vulkan.VK13.*
-import org.lwjgl.vulkan.VkDevice
-import org.lwjgl.vulkan.VkDeviceCreateInfo
-import org.lwjgl.vulkan.VkDeviceQueueCreateInfo
-import org.lwjgl.vulkan.VkPhysicalDeviceDescriptorBufferFeaturesEXT
-import org.lwjgl.vulkan.VkPhysicalDeviceDescriptorIndexingFeatures
-import org.lwjgl.vulkan.VkPhysicalDeviceDynamicRenderingFeatures
-import org.lwjgl.vulkan.VkPhysicalDeviceFeatures
-import org.lwjgl.vulkan.VkPhysicalDeviceProperties2
-import org.lwjgl.vulkan.VkPhysicalDeviceRayQueryFeaturesKHR
-import org.lwjgl.vulkan.VkPhysicalDeviceRayTracingPipelineFeaturesKHR
-import org.lwjgl.vulkan.VkPhysicalDeviceRayTracingPipelinePropertiesKHR
 
 
 class Device {
@@ -109,6 +97,12 @@ class Device {
 
                 vkGetPhysicalDeviceProperties2(physicalDevice.vkHandle, props2)
 
+                val accelerationStructureFeatures = calloc(VkPhysicalDeviceAccelerationStructureFeaturesKHR::calloc) {
+                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR)
+                    pNext(0L)
+                    accelerationStructure(true)
+                }
+
                 val rayQueryFeatures = calloc(VkPhysicalDeviceRayQueryFeaturesKHR::calloc) {
                     sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR)
                     pNext(0L)
@@ -117,28 +111,42 @@ class Device {
 
                 val rayTracingFeatures = calloc(VkPhysicalDeviceRayTracingPipelineFeaturesKHR::calloc) {
                     sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR)
-                    pNext(rayQueryFeatures.address())
+                    pNext(0L)
                     rayTracingPipeline(true)
                 }
 
+                featureChain.add(accelerationStructureFeatures)
+                featureChain.add(rayQueryFeatures)
                 featureChain.add(rayTracingFeatures)
             }
 
             if (featureChain.isNotEmpty()) {
                 dynamicRenderingFeatures.pNext(featureChain.first().address())
+                featureChain.removeAt(0)
                 repeat(featureChain.size) {
                     val f = featureChain[it]
                     if (it + 1 < featureChain.size) {
                         val nextFeature = featureChain[it + 1]
-                        val pNextFun = f::class.members.first { m -> m.name == "pNext" && m.parameters.size == 1 }
+                        val pNextFun = f::class.members.first { m -> m.name == "pNext" && m.parameters.size == 2 }
                         pNextFun.call(f, nextFeature.address())
                     }
                 }
             }
 
+            val features2 = calloc(VkPhysicalDeviceVulkan12Features::calloc) {
+                sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
+                pNext(dynamicRenderingFeatures.address())
+                bufferDeviceAddress(BufferDeviceAddressKHRExtension in extensions)
+                if (DescriptorIndexingExtension in extensions) {
+                    descriptorIndexing(true)
+                    descriptorBindingPartiallyBound(true)
+                    descriptorBindingVariableDescriptorCount(true)
+                }
+            }
+
             val deviceCreateInfo = calloc(VkDeviceCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                pNext(dynamicRenderingFeatures.address())
+                pNext(features2)
                 flags(0)
                 pQueueCreateInfos(queueCreateInfos)
                 ppEnabledLayerNames(ppEnabledLayerNames)

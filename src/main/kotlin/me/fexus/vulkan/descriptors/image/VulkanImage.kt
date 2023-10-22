@@ -8,7 +8,7 @@ class VulkanImage(
     val vkImageHandle: Long,
     val vkImageMemoryHandle: Long,
     val vkImageViewHandle: Long,
-    val layout: VulkanImageLayout,
+    val config: VulkanImageConfiguration,
 ) {
 
     fun destroy() {

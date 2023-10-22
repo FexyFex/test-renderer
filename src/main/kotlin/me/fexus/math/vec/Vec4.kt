@@ -39,4 +39,9 @@ data class Vec4(override var x: Float, override var y: Float, override var z: Fl
         buf.putFloat(offset + 8, z)
         buf.putFloat(offset + 12, w)
     }
+
+
+    companion object {
+        const val SIZE_BYTES = Float.SIZE_BYTES * 4
+    }
 }

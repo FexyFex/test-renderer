@@ -3,7 +3,7 @@ package me.fexus.examples.parallaxvoxelraytracing.buffer
 import me.fexus.math.vec.IVec3
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import java.nio.ByteBuffer
@@ -24,7 +24,7 @@ class ChunkDataBufferArray {
 
     fun init(bufferFactory: VulkanBufferFactory, renderDistance: IVec3) {
         this.bufferFactory = bufferFactory
-        val addressBufferLayout = VulkanBufferLayout(
+        val addressBufferLayout = VulkanBufferConfiguration(
             ((renderDistance.x * 2 + 1) * (renderDistance.y * 2 + 1) * (renderDistance.z.toLong() * 2 + 1)) * Int.SIZE_BYTES,
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
@@ -70,7 +70,7 @@ class ChunkDataBufferArray {
     }
 
     private fun createNewBuffer(): ChunkBuffer {
-        val bufLayout = VulkanBufferLayout(
+        val bufLayout = VulkanBufferConfiguration(
             BUFFER_SIZE.toLong(),
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER

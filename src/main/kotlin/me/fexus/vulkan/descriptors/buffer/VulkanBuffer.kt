@@ -12,11 +12,11 @@ import org.lwjgl.vulkan.VkBufferDeviceAddressInfo
 import java.nio.ByteBuffer
 
 
-class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkMemoryHandle: Long, val layout: VulkanBufferLayout) {
+class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkMemoryHandle: Long, val config: VulkanBufferConfiguration) {
     private var mappingHandle: Long = -1L
 
-    fun hasProperty(memProp: MemoryProperties) = memProp in layout.memoryProperties
-    fun hasUsage(usage: IBufferUsage) = usage in layout.usage
+    fun hasProperty(memProp: MemoryProperties) = memProp in config.memoryProperties
+    fun hasUsage(usage: IBufferUsage) = usage in config.usage
 
     fun put(offset: Int, data: ByteBuffer) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
@@ -67,7 +67,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     private fun getMemoryMappingHandle(): Long = runMemorySafe {
         if (mappingHandle == -1L) {
             val ppMappingHandle = allocatePointer(1)
-            vkMapMemory(device.vkHandle, vkMemoryHandle, 0, layout.size, 0, ppMappingHandle)
+            vkMapMemory(device.vkHandle, vkMemoryHandle, 0, config.size, 0, ppMappingHandle)
             this@VulkanBuffer.mappingHandle = ppMappingHandle[0]
             return@runMemorySafe this@VulkanBuffer.mappingHandle
         } else return@runMemorySafe mappingHandle

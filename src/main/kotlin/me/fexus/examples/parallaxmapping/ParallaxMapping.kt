@@ -26,7 +26,7 @@ import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
 import me.fexus.vulkan.component.pipeline.*
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
@@ -97,7 +97,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        val depthAttachmentImageLayout = VulkanImageLayout(
+        val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(swapchain.imageExtent, 1),
             1, 1, 1,
@@ -114,13 +114,13 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             val offset = index * Float.SIZE_BYTES
             vertexBufferData.putFloat(offset, fl)
         }
-        val vertexBufferLayout = VulkanBufferLayout(
+        val vertexBufferLayout = VulkanBufferConfiguration(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
             MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
-        val stagingVertexBufferLayout = VulkanBufferLayout(
+        val stagingVertexBufferLayout = VulkanBufferConfiguration(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
@@ -144,7 +144,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         // -- VERTEX BUFFER --
 
         // -- CAMERA BUFFER --
-        val cameraBufferLayout = VulkanBufferLayout(
+        val cameraBufferLayout = VulkanBufferConfiguration(
             128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
@@ -154,14 +154,14 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val diffTexture = TextureLoader("textures/parallaxmapping/diffuse.jpg")
         val dispTexture = TextureLoader("textures/parallaxmapping/displacement.png")
         val normTexture = TextureLoader("textures/parallaxmapping/normal.jpg")
-        val imageArrayLayout = VulkanImageLayout(
+        val imageArrayLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(diffTexture.width, diffTexture.height, 1),
             1, 1, 3, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
         )
         this.imageArray = imageFactory.createImage(imageArrayLayout)
 
-        val stagingImageBufferLayout = VulkanBufferLayout(
+        val stagingImageBufferLayout = VulkanBufferConfiguration(
             diffTexture.imageSize * 3,
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
@@ -511,7 +511,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     }
 
     override fun onResizeRecreate(newExtent2D: ImageExtent2D) {
-        val depthAttachmentImageLayout = VulkanImageLayout(
+        val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(newExtent2D, 1),
             1, 1, 1,

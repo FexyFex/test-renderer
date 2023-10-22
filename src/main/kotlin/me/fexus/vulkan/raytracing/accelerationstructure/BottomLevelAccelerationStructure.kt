@@ -6,7 +6,7 @@ import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.exception.catchVK
@@ -74,7 +74,7 @@ class BottomLevelAccelerationStructure {
             buildSizesInfo
         )
 
-        val asBufferLayout = VulkanBufferLayout(
+        val asBufferLayout = VulkanBufferConfiguration(
             buildSizesInfo.accelerationStructureSize(),
             MemoryProperty.DEVICE_LOCAL,
             BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS
@@ -96,7 +96,7 @@ class BottomLevelAccelerationStructure {
         vkCreateAccelerationStructureKHR(device.vkHandle, accCreateInfo, null, pAccStructureHandle).catchVK()
         this@BottomLevelAccelerationStructure.vkHandle = pAccStructureHandle[0]
 
-        val scratchBufferLayout = VulkanBufferLayout(
+        val scratchBufferLayout = VulkanBufferConfiguration(
             buildSizesInfo.buildScratchSize(),
             MemoryProperty.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
@@ -137,5 +137,9 @@ class BottomLevelAccelerationStructure {
                 vkGetAccelerationStructureDeviceAddressKHR(device.vkHandle, deviceAddressInfo)
 
         scratchBuffer.destroy()
+    }
+
+    fun destroy(device: Device) {
+        vkDestroyAccelerationStructureKHR(device.vkHandle, vkHandle, null)
     }
 }

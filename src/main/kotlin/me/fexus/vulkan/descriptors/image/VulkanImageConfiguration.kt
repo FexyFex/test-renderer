@@ -7,7 +7,7 @@ import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
 import org.lwjgl.vulkan.VK10.VK_SHARING_MODE_EXCLUSIVE
 
 
-data class VulkanImageLayout(
+data class VulkanImageConfiguration(
     val imageType: ImageType,
     val imageViewType: ImageViewType,
     val extent: ImageExtent3D,

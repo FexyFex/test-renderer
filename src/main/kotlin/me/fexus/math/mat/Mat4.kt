@@ -10,6 +10,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 
+// column major
 class Mat4(val columns: Array<Vec4>) {
     constructor(): this(1f)
     constructor(s: Float): this(s,s,s,s)
@@ -41,6 +42,7 @@ class Mat4(val columns: Array<Vec4>) {
     val w: Vec4; get() = columns[3]
 
     operator fun get(index: Int) = columns[index]
+    operator fun get(columnIndex: Int, rowIndex: Int) = columns[columnIndex][rowIndex]
 
     fun put(other: Mat4) {
         repeatSquared(4) { x, y ->
@@ -294,5 +296,10 @@ class Mat4(val columns: Array<Vec4>) {
             val bufferIndex = x * 4 + y + offset
             buf.put(bufferIndex, this[x][y])
         }
+    }
+
+
+    companion object {
+        const val SIZE_BYTES = Vec4.SIZE_BYTES * 4
     }
 }

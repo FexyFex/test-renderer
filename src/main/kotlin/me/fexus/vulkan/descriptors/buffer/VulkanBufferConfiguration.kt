@@ -5,7 +5,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.IBufferUsage
 import org.lwjgl.vulkan.VK12.VK_SHARING_MODE_EXCLUSIVE
 
 
-data class VulkanBufferLayout(
+data class VulkanBufferConfiguration(
     val size: Long,
     val memoryProperties: MemoryProperties,
     val usage: IBufferUsage,

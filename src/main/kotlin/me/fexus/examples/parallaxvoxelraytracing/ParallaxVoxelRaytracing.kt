@@ -29,7 +29,7 @@ import me.fexus.vulkan.component.pipeline.*
 import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferLayout
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
@@ -116,7 +116,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.descriptorPool.create(device, poolPlan)
 
-        val depthAttachmentImageLayout = VulkanImageLayout(
+        val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(swapchain.imageExtent, 1),
             1, 1, 1,
@@ -135,13 +135,13 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 vertexBufferData.putFloat(offset, fl)
             }
         }
-        val vertexBufferLayout = VulkanBufferLayout(
+        val vertexBufferLayout = VulkanBufferConfiguration(
             cubeVertexBufSize.toLong(),
             MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
-        val stagingVertexBufferLayout = VulkanBufferLayout(
+        val stagingVertexBufferLayout = VulkanBufferConfiguration(
             cubeVertexBufSize.toLong(),
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
@@ -164,7 +164,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         stagingVertexBuffer.destroy()
 
         // -- CAMERA BUFFER --
-        val cameraBufferLayout = VulkanBufferLayout(
+        val cameraBufferLayout = VulkanBufferConfiguration(
             128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
@@ -172,14 +172,14 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // -- TEXTURES --
         val cobbleTex = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
-        val imageLayout = VulkanImageLayout(
+        val imageLayout = VulkanImageConfiguration(
                 ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(cobbleTex.width, cobbleTex.height, 1),
                 1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
                 ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
         )
         this.cobbleImage = imageFactory.createImage(imageLayout)
 
-        val stagingImageBufLayout = VulkanBufferLayout(
+        val stagingImageBufLayout = VulkanBufferConfiguration(
                 cobbleTex.imageSize,
                 MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
                 BufferUsage.TRANSFER_SRC
@@ -549,7 +549,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     override fun onResizeRecreate(newExtent2D: ImageExtent2D) {
-        val depthAttachmentImageLayout = VulkanImageLayout(
+        val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(newExtent2D, 1),
             1, 1, 1,

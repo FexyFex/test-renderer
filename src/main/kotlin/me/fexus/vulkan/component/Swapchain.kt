@@ -19,7 +19,7 @@ class Swapchain {
     var images = Array(FRAMES_TOTAL) { 0L }
     var imageViews = Array(FRAMES_TOTAL) { 0L }
 
-    lateinit var imageFormat: ImageColorFormat; private set
+    lateinit var imageColorFormat: ImageColorFormat; private set
     lateinit var imageExtent: ImageExtent2D; private set
 
     fun create(
@@ -43,7 +43,7 @@ class Swapchain {
             val formats = calloc(VkSurfaceFormatKHR::calloc, formatCount)
             vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.vkHandle, surface.vkHandle, pFormatCount, formats).catchVK()
             val surfaceFormat = chooseSurfaceFormat(formats)
-            this@Swapchain.imageFormat = ImageColorFormat.values().first { it.vkValue == surfaceFormat.format() }
+            this@Swapchain.imageColorFormat = ImageColorFormat.values().first { it.vkValue == surfaceFormat.format() }
 
             // Present Modes
             val pPresentModeCount = allocateInt(1)
@@ -145,7 +145,7 @@ class Swapchain {
                 pNext(0)
                 image(image)
                 viewType(VK_IMAGE_VIEW_TYPE_2D)
-                format(this@Swapchain.imageFormat.vkValue)
+                format(this@Swapchain.imageColorFormat.vkValue)
                 components()
                     .r(VK_COMPONENT_SWIZZLE_IDENTITY)
                     .g(VK_COMPONENT_SWIZZLE_IDENTITY)

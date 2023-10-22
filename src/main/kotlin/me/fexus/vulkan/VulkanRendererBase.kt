@@ -2,6 +2,7 @@ package me.fexus.vulkan
 
 import me.fexus.examples.RenderApplication
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.vulkan.accessmask.IAccessMask
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.CommandPool
 import me.fexus.vulkan.component.Surface
@@ -16,18 +17,23 @@ import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.component.Fence
 import me.fexus.vulkan.component.Semaphore
+import me.fexus.vulkan.component.pipeline.pipelinestage.IPipelineStage
+import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
+import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
+import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
+import me.fexus.vulkan.descriptors.image.ImageLayout
+import me.fexus.vulkan.descriptors.image.VulkanImage
+import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.window.Window
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkCommandBufferBeginInfo
-import org.lwjgl.vulkan.VkPresentInfoKHR
-import org.lwjgl.vulkan.VkQueueFamilyProperties
-import org.lwjgl.vulkan.VkSubmitInfo
+import java.nio.ByteBuffer
 
 
 abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
@@ -247,6 +253,33 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         return uniqueQueueFamilies.first { cap.vkBits and it.capabilities.vkBits == cap.vkBits }
     }
 
+    protected fun bufferCopy(srcData: ByteBuffer, dstBuffer: VulkanBuffer, srcOffset: Long, dstOffset: Long, size: Long) {
+        val stagingLayout = VulkanBufferConfiguration(
+            size,
+            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            BufferUsage.TRANSFER_SRC
+        )
+
+        val stagingBuffer = bufferFactory.createBuffer(stagingLayout)
+
+        stagingBuffer.put(srcOffset.toInt(), srcData)
+
+        runMemorySafe {
+            val cmdBuf = beginSingleTimeCommandBuffer()
+
+            val copyRegion = calloc(VkBufferCopy::calloc, 1)
+            copyRegion[0]
+                .srcOffset(srcOffset)
+                .dstOffset(dstOffset)
+                .size(size)
+            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingBuffer.vkBufferHandle, dstBuffer.vkBufferHandle, copyRegion)
+
+            endSingleTimeCommandBuffer(cmdBuf)
+        }
+
+        stagingBuffer.destroy()
+    }
+
     protected fun beginSingleTimeCommandBuffer(): CommandBuffer = runMemorySafe {
         val cmdBuf = CommandBuffer().create(device, commandPool)
 
@@ -284,6 +317,43 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         val cmdBuf = beginSingleTimeCommandBuffer()
         commands(cmdBuf)
         endSingleTimeCommandBuffer(cmdBuf)
+    }
+
+    protected fun cmdTransitionImageLayout(
+        cmdBuf: CommandBuffer,
+        image: VulkanImage,
+        srcAccessMask: IAccessMask,
+        dstAccessMask: IAccessMask,
+        srcLayout: ImageLayout,
+        dstLayout: ImageLayout,
+        srcPipelineStage: IPipelineStage,
+        dstPipelineStage: IPipelineStage
+    )  = runMemorySafe {
+        val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
+            aspectMask(image.config.imageAspect.vkBits)
+            baseMipLevel(0)
+            levelCount(1)
+            baseArrayLayer(0)
+            layerCount(1)
+        }
+
+        val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+        imageBarrier[0]
+            .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+            .pNext(0)
+            .image(image.vkImageHandle)
+            .srcAccessMask(srcAccessMask.vkBits)
+            .dstAccessMask(dstAccessMask.vkBits)
+            .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .oldLayout(srcLayout.vkValue)
+            .newLayout(dstLayout.vkValue)
+            .subresourceRange(subResourceRange)
+
+        vkCmdPipelineBarrier(
+            cmdBuf.vkHandle, srcPipelineStage.vkBits, dstPipelineStage.vkBits, 0,
+            null, null, imageBarrier
+        )
     }
 
 

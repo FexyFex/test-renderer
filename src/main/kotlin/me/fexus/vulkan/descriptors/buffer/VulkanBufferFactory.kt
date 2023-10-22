@@ -27,15 +27,15 @@ class VulkanBufferFactory : DescriptorFactory {
      * returns a VulkanBuffer with an altered VulkanBufferLayout to indicate the changes
      * that were made during creation.
      */
-    fun createBuffer(preferredBufferLayout: VulkanBufferLayout): VulkanBuffer = runMemorySafe {
+    fun createBuffer(preferredBufferConfig: VulkanBufferConfiguration): VulkanBuffer = runMemorySafe {
         // TODO: Check if preferences are valid and can be fulfilled
 
         val bufferInfo = calloc(VkBufferCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
             pNext(0)
-            size(preferredBufferLayout.size)
-            usage(preferredBufferLayout.usage.vkBits)
-            sharingMode(preferredBufferLayout.sharingMode)
+            size(preferredBufferConfig.size)
+            usage(preferredBufferConfig.usage.vkBits)
+            sharingMode(preferredBufferConfig.sharingMode)
         }
 
         val pBufferHandle = allocateLong(1)
@@ -47,7 +47,7 @@ class VulkanBufferFactory : DescriptorFactory {
 
         val memoryTypeIndex = findMemoryTypeIndex(
             memRequirements.memoryTypeBits(),
-            preferredBufferLayout.memoryProperties
+            preferredBufferConfig.memoryProperties
         )
 
         val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
@@ -57,7 +57,7 @@ class VulkanBufferFactory : DescriptorFactory {
             memoryTypeIndex(memoryTypeIndex)
         }
 
-        if (BufferUsage.SHADER_DEVICE_ADDRESS in preferredBufferLayout.usage) {
+        if (BufferUsage.SHADER_DEVICE_ADDRESS in preferredBufferConfig.usage) {
             val memoryAllocateFlagsInfo = calloc(VkMemoryAllocateFlagsInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO)
                 pNext(0L)
@@ -73,9 +73,9 @@ class VulkanBufferFactory : DescriptorFactory {
         vkBindBufferMemory(device.vkHandle, bufferHandle, bufferMemoryHandle, 0).catchVK()
 
         val actualSize: Long = memRequirements.size()
-        val actualProperties = preferredBufferLayout.memoryProperties
-        val actualUsage = preferredBufferLayout.usage
-        val actualBufferLayout = VulkanBufferLayout(actualSize, actualProperties, actualUsage)
+        val actualProperties = preferredBufferConfig.memoryProperties
+        val actualUsage = preferredBufferConfig.usage
+        val actualBufferLayout = VulkanBufferConfiguration(actualSize, actualProperties, actualUsage)
 
         return@runMemorySafe VulkanBuffer(device, bufferHandle, bufferMemoryHandle, actualBufferLayout)
     }

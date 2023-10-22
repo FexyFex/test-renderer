@@ -27,7 +27,7 @@ class VulkanImageFactory: DescriptorFactory {
      * the function returns a VulkanImage with an altered VulkanImageLayout to indicate
      * the changes that were made during creation.
      */
-    fun createImage(preferredLayout: VulkanImageLayout): VulkanImage {
+    fun createImage(preferredLayout: VulkanImageConfiguration): VulkanImage {
         val image = runMemorySafe {
             val imageInfo = calloc(VkImageCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
@@ -63,10 +63,10 @@ class VulkanImageFactory: DescriptorFactory {
             }
 
             val pImageMemoryHandle = allocateLong(1)
-            vkAllocateMemory(device.vkHandle, allocInfo, null, pImageMemoryHandle)
+            vkAllocateMemory(device.vkHandle, allocInfo, null, pImageMemoryHandle).catchVK()
             val imageMemoryHandle = pImageMemoryHandle[0]
 
-            vkBindImageMemory(device.vkHandle, imageHandle, imageMemoryHandle, 0)
+            vkBindImageMemory(device.vkHandle, imageHandle, imageMemoryHandle, 0).catchVK()
 
             val viewInfo = calloc(VkImageViewCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -83,10 +83,10 @@ class VulkanImageFactory: DescriptorFactory {
             }
 
             val pImageViewHandle = allocateLong(1)
-            vkCreateImageView(device.vkHandle, viewInfo, null, pImageViewHandle)
+            vkCreateImageView(device.vkHandle, viewInfo, null, pImageViewHandle).catchVK()
             val imageViewHandle = pImageViewHandle[0]
 
-            val actualLayout = VulkanImageLayout(
+            val actualLayout = VulkanImageConfiguration(
                 preferredLayout.imageType,
                 preferredLayout.imageViewType,
                 preferredLayout.extent,
