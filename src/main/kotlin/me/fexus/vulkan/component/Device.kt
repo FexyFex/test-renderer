@@ -4,7 +4,6 @@ import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.layer.VulkanLayer
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.extension.*
-import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDescriptorBuffer.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
 import org.lwjgl.vulkan.KHRAccelerationStructure.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
@@ -47,90 +46,34 @@ class Device {
                 ppEnabledExtensions.put(index, allocateStringValue(deviceExtension.name))
             }
 
-            val deviceFeatures = calloc(VkPhysicalDeviceFeatures::calloc) {
+            val baseDeviceFeatures = calloc(VkPhysicalDeviceFeatures::calloc) {
                 samplerAnisotropy(true)
                 sampleRateShading(true)
                 multiDrawIndirect(true)
                 robustBufferAccess(true)
             }
 
-            val featureChain = mutableListOf<Struct>()
-
-            // Always use dynamic rendering
+            // Always use dynamic rendering and descriptor indexing (bye bye, mobile)
             val dynamicRenderingFeatures = calloc(VkPhysicalDeviceDynamicRenderingFeatures::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES)
                 pNext(0)
                 dynamicRendering(true)
             }
 
-            if (DescriptorBufferEXTExtension in extensions) {
-                val descriptorBufferFeatures = calloc(VkPhysicalDeviceDescriptorBufferFeaturesEXT::calloc) {
-                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT)
-                    pNext(dynamicRenderingFeatures.address())
-                    descriptorBuffer(true)
-                }
-
-                featureChain.add(descriptorBufferFeatures)
-            }
-
-            if (DescriptorIndexingExtension in extensions) {
-                val descriptorIndexingFeatures = calloc(VkPhysicalDeviceDescriptorIndexingFeatures::calloc) {
-                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES)
-                    pNext(0)
-                    descriptorBindingPartiallyBound(true)
-                    descriptorBindingVariableDescriptorCount(true)
-                }
-
-                featureChain.add(descriptorIndexingFeatures)
-            }
-
             if (RayTracingPipelineKHRExtension in extensions) {
-                val rayTracingProps = calloc(VkPhysicalDeviceRayTracingPipelinePropertiesKHR::calloc) {
-                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR)
-                    pNext(0)
-                }
-
-                val props2 = calloc(VkPhysicalDeviceProperties2::calloc) {
-                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2)
-                    pNext(rayTracingProps.address())
-                }
-
-                vkGetPhysicalDeviceProperties2(physicalDevice.vkHandle, props2)
-
                 val accelerationStructureFeatures = calloc(VkPhysicalDeviceAccelerationStructureFeaturesKHR::calloc) {
                     sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR)
                     pNext(0L)
                     accelerationStructure(true)
                 }
 
-                val rayQueryFeatures = calloc(VkPhysicalDeviceRayQueryFeaturesKHR::calloc) {
-                    sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR)
-                    pNext(0L)
-                    rayQuery(true)
-                }
-
                 val rayTracingFeatures = calloc(VkPhysicalDeviceRayTracingPipelineFeaturesKHR::calloc) {
                     sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR)
-                    pNext(0L)
+                    pNext(accelerationStructureFeatures.address())
                     rayTracingPipeline(true)
                 }
 
-                featureChain.add(accelerationStructureFeatures)
-                featureChain.add(rayQueryFeatures)
-                featureChain.add(rayTracingFeatures)
-            }
-
-            if (featureChain.isNotEmpty()) {
-                dynamicRenderingFeatures.pNext(featureChain.first().address())
-                featureChain.removeAt(0)
-                repeat(featureChain.size) {
-                    val f = featureChain[it]
-                    if (it + 1 < featureChain.size) {
-                        val nextFeature = featureChain[it + 1]
-                        val pNextFun = f::class.members.first { m -> m.name == "pNext" && m.parameters.size == 2 }
-                        pNextFun.call(f, nextFeature.address())
-                    }
-                }
+                dynamicRenderingFeatures.pNext(rayTracingFeatures.address())
             }
 
             val features2 = calloc(VkPhysicalDeviceVulkan12Features::calloc) {
@@ -146,12 +89,12 @@ class Device {
 
             val deviceCreateInfo = calloc(VkDeviceCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                pNext(features2)
+                pNext(features2.address())
                 flags(0)
                 pQueueCreateInfos(queueCreateInfos)
                 ppEnabledLayerNames(ppEnabledLayerNames)
                 ppEnabledExtensionNames(ppEnabledExtensions)
-                pEnabledFeatures(deviceFeatures)
+                pEnabledFeatures(baseDeviceFeatures)
             }
 
             val pDeviceHandle = allocatePointer(1)

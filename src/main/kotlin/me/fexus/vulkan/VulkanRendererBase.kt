@@ -29,6 +29,7 @@ import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.window.Window
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.KHRSwapchain.*
@@ -261,6 +262,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         )
 
         val stagingBuffer = bufferFactory.createBuffer(stagingLayout)
+        assignName(stagingBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "staging_buffer_for_copy")
 
         stagingBuffer.put(srcOffset.toInt(), srcData)
 
@@ -328,7 +330,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         dstLayout: ImageLayout,
         srcPipelineStage: IPipelineStage,
         dstPipelineStage: IPipelineStage
-    )  = runMemorySafe {
+    ) = runMemorySafe {
         val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
             aspectMask(image.config.imageAspect.vkBits)
             baseMipLevel(0)
@@ -354,6 +356,18 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             cmdBuf.vkHandle, srcPipelineStage.vkBits, dstPipelineStage.vkBits, 0,
             null, null, imageBarrier
         )
+    }
+
+    protected fun assignName(objHandle: Long, objType: Int, name: String) = runMemorySafe {
+        val debugNameInfo = calloc(VkDebugUtilsObjectNameInfoEXT::calloc) {
+            sType(EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT)
+            pNext(0)
+            objectType(objType)
+            pObjectName(MemoryUtil.memUTF8(name))
+            objectHandle(objHandle)
+        }
+
+        EXTDebugUtils.vkSetDebugUtilsObjectNameEXT(device.vkHandle, debugNameInfo)
     }
 
 

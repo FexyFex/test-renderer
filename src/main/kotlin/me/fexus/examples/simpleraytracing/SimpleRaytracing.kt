@@ -21,10 +21,7 @@ import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutBindin
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutPlan
 import me.fexus.vulkan.component.descriptor.set.layout.bindingflags.DescriptorSetLayoutBindingFlag
 import me.fexus.vulkan.component.descriptor.set.layout.createflags.DescriptorSetLayoutCreateFlag
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
+import me.fexus.vulkan.component.descriptor.write.*
 import me.fexus.vulkan.component.pipeline.*
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
@@ -122,7 +119,8 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         createPipeline()
         initDescriptors()
         createShaderBindingTable()
-        //startRenderLoop(window, this)
+        writeDescriptorSets()
+        startRenderLoop(window, this)
     }
 
     private fun createDescriptors() {
@@ -134,7 +132,8 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 16),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16),
                 DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16),
-                DescriptorPoolSize(DescriptorType.SAMPLER, 16)
+                DescriptorPoolSize(DescriptorType.SAMPLER, 16),
+                DescriptorPoolSize(DescriptorType.ACCELERATION_STRUCTURE, 16)
             )
         )
         this.descriptorPool.create(device, poolPlan)
@@ -150,6 +149,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             MemoryProperty.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
+        assignName(this.depthAttachment.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "depth_image")
         // -- DEPTH ATTACHMENT IMAGE --
 
         // -- VERTEX BUFFER --
@@ -162,24 +162,31 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
+        assignName(this.vertexBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "vertex_buffer")
         // -- VERTEX BUFFER --
 
         // -- TRANSFORM DATA BUFFER --
         val transformBufLayout = VulkanBufferConfiguration(
             64L,
             MemoryProperty.DEVICE_LOCAL,
-            BufferUsage.SHADER_DEVICE_ADDRESS + BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
+            BufferUsage.SHADER_DEVICE_ADDRESS +
+                    BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR +
+                    BufferUsage.TRANSFER_DST
         )
         this.objTransformBuffer = bufferFactory.createBuffer(transformBufLayout)
+        assignName(this.objTransformBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "transform_buffer")
         // -- TRANSFORM DATA BUFFER --
 
         // -- INSTANCE DATA BUFFER
         val instanceDataBufLayout = VulkanBufferConfiguration(
             AccelerationStructureInstance.SIZE_BYTES.toLong(),
             MemoryProperty.DEVICE_LOCAL,
-            BufferUsage.SHADER_DEVICE_ADDRESS + BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
+            BufferUsage.SHADER_DEVICE_ADDRESS +
+                    BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR +
+                    BufferUsage.TRANSFER_DST
         )
         this.instanceDataBuffer = bufferFactory.createBuffer(instanceDataBufLayout)
+        assignName(this.instanceDataBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "instance_data_buffer")
         // -- INSTANCE DATA BUFFER
 
         // -- CAMERA BUFFER --
@@ -189,37 +196,64 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
+        assignName(this.cameraBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "camera_uniform_buffer")
         // -- CAMERA BUFFER --
 
         // -- TEXTURES --
-        val imageLayout = VulkanImageConfiguration(
+        val cobbleImageConfig = VulkanImageConfiguration(
                 ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(cobbleTexture.width, cobbleTexture.height, 1),
                 1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
                 ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
         )
-        this.cobbleImage = imageFactory.createImage(imageLayout)
+        this.cobbleImage = imageFactory.createImage(cobbleImageConfig)
+        assignName(this.cobbleImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "cobble_image")
         // -- TEXTURES --
 
         // -- STORAGE IMAGE --
         val storageImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(swapchain.imageExtent, 1), 1,
-            VK_SAMPLE_COUNT_1_BIT, 1, swapchain.imageColorFormat, ImageTiling.OPTIMAL, ImageAspect.COLOR,
+            VK_SAMPLE_COUNT_1_BIT, 1, ImageColorFormat.B8G8R8A8_UNORM, ImageTiling.OPTIMAL, ImageAspect.COLOR,
             ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
-        val cmdBuf = beginSingleTimeCommandBuffer()
-        cmdTransitionImageLayout(
-            cmdBuf, this.storageImage,
-            AccessMask.NONE, AccessMask.TRANSFER_WRITE,
-            ImageLayout.UNDEFINED, ImageLayout.GENERAL,
-            PipelineStage.TOP_OF_PIPE, PipelineStage.FRAGMENT_SHADER
-        )
-        endSingleTimeCommandBuffer(cmdBuf)
+        assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
+        runMemorySafe {
+            val cmdBuf = beginSingleTimeCommandBuffer()
+            assignName(cmdBuf.vkHandle.address(), VK_OBJECT_TYPE_COMMAND_BUFFER, "cmd_buf_storage_img_transition")
+            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
+                aspectMask(ImageAspect.COLOR.vkBits)
+                baseMipLevel(0)
+                levelCount(1)
+                baseArrayLayer(0)
+                layerCount(1)
+            }
+
+            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+            imageBarrier[0]
+                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                .pNext(0)
+                .image(this@SimpleRaytracing.storageImage.vkImageHandle)
+                .srcAccessMask(0)
+                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .oldLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+                .newLayout(VK_IMAGE_LAYOUT_GENERAL)
+                .subresourceRange(subResourceRange)
+
+            vkCmdPipelineBarrier(
+                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                null, null, imageBarrier
+            )
+
+            endSingleTimeCommandBuffer(cmdBuf)
+        }
         // -- STORAGE IMAGE --
 
         // -- SAMPLER --
         val samplerLayout = VulkanSamplerLayout(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.sampler = imageFactory.createSampler(samplerLayout)
+        assignName(this.sampler.vkHandle, VK_OBJECT_TYPE_SAMPLER, "soompler")
         // -- SAMPLER --
 
         // -- DESCRIPTOR SET LAYOUT --
@@ -247,25 +281,6 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.descriptorSetLayout.create(device, setLayoutPlan)
         // -- DESCRIPTOR SET LAYOUT --
-
-        // -- DESCRIPTOR SET --
-        this.descriptorSet.create(device, descriptorPool, descriptorSetLayout)
-
-        val descWriteAccStruct = DescriptorBufferWrite(
-            0, DescriptorType.ACCELERATION_STRUCTURE, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(topLevelAS.vkHandle, 0L, VK_WHOLE_SIZE))
-        )
-        val descWriteStorageImg = DescriptorImageWrite(
-            2, DescriptorType.SAMPLED_IMAGE, 1, this.descriptorSet, 0,
-            listOf(DescriptorImageInfo(0L, this.cobbleImage.vkImageViewHandle, ImageLayout.GENERAL))
-        )
-        val descUniformBuf = DescriptorBufferWrite(
-            3, DescriptorType.SAMPLER, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(this.cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
-        )
-
-        this.descriptorSet.update(device, descWriteAccStruct, descWriteStorageImg, descUniformBuf)
-        // -- DESCRIPTOR SET --
     }
 
     private fun createPipeline() {
@@ -315,6 +330,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         val instanceByteBuffer = ByteBuffer.allocate(AccelerationStructureInstance.SIZE_BYTES)
         instanceByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
         instance.toByteBuffer(instanceByteBuffer, 0)
+        bufferCopy(instanceByteBuffer, this.instanceDataBuffer, 0L, 0L, AccelerationStructureInstance.SIZE_BYTES.toLong())
         // INSTANCE DATA BUFFER
 
         initTopLevelAccelerationStructure()
@@ -327,14 +343,35 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
         stagingBufImg.put(0, cobbleTexture.pixels)
+        assignName(stagingBufImg.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "img_staging_buf_cobble")
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
+            assignName(cmdBuf.vkHandle.address(), VK_OBJECT_TYPE_COMMAND_BUFFER, "cmd_buf_img_transfer_cobble")
 
-            cmdTransitionImageLayout(
-                cmdBuf, this@SimpleRaytracing.cobbleImage,
-                AccessMask.NONE, AccessMask.TRANSFER_WRITE,
-                ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
-                PipelineStage.TOP_OF_PIPE, PipelineStage.TRANSFER
+            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
+                aspectMask(ImageAspect.COLOR.vkBits)
+                baseMipLevel(0)
+                levelCount(1)
+                baseArrayLayer(0)
+                layerCount(1)
+            }
+
+            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+            imageBarrier[0]
+                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                .pNext(0)
+                .image(this@SimpleRaytracing.cobbleImage.vkImageHandle)
+                .srcAccessMask(0)
+                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .oldLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+                .newLayout(VK_IMAGE_LAYOUT_GENERAL)
+                .subresourceRange(subResourceRange)
+
+            vkCmdPipelineBarrier(
+                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                null, null, imageBarrier
             )
 
             val copyRegions = calloc(VkBufferImageCopy::calloc, 1)
@@ -353,11 +390,15 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
             )
 
-            cmdTransitionImageLayout(
-                cmdBuf, this@SimpleRaytracing.cobbleImage,
-                AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
-                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
-                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+            imageBarrier[0]
+                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+            vkCmdPipelineBarrier(
+                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                null, null, imageBarrier
             )
 
             endSingleTimeCommandBuffer(cmdBuf)
@@ -376,14 +417,33 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     private fun initTopLevelAccelerationStructure() = runSingleTimeCommands {
-        val topLevelASConfig = TopLevelAccelerationStructureConfiguration(
-                instanceDataBuffer, bottomLevelAS
-        )
+        val topLevelASConfig = TopLevelAccelerationStructureConfiguration(instanceDataBuffer, bottomLevelAS)
         this.topLevelAS.createAndBuild(device, bufferFactory, it, topLevelASConfig)
     }
 
-    fun createShaderBindingTable() {
+    private fun createShaderBindingTable() {
 
+    }
+
+    private fun writeDescriptorSets() {
+        // -- DESCRIPTOR SET --
+        this.descriptorSet.create(device, descriptorPool, descriptorSetLayout)
+
+        val descWriteAccStruct = DescriptorAccelerationStructureWrite (
+                0, DescriptorType.ACCELERATION_STRUCTURE, 1, this.descriptorSet, 0,
+                DescriptorBufferInfo(topLevelAS.vkHandle, 0L, VK_WHOLE_SIZE)
+        )
+        val storageImageWrite = DescriptorImageWrite(
+                1, DescriptorType.STORAGE_IMAGE, 1, this.descriptorSet, 0,
+                listOf(DescriptorImageInfo(0L, this.storageImage.vkImageViewHandle, ImageLayout.GENERAL))
+        )
+        val uniformBufWrite = DescriptorBufferWrite(
+                2, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
+                listOf(DescriptorBufferInfo(cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+
+        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite)
+        // -- DESCRIPTOR SET --
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {

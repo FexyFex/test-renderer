@@ -4,16 +4,16 @@ import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPool
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
+import me.fexus.vulkan.component.descriptor.write.DescriptorAccelerationStructureWrite
 import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
 import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
 import me.fexus.vulkan.component.descriptor.write.DescriptorWrite
 import me.fexus.vulkan.exception.catchVK
+import org.lwjgl.system.MemoryUtil.memAllocLong
 import org.lwjgl.system.StructBuffer
+import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRAccelerationStructure.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR
 import org.lwjgl.vulkan.VK12.*
-import org.lwjgl.vulkan.VkDescriptorBufferInfo
-import org.lwjgl.vulkan.VkDescriptorImageInfo
-import org.lwjgl.vulkan.VkDescriptorSetAllocateInfo
-import org.lwjgl.vulkan.VkWriteDescriptorSet
 
 
 class DescriptorSet {
@@ -42,9 +42,24 @@ class DescriptorSet {
         val structs = mutableListOf<StructBuffer<*,*>>()
         val vkWrites = VkWriteDescriptorSet.calloc(descriptorWrites.size)
         descriptorWrites.forEachIndexed { index, write ->
+            val peeNext = if (write is DescriptorAccelerationStructureWrite) {
+                val pAccelStructs = memAllocLong(1)
+                pAccelStructs.put(0, write.accStructInfos.bufferHandle)
+                val descAccStruct = VkWriteDescriptorSetAccelerationStructureKHR.calloc(1)
+                descAccStruct[0]
+                        .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR)
+                        .pNext(0L)
+                        .accelerationStructureCount(1)
+                        .pAccelerationStructures(pAccelStructs)
+
+                structs.add(descAccStruct)
+
+                descAccStruct.address()
+            } else 0L
+
             vkWrites[index]
                 .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                .pNext(0)
+                .pNext(peeNext)
                 .dstSet(write.dstSet.vkHandle)
                 .dstBinding(write.dstBinding)
                 .dstArrayElement(write.dstArrayElement)
@@ -77,6 +92,7 @@ class DescriptorSet {
                     }
                     vkWrites[index].pImageInfo(imageInfos)
                 }
+                is DescriptorAccelerationStructureWrite -> {}
                 else -> throw Exception("What the fudge?")
             }
         }
