@@ -123,7 +123,10 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     private fun createDescriptors() {
-        camera.position = Vec3(0f, 0f, 5f)
+        camera.fov = 60f
+        camera.position = Vec3(0f, 0f, -2.5f)
+        camera.zNear = 0.1f
+        camera.zFar = 512f
 
         // -- DESCRIPTOR POOL --
         val poolPlan = DescriptorPoolPlan(
@@ -703,6 +706,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
 
     override fun onResizeDestroy() {
         depthAttachment.destroy()
+        storageImage.destroy()
     }
 
     override fun onResizeRecreate(newExtent2D: ImageExtent2D) {
@@ -715,6 +719,24 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             MemoryProperty.DEVICE_LOCAL
         )
         depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
+
+        val storageImageLayout = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(swapchain.imageExtent, 1), 1,
+            VK_SAMPLE_COUNT_1_BIT, 1, ImageColorFormat.B8G8R8A8_UNORM, ImageTiling.OPTIMAL, ImageAspect.COLOR,
+            ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
+        )
+        this.storageImage = imageFactory.createImage(storageImageLayout)
+        assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
+        runSingleTimeCommands { cmdBuf ->
+            cmdTransitionImageLayout(
+                cmdBuf, this@SimpleRaytracing.storageImage,
+                AccessMask.NONE, AccessMask.SHADER_READ,
+                ImageLayout.UNDEFINED, ImageLayout.GENERAL,
+                PipelineStage.TOP_OF_PIPE, PipelineStage.FRAGMENT_SHADER
+            )
+        }
+
+        writeDescriptorSets()
     }
 
     override fun destroy() {
