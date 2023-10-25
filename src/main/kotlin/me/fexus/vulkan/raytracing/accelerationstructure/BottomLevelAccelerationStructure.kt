@@ -22,10 +22,11 @@ class BottomLevelAccelerationStructure {
 
 
     fun createAndBuild(
-            device: Device,
-            bufferFactory: VulkanBufferFactory,
-            commandBuffer: CommandBuffer,
-            config: BottomLevelAccelerationStructureConfiguration
+        device: Device,
+        bufferFactory: VulkanBufferFactory,
+        beginSingleTimeCommands: () -> CommandBuffer,
+        endSingleTimeCommands: (CommandBuffer) -> Unit,
+        config: BottomLevelAccelerationStructureConfiguration
     ) = runMemorySafe {
         val pTriangleCount = allocateIntValues(config.primitivesCount)
 
@@ -122,12 +123,14 @@ class BottomLevelAccelerationStructure {
             transformOffset(0)
         }
 
+        val cmdBuf = beginSingleTimeCommands()
         val ppBuildRangeInfos = allocatePointerValues(buildRangeInfo.address())
         vkCmdBuildAccelerationStructuresKHR(
-                commandBuffer.vkHandle,
+                cmdBuf.vkHandle,
                 accBuildGeometryInfo,
                 ppBuildRangeInfos
         )
+        endSingleTimeCommands(cmdBuf)
 
         val deviceAddressInfo = calloc(VkAccelerationStructureDeviceAddressInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR)
@@ -141,5 +144,6 @@ class BottomLevelAccelerationStructure {
 
     fun destroy(device: Device) {
         vkDestroyAccelerationStructureKHR(device.vkHandle, vkHandle, null)
+        buffer.destroy()
     }
 }

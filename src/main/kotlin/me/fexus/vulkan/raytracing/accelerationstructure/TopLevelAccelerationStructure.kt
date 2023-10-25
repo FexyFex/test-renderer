@@ -21,7 +21,8 @@ class TopLevelAccelerationStructure {
     fun createAndBuild(
             device: Device,
             bufferFactory: VulkanBufferFactory,
-            commandBuffer: CommandBuffer,
+            beginSingleTimeCommandBuffer: () -> CommandBuffer,
+            endSingleTimeCommandBuffer: (CommandBuffer) -> Unit,
             config: TopLevelAccelerationStructureConfiguration
     ) = runMemorySafe {
         val accelerationStructureGeometry = calloc(VkAccelerationStructureGeometryKHR::calloc, 1)
@@ -100,8 +101,10 @@ class TopLevelAccelerationStructure {
             transformOffset(0)
         }
 
+        val cmdBuf = beginSingleTimeCommandBuffer()
         val ppBuildRanges = allocatePointerValues(buildRangeInfo.address())
-        vkCmdBuildAccelerationStructuresKHR(commandBuffer.vkHandle, buildGeometryInfo2, ppBuildRanges)
+        vkCmdBuildAccelerationStructuresKHR(cmdBuf.vkHandle, buildGeometryInfo2, ppBuildRanges)
+        endSingleTimeCommandBuffer(cmdBuf)
 
         val accDeviceAddressInfo = calloc(VkAccelerationStructureDeviceAddressInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR)
@@ -118,5 +121,6 @@ class TopLevelAccelerationStructure {
 
     fun destroy(device: Device) {
         vkDestroyAccelerationStructureKHR(device.vkHandle, vkHandle, null)
+        buffer.destroy()
     }
 }

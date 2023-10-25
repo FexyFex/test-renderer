@@ -18,13 +18,13 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     fun hasProperty(memProp: MemoryProperties) = memProp in config.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in config.usage
 
-    fun put(offset: Int, data: ByteBuffer) {
+    fun put(dstOffset: Int, data: ByteBuffer, srcOffset: Int = 0, srcSize: Int = data.capacity()) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
             // Copy can be done without staging
-            val address = getMemoryMappingHandle() + offset
-            repeat(data.capacity()) {
+            val address = getMemoryMappingHandle() + dstOffset
+            repeat(srcSize) {
                 val lOffset = address + it
-                MemoryUtil.memPutByte(lOffset, data[it])
+                MemoryUtil.memPutByte(lOffset, data[it + srcOffset])
             }
         } else {
             throw Exception("Device local buffers require staging")
@@ -52,7 +52,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun getDeviceAddress() = runMemorySafe {
-        if (!hasProperty(MemoryProperty.DEVICE_LOCAL) || !hasUsage(BufferUsage.SHADER_DEVICE_ADDRESS))
+        if (!hasUsage(BufferUsage.SHADER_DEVICE_ADDRESS))
             throw Exception("Only device local buffers and buffers flagged with usage DEVICE_ADDRESS_KHR may be assigned a device address")
 
         val addressInfo = calloc(VkBufferDeviceAddressInfo::calloc) {

@@ -2,7 +2,6 @@ package me.fexus.examples.simpleraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.math.mat.Mat4
-import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.model.CubeModel
@@ -51,8 +50,7 @@ import me.fexus.window.input.Key
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRAccelerationStructure.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
-import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR
-import org.lwjgl.vulkan.KHRRayTracingPipeline.vkCmdTraceRaysKHR
+import org.lwjgl.vulkan.KHRRayTracingPipeline.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
@@ -61,15 +59,12 @@ import java.nio.ByteOrder
 
 class SimpleRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 16
-        private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
-
         @JvmStatic
         fun main(args: Array<String>) {
             SimpleRaytracing().start()
         }
 
-        private fun createWindow() = Window("Parallax Voxel Raytracing") {
+        private fun createWindow() = Window("Simple Raytracing") {
             windowVisible()
             enableResizable()
             setInitialWindowSize(1280,720)
@@ -93,12 +88,16 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
     private lateinit var sampler: VulkanSampler
     private lateinit var objTransformBuffer: VulkanBuffer
     private lateinit var instanceDataBuffer: VulkanBuffer
+    private lateinit var raytracingProperties: RaytracingProperties
     private val topLevelAS = TopLevelAccelerationStructure()
     private val bottomLevelAS = BottomLevelAccelerationStructure()
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val raytracingPipeline = RaytracingPipeline()
+    lateinit var raygenShaderBindingTable: VulkanBuffer
+    lateinit var missShaderBindingTable: VulkanBuffer
+    lateinit var chitShaderBindingTable: VulkanBuffer
 
     private val cubePosition = Vec3(0f, 0f, -5f)
     private val cubeTransform = Mat4(1f).translate(cubePosition)
@@ -116,7 +115,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         )
         initVulkanCore(extraExtensions)
         createDescriptors()
-        createPipeline()
+        createRaytracingPipeline()
         initDescriptors()
         createShaderBindingTable()
         writeDescriptorSets()
@@ -217,36 +216,13 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
         assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
-        runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
-            assignName(cmdBuf.vkHandle.address(), VK_OBJECT_TYPE_COMMAND_BUFFER, "cmd_buf_storage_img_transition")
-            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
-                aspectMask(ImageAspect.COLOR.vkBits)
-                baseMipLevel(0)
-                levelCount(1)
-                baseArrayLayer(0)
-                layerCount(1)
-            }
-
-            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-            imageBarrier[0]
-                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                .pNext(0)
-                .image(this@SimpleRaytracing.storageImage.vkImageHandle)
-                .srcAccessMask(0)
-                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .oldLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-                .newLayout(VK_IMAGE_LAYOUT_GENERAL)
-                .subresourceRange(subResourceRange)
-
-            vkCmdPipelineBarrier(
-                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                null, null, imageBarrier
+        runSingleTimeCommands { cmdBuf ->
+            cmdTransitionImageLayout(
+                cmdBuf, this@SimpleRaytracing.storageImage,
+                AccessMask.NONE, AccessMask.SHADER_READ,
+                ImageLayout.UNDEFINED, ImageLayout.GENERAL,
+                PipelineStage.TOP_OF_PIPE, PipelineStage.FRAGMENT_SHADER
             )
-
-            endSingleTimeCommandBuffer(cmdBuf)
         }
         // -- STORAGE IMAGE --
 
@@ -283,10 +259,10 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         // -- DESCRIPTOR SET LAYOUT --
     }
 
-    private fun createPipeline() {
-        val raygenShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/rgen.spv").readBytes()
-        val missShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/rmiss.spv").readBytes()
-        val chitShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/rchit.spv").readBytes()
+    private fun createRaytracingPipeline() {
+        val raygenShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/raytracing/rgen.spv").readBytes()
+        val missShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/raytracing/rmiss.spv").readBytes()
+        val chitShaderCode = ClassLoader.getSystemResource("shaders/simpleraytracing/raytracing/rchit.spv").readBytes()
         val config = RaytracingPipelineConfiguration(
             listOf(
                 RaytracingShaderStage(ShaderStage.RAYGEN, RaytracingShaderGroupType.GENERAL, raygenShaderCode),
@@ -342,36 +318,15 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             BufferUsage.TRANSFER_SRC
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
-        stagingBufImg.put(0, cobbleTexture.pixels)
+        stagingBufImg.put(0, cobbleTexture.pixels, 0)
         assignName(stagingBufImg.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "img_staging_buf_cobble")
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
-            assignName(cmdBuf.vkHandle.address(), VK_OBJECT_TYPE_COMMAND_BUFFER, "cmd_buf_img_transfer_cobble")
-
-            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
-                aspectMask(ImageAspect.COLOR.vkBits)
-                baseMipLevel(0)
-                levelCount(1)
-                baseArrayLayer(0)
-                layerCount(1)
-            }
-
-            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-            imageBarrier[0]
-                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                .pNext(0)
-                .image(this@SimpleRaytracing.cobbleImage.vkImageHandle)
-                .srcAccessMask(0)
-                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .oldLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-                .newLayout(VK_IMAGE_LAYOUT_GENERAL)
-                .subresourceRange(subResourceRange)
-
-            vkCmdPipelineBarrier(
-                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                null, null, imageBarrier
+            cmdTransitionImageLayout(
+                cmdBuf, this@SimpleRaytracing.cobbleImage,
+                AccessMask.NONE, AccessMask.TRANSFER_WRITE,
+                ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
+                PipelineStage.TOP_OF_PIPE, PipelineStage.TRANSFER
             )
 
             val copyRegions = calloc(VkBufferImageCopy::calloc, 1)
@@ -390,15 +345,11 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
             )
 
-            imageBarrier[0]
-                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-
-            vkCmdPipelineBarrier(
-                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                null, null, imageBarrier
+            cmdTransitionImageLayout(
+                cmdBuf, this@SimpleRaytracing.cobbleImage,
+                AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
+                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
             )
 
             endSingleTimeCommandBuffer(cmdBuf)
@@ -407,22 +358,68 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         // TEXTURE IMAGE
     }
 
-    private fun initBottomLevelAccelerationStructure() = runSingleTimeCommands {
+    private fun initBottomLevelAccelerationStructure() {
         val bottomLevelASConfig = BottomLevelAccelerationStructureConfiguration(
             CubeModel.vertices.size / 3,
             vertexBuffer, null, objTransformBuffer,
             CubeModel.Vertex.SIZE_BYTES
         )
-        this.bottomLevelAS.createAndBuild(device, bufferFactory, it, bottomLevelASConfig)
+        this.bottomLevelAS.createAndBuild(
+            device,
+            bufferFactory,
+            this::beginSingleTimeCommandBuffer,
+            this::endSingleTimeCommandBuffer,
+            bottomLevelASConfig
+        )
     }
 
-    private fun initTopLevelAccelerationStructure() = runSingleTimeCommands {
+    private fun initTopLevelAccelerationStructure() {
         val topLevelASConfig = TopLevelAccelerationStructureConfiguration(instanceDataBuffer, bottomLevelAS)
-        this.topLevelAS.createAndBuild(device, bufferFactory, it, topLevelASConfig)
+        this.topLevelAS.createAndBuild(
+            device,
+            bufferFactory,
+            this::beginSingleTimeCommandBuffer,
+            this::endSingleTimeCommandBuffer,
+            topLevelASConfig
+        )
     }
 
-    private fun createShaderBindingTable() {
+    private fun createShaderBindingTable() = runMemorySafe {
+        val raytracingProps = calloc(VkPhysicalDeviceRayTracingPipelinePropertiesKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR)
+            pNext(0L)
+        }
+        val deviceProps = calloc(VkPhysicalDeviceProperties2::calloc) {
+            sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2)
+            pNext(raytracingProps.address())
+        }
+        vkGetPhysicalDeviceProperties2(physicalDevice.vkHandle, deviceProps)
 
+        this@SimpleRaytracing.raytracingProperties = RaytracingProperties(
+            raytracingProps.shaderGroupHandleSize(),
+            raytracingProps.shaderGroupHandleAlignment()
+        )
+
+        val handleAlignmentSize = raytracingProperties.shaderGroupHandleAlignment
+        val groupCount = raytracingPipeline.shaderGroupCount
+        val sbtSize = groupCount * handleAlignmentSize
+
+        val pData = allocate(sbtSize)
+        vkGetRayTracingShaderGroupHandlesKHR(device.vkHandle, raytracingPipeline.vkHandle, 0, groupCount, pData)
+
+        val bufferUsage = BufferUsage.SHADER_BINDING_TABLE + BufferUsage.SHADER_DEVICE_ADDRESS
+        val memoryProperties = MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT
+        val bufferConfig = VulkanBufferConfiguration(
+            raytracingProperties.shaderGroupHandleSize.toLong(), memoryProperties, bufferUsage
+        )
+
+        this@SimpleRaytracing.raygenShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
+        this@SimpleRaytracing.missShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
+        this@SimpleRaytracing.chitShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
+
+        this@SimpleRaytracing.raygenShaderBindingTable.put(0, pData, 0, handleAlignmentSize)
+        this@SimpleRaytracing.missShaderBindingTable.put(0, pData, handleAlignmentSize, handleAlignmentSize)
+        this@SimpleRaytracing.chitShaderBindingTable.put(0, pData, handleAlignmentSize * 2, handleAlignmentSize)
     }
 
     private fun writeDescriptorSets() {
@@ -451,13 +448,13 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
 
         handleInput()
 
-        val view = camera.calculateView()
-        val proj = camera.calculateReverseZProjection()
+        val view = camera.calculateView().inverse()
+        val proj = camera.calculateProjection().inverse()
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBuffer(data, 0)
         proj.toByteBuffer(data, 64)
-        cameraBuffer.put(0, data)
+        cameraBuffer.put(0, data, 0)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -540,7 +537,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             srcAccessMask(0)
             dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
             oldLayout(ImageLayout.UNDEFINED.vkValue)
-            newLayout(ImageLayout.COLOR_ATTACHMENT_OPTIMAL.vkValue)
+            newLayout(ImageLayout.TRANSFER_DST_OPTIMAL.vkValue)
             srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
             dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
             image(swapchainImage)
@@ -558,7 +555,6 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             0, null, null, swapToRenderingBarrier
         )
 
-        vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
             viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 1f, 0f)
@@ -589,17 +585,21 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             )
 
             val rayGenEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
-
+                deviceAddress(raygenShaderBindingTable.getDeviceAddress())
+                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
+                size(raytracingProperties.shaderGroupHandleSize.toLong())
             }
             val missEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
-
+                deviceAddress(missShaderBindingTable.getDeviceAddress())
+                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
+                size(raytracingProperties.shaderGroupHandleSize.toLong())
             }
             val chitEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
-
+                deviceAddress(chitShaderBindingTable.getDeviceAddress())
+                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
+                size(raytracingProperties.shaderGroupHandleSize.toLong())
             }
-            val callableShaderEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
-
-            }
+            val callableShaderEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {}
 
             val pPushConstants = allocate(128)
 
@@ -607,7 +607,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             vkCmdPushConstants(
                 commandBuffer.vkHandle,
                 raytracingPipeline.vkLayoutHandle,
-                ShaderStage.BOTH.vkBits,
+                (ShaderStage.CLOSEST_HIT + ShaderStage.VERTEX).vkBits,
                 0,
                 pPushConstants
             )
@@ -616,8 +616,38 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 rayGenEntry, missEntry, chitEntry, callableShaderEntry,
                 swapchain.imageExtent.width, swapchain.imageExtent.height, 1
             )
-            vkCmdDraw(commandBuffer.vkHandle, CubeModel.vertices.size, 1, 0, 0)
+
+            cmdTransitionImageLayout(
+                commandBuffer, storageImage,
+                AccessMask.SHADER_WRITE, AccessMask.TRANSFER_READ,
+                ImageLayout.GENERAL, ImageLayout.TRANSFER_SRC_OPTIMAL,
+                PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
+            )
+
+            val copyRegion = calloc(VkImageCopy::calloc, 1)
+            copyRegion[0].srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            copyRegion[0].srcOffset().set(0,0,0)
+            copyRegion[0].dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            copyRegion[0].dstOffset().set(0, 0, 0)
+            copyRegion[0].extent().set(swapchain.imageExtent.width, swapchain.imageExtent.height, 1)
+
+            vkCmdCopyImage(
+                commandBuffer.vkHandle,
+                storageImage.vkImageHandle,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                swapchainImage,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                copyRegion
+            )
+
+            cmdTransitionImageLayout(
+                commandBuffer, storageImage,
+                AccessMask.TRANSFER_READ, AccessMask.SHADER_WRITE,
+                ImageLayout.TRANSFER_SRC_OPTIMAL, ImageLayout.GENERAL,
+                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+            )
         }
+        vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
         // Transition Swapchain Image Layouts:
@@ -627,7 +657,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             pNext(0)
             srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
             dstAccessMask(0)
-            oldLayout(ImageLayout.COLOR_ATTACHMENT_OPTIMAL.vkValue)
+            oldLayout(ImageLayout.TRANSFER_DST_OPTIMAL.vkValue)
             newLayout(ImageLayout.PRESENT_SRC.vkValue)
             srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
             dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -671,18 +701,6 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         }
     }
 
-    fun worldPosToChunkPos(worldPos: IVec3): IVec3 {
-        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 && worldPos.x % EXTENT != 0) 1 else 0,
-            worldPos.y / EXTENT - if (worldPos.y < 0 && worldPos.y % EXTENT != 0) 1 else 0,
-            worldPos.z / EXTENT - if (worldPos.z < 0 && worldPos.z % EXTENT != 0) 1 else 0)
-    }
-
-    fun worldPosToChunkPos(worldPos: Vec3): IVec3 {
-        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 || (worldPos.x) % EXTENT == 0f) 1 else 0,
-            worldPos.y / EXTENT - if (worldPos.y < 0 || (worldPos.y) % EXTENT == 0f) 1 else 0,
-            worldPos.z / EXTENT - if (worldPos.z < 0 || (worldPos.z) % EXTENT == 0f) 1 else 0)
-    }
-
     override fun onResizeDestroy() {
         depthAttachment.destroy()
     }
@@ -701,6 +719,15 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
 
     override fun destroy() {
         device.waitIdle()
+        instanceDataBuffer.destroy()
+        storageImage.destroy()
+        objTransformBuffer.destroy()
+        topLevelAS.destroy(device)
+        bottomLevelAS.destroy(device)
+        raygenShaderBindingTable.destroy()
+        missShaderBindingTable.destroy()
+        chitShaderBindingTable.destroy()
+        raytracingPipeline.destroy(device)
         cobbleImage.destroy()
         vertexBuffer.destroy()
         sampler.destroy(device)

@@ -147,7 +147,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
-        stagingVertexBuffer.put(0, vertexBufferData)
+        stagingVertexBuffer.put(0, vertexBufferData, 0)
         // Copy from Staging to Vertex Buffer
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
@@ -185,7 +185,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 BufferUsage.TRANSFER_SRC
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
-        stagingBufImg.put(0, cobbleTex.pixels)
+        stagingBufImg.put(0, cobbleTex.pixels, 0)
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
@@ -331,7 +331,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBuffer(data, 0)
         proj.toByteBuffer(data, 64)
-        cameraBuffer.put(0, data)
+        cameraBuffer.put(0, data, 0)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height

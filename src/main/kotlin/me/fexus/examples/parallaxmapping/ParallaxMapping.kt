@@ -126,7 +126,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
-        stagingVertexBuffer.put(0, vertexBufferData)
+        stagingVertexBuffer.put(0, vertexBufferData, 0)
         // Copy from Staging to Vertex Buffer
         runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()

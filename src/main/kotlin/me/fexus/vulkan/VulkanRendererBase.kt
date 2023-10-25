@@ -23,6 +23,7 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.ImageLayout
 import me.fexus.vulkan.descriptors.image.VulkanImage
+import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.util.FramePreparation
@@ -56,6 +57,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected var currentFrameInFlight: Int = 0; private set
 
     protected val device; get() = core.device
+    protected val physicalDevice; get() = core.physicalDevice
 
 
     fun initVulkanCore(extensions: List<DeviceExtension> = emptyList()): VulkanRendererBase {
@@ -344,6 +346,43 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             .pNext(0)
             .image(image.vkImageHandle)
+            .srcAccessMask(srcAccessMask.vkBits)
+            .dstAccessMask(dstAccessMask.vkBits)
+            .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .oldLayout(srcLayout.vkValue)
+            .newLayout(dstLayout.vkValue)
+            .subresourceRange(subResourceRange)
+
+        vkCmdPipelineBarrier(
+            cmdBuf.vkHandle, srcPipelineStage.vkBits, dstPipelineStage.vkBits, 0,
+            null, null, imageBarrier
+        )
+    }
+
+    protected fun cmdTransitionImageLayout(
+        cmdBuf: CommandBuffer,
+        image: Long, imageAspect: IImageAspect,
+        srcAccessMask: IAccessMask,
+        dstAccessMask: IAccessMask,
+        srcLayout: ImageLayout,
+        dstLayout: ImageLayout,
+        srcPipelineStage: IPipelineStage,
+        dstPipelineStage: IPipelineStage
+    ) = runMemorySafe {
+        val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
+            aspectMask(imageAspect.vkBits)
+            baseMipLevel(0)
+            levelCount(1)
+            baseArrayLayer(0)
+            layerCount(1)
+        }
+
+        val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+        imageBarrier[0]
+            .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+            .pNext(0)
+            .image(image)
             .srcAccessMask(srcAccessMask.vkBits)
             .dstAccessMask(dstAccessMask.vkBits)
             .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)

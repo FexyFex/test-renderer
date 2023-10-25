@@ -83,7 +83,7 @@ class Swapchain {
                 imageColorSpace(surfaceFormat.colorSpace())
                 imageExtent(calloc(VkExtent2D::calloc) { width(imageExtent.width); height(imageExtent.height) })
                 imageArrayLayers(1)
-                imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+                imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                 imageSharingMode(imageSharingMode)
                 pQueueFamilyIndices(pQueueFamilyIndices)
                 preTransform(preTransform)
