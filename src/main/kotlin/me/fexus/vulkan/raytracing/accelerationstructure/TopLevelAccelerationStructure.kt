@@ -1,6 +1,7 @@
 package me.fexus.vulkan.raytracing.accelerationstructure
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
@@ -31,11 +32,12 @@ class TopLevelAccelerationStructure {
                 .pNext(0L)
                 .geometryType(VK_GEOMETRY_TYPE_INSTANCES_KHR)
                 .flags(VK_GEOMETRY_OPAQUE_BIT_KHR)
+        val data = calloc(VkDeviceOrHostAddressConstKHR::calloc) {
+            deviceAddress(config.instanceDataBuffer.getDeviceAddress())
+        }
         accelerationStructureGeometry[0].geometry().instances().sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR)
         accelerationStructureGeometry[0].geometry().instances().arrayOfPointers(false)
-        accelerationStructureGeometry[0].geometry().instances().data(
-                calloc(VkDeviceOrHostAddressConstKHR::calloc) { deviceAddress(config.instanceDataBuffer.getDeviceAddress()) }
-        )
+        accelerationStructureGeometry[0].geometry().instances().data(data)
 
         val buildGeometryInfo = calloc(VkAccelerationStructureBuildGeometryInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR)
@@ -90,7 +92,7 @@ class TopLevelAccelerationStructure {
                 .type(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR)
                 .mode(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR)
                 .dstAccelerationStructure(vkHandle)
-                .geometryCount(1)
+                .geometryCount(accelerationStructureGeometry.capacity())
                 .pGeometries(accelerationStructureGeometry)
                 .scratchData().deviceAddress(scratchBuffer.getDeviceAddress())
 

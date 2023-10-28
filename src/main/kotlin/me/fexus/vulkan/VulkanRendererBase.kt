@@ -256,7 +256,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         return uniqueQueueFamilies.first { cap.vkBits and it.capabilities.vkBits == cap.vkBits }
     }
 
-    protected fun bufferCopy(srcData: ByteBuffer, dstBuffer: VulkanBuffer, srcOffset: Long, dstOffset: Long, size: Long) {
+    protected fun stagingCopy(srcData: ByteBuffer, dstBuffer: VulkanBuffer, srcOffset: Long, dstOffset: Long, size: Long) {
         val stagingLayout = VulkanBufferConfiguration(
             size,
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
