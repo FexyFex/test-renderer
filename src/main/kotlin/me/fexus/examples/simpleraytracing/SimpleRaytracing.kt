@@ -120,7 +120,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         initDescriptors()
         createShaderBindingTable()
         writeDescriptorSets()
-        startRenderLoop(window, this)
+        //startRenderLoop(window, this)
     }
 
     private fun createDescriptors() {

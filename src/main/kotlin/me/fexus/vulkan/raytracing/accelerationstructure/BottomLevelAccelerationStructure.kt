@@ -54,6 +54,7 @@ class BottomLevelAccelerationStructure {
             pNext(0L)
             flags(VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR)
             type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
+            mode(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR)
             pGeometries(accStructureGeometry)
         }
 

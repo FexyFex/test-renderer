@@ -15,7 +15,7 @@ import kotlin.contracts.contract
 
 class OffHeapSafeAllocator private constructor(
     private val offHeapBuffersAddresses: MutableList<Long>,
-    private val vkStructs: MutableList<Struct>,
+    private val vkStructs: MutableList<Struct<*>>,
     private val vkStructBuffers: MutableList<StructBuffer<*,*>>
 ) {
     fun allocate(size: Int): ByteBuffer {
@@ -78,7 +78,7 @@ class OffHeapSafeAllocator private constructor(
         return buf
     }
 
-    fun <S: Struct> calloc(callocFun: () -> S, configure: S.() -> Unit = {}): S {
+    fun <S: Struct<*>> calloc(callocFun: () -> S, configure: S.() -> Unit = {}): S {
         val struct: S = callocFun()
         struct.configure()
         vkStructs.add(struct)
@@ -97,7 +97,7 @@ class OffHeapSafeAllocator private constructor(
             contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
             val offHeapBufferAddresses = mutableListOf<Long>()
-            val vkStructs = mutableListOf<Struct>()
+            val vkStructs = mutableListOf<Struct<*>>()
             val vkStructBuffers = mutableListOf<StructBuffer<*,*>>()
             val context = OffHeapSafeAllocator(offHeapBufferAddresses, vkStructs, vkStructBuffers)
             val ret = context.block()
