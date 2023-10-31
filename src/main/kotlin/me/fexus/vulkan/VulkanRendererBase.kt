@@ -2,7 +2,6 @@ package me.fexus.vulkan
 
 import me.fexus.examples.RenderApplication
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
-import me.fexus.vulkan.accessmask.IAccessMask
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.CommandPool
 import me.fexus.vulkan.component.Surface
@@ -12,30 +11,19 @@ import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.exception.catchVK
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.Queue
-import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapability
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.component.Fence
 import me.fexus.vulkan.component.Semaphore
-import me.fexus.vulkan.component.pipeline.pipelinestage.IPipelineStage
-import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
-import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
-import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.image.ImageLayout
-import me.fexus.vulkan.descriptors.image.VulkanImage
-import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.extension.DeviceExtension
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.window.Window
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR
 import org.lwjgl.vulkan.KHRSwapchain.*
-import org.lwjgl.vulkan.VK10.*
-import java.nio.ByteBuffer
+import org.lwjgl.vulkan.VK12.*
 
 
 abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
@@ -59,7 +47,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val device; get() = core.device
     protected val physicalDevice; get() = core.physicalDevice
 
-    protected val deviceUtil = VulkanDeviceUtil(core.physicalDevice, core.device)
+    protected val deviceUtil = VulkanDeviceUtil(core.device, bufferFactory)
 
 
     fun initVulkanCore(extensions: List<DeviceExtension> = emptyList()): VulkanRendererBase {
@@ -69,6 +57,8 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         core.createPhysicalDevice()
         uniqueQueueFamilies.addAll(findUniqueQueueFamilies())
         core.createDevice(uniqueQueueFamilies)
+
+        deviceUtil.init()
 
         val graphicsCapableQueueFamily = getQueueFamilyWithCapabilities(QueueFamilyCapability.GRAPHICS)
         graphicsQueue.create(device, graphicsCapableQueueFamily, 0)
@@ -86,8 +76,6 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
 
         bufferFactory.init(core.physicalDevice, device)
         imageFactory.init(core.physicalDevice, device)
-
-        deviceUtil.init()
 
         return this
     }
@@ -198,6 +186,52 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     }
 
 
+    fun getQueueFamilyWithCapabilities(cap: QueueFamilyCapabilities): QueueFamily {
+        return uniqueQueueFamilies.first { cap.vkBits and it.capabilities.vkBits == cap.vkBits }
+    }
+
+    private fun findUniqueQueueFamilies(): List<QueueFamily> {
+        val uniqueQueueFamilies = mutableListOf<QueueFamily>()
+
+        runMemorySafe {
+            val pQueueFamilyCount = allocateInt(1)
+            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice.vkHandle, pQueueFamilyCount, null)
+            val queueFamilyCount = pQueueFamilyCount[0]
+
+            val pQueueFamilies = calloc(VkQueueFamilyProperties::calloc, queueFamilyCount)
+            vkGetPhysicalDeviceQueueFamilyProperties(
+                physicalDevice.vkHandle,
+                pQueueFamilyCount,
+                pQueueFamilies
+            )
+
+            for (i in 0 until queueFamilyCount) {
+                val queueFamilyProps = pQueueFamilies[i]
+
+                var capabilities: QueueFamilyCapabilities = QueueFamilyCapability.NONE
+                QueueFamilyCapability.values().forEach {
+                    if (queueFamilyProps.queueFlags() and it.vkBits != 0)
+                        capabilities += it
+                }
+
+                val pPresentSupport = allocateInt(1)
+                KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(
+                    physicalDevice.vkHandle,
+                    i,
+                    surface.vkHandle,
+                    pPresentSupport
+                )
+                val presentSupported = pPresentSupport[0] == VK_TRUE
+
+                val fullQueueFamily = QueueFamily(i, capabilities, presentSupported)
+                uniqueQueueFamilies.add(fullQueueFamily)
+            }
+        }
+
+        return uniqueQueueFamilies
+    }
+
+
     private fun resizeSwapchain() {
         window.waitForFramebufferResize()
         device.waitIdle().catchVK()
@@ -223,197 +257,6 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     abstract fun onResizeRecreate(newExtent2D: ImageExtent2D)
 
 
-    private fun findUniqueQueueFamilies(): List<QueueFamily> {
-        val uniqueQueueFamilies = mutableListOf<QueueFamily>()
-
-        runMemorySafe {
-            val pQueueFamilyCount = allocateInt(1)
-            vkGetPhysicalDeviceQueueFamilyProperties(core.physicalDevice.vkHandle, pQueueFamilyCount, null)
-            val queueFamilyCount = pQueueFamilyCount[0]
-
-            val pQueueFamilies = calloc(VkQueueFamilyProperties::calloc, queueFamilyCount)
-            vkGetPhysicalDeviceQueueFamilyProperties(core.physicalDevice.vkHandle, pQueueFamilyCount, pQueueFamilies)
-
-            for (i in 0 until queueFamilyCount) {
-                val queueFamilyProps = pQueueFamilies[i]
-
-                var capabilities: QueueFamilyCapabilities = QueueFamilyCapability.NONE
-                QueueFamilyCapability.values().forEach {
-                    if (queueFamilyProps.queueFlags() and it.vkBits != 0)
-                        capabilities += it
-                }
-
-                val pPresentSupport = allocateInt(1)
-                vkGetPhysicalDeviceSurfaceSupportKHR(core.physicalDevice.vkHandle, i, surface.vkHandle, pPresentSupport)
-                val presentSupported = pPresentSupport[0] == VK_TRUE
-
-                val fullQueueFamily = QueueFamily(i, capabilities, presentSupported)
-                uniqueQueueFamilies.add(fullQueueFamily)
-            }
-        }
-
-        return uniqueQueueFamilies
-    }
-
-
-    private fun getQueueFamilyWithCapabilities(cap: QueueFamilyCapabilities): QueueFamily {
-        return uniqueQueueFamilies.first { cap.vkBits and it.capabilities.vkBits == cap.vkBits }
-    }
-
-    protected fun stagingCopy(srcData: ByteBuffer, dstBuffer: VulkanBuffer, srcOffset: Long, dstOffset: Long, size: Long) {
-        val stagingLayout = VulkanBufferConfiguration(
-            size,
-            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
-            BufferUsage.TRANSFER_SRC
-        )
-
-        val stagingBuffer = bufferFactory.createBuffer(stagingLayout)
-        assignName(stagingBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "staging_buffer_for_copy")
-
-        stagingBuffer.put(srcOffset.toInt(), srcData)
-
-        runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
-
-            val copyRegion = calloc(VkBufferCopy::calloc, 1)
-            copyRegion[0]
-                .srcOffset(srcOffset)
-                .dstOffset(dstOffset)
-                .size(size)
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingBuffer.vkBufferHandle, dstBuffer.vkBufferHandle, copyRegion)
-
-            endSingleTimeCommandBuffer(cmdBuf)
-        }
-
-        stagingBuffer.destroy()
-    }
-
-    protected fun beginSingleTimeCommandBuffer(): CommandBuffer = runMemorySafe {
-        val cmdBuf = CommandBuffer().create(device, commandPool)
-
-        val beginInfo = calloc(VkCommandBufferBeginInfo::calloc) {
-            sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-            pNext(0)
-            flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
-            pInheritanceInfo(null)
-        }
-
-        vkBeginCommandBuffer(cmdBuf.vkHandle, beginInfo)
-
-        return@runMemorySafe cmdBuf
-    }
-
-    protected fun endSingleTimeCommandBuffer(cmdBuf: CommandBuffer): Unit = runMemorySafe {
-        vkEndCommandBuffer(cmdBuf.vkHandle)
-
-        val pCommandBuffers = allocatePointer(1)
-        pCommandBuffers.put(0, cmdBuf.vkHandle)
-
-        val submitInfo = calloc(VkSubmitInfo::calloc) {
-            sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-            pNext(0)
-            pCommandBuffers(pCommandBuffers)
-        }
-
-        vkQueueSubmit(graphicsQueue.vkHandle, submitInfo, 0)
-        vkQueueWaitIdle(graphicsQueue.vkHandle)
-
-        vkFreeCommandBuffers(device.vkHandle, commandPool.vkHandle, pCommandBuffers)
-    }
-
-    protected fun runSingleTimeCommands(commands: (commandBuffer: CommandBuffer) -> Unit) {
-        val cmdBuf = beginSingleTimeCommandBuffer()
-        commands(cmdBuf)
-        endSingleTimeCommandBuffer(cmdBuf)
-    }
-
-    protected fun cmdTransitionImageLayout(
-        cmdBuf: CommandBuffer,
-        image: VulkanImage,
-        srcAccessMask: IAccessMask,
-        dstAccessMask: IAccessMask,
-        srcLayout: ImageLayout,
-        dstLayout: ImageLayout,
-        srcPipelineStage: IPipelineStage,
-        dstPipelineStage: IPipelineStage
-    ) = runMemorySafe {
-        val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
-            aspectMask(image.config.imageAspect.vkBits)
-            baseMipLevel(0)
-            levelCount(1)
-            baseArrayLayer(0)
-            layerCount(1)
-        }
-
-        val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-        imageBarrier[0]
-            .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-            .pNext(0)
-            .image(image.vkImageHandle)
-            .srcAccessMask(srcAccessMask.vkBits)
-            .dstAccessMask(dstAccessMask.vkBits)
-            .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            .oldLayout(srcLayout.vkValue)
-            .newLayout(dstLayout.vkValue)
-            .subresourceRange(subResourceRange)
-
-        vkCmdPipelineBarrier(
-            cmdBuf.vkHandle, srcPipelineStage.vkBits, dstPipelineStage.vkBits, 0,
-            null, null, imageBarrier
-        )
-    }
-
-    protected fun cmdTransitionImageLayout(
-        cmdBuf: CommandBuffer,
-        image: Long, imageAspect: IImageAspect,
-        srcAccessMask: IAccessMask,
-        dstAccessMask: IAccessMask,
-        srcLayout: ImageLayout,
-        dstLayout: ImageLayout,
-        srcPipelineStage: IPipelineStage,
-        dstPipelineStage: IPipelineStage
-    ) = runMemorySafe {
-        val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
-            aspectMask(imageAspect.vkBits)
-            baseMipLevel(0)
-            levelCount(1)
-            baseArrayLayer(0)
-            layerCount(1)
-        }
-
-        val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-        imageBarrier[0]
-            .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-            .pNext(0)
-            .image(image)
-            .srcAccessMask(srcAccessMask.vkBits)
-            .dstAccessMask(dstAccessMask.vkBits)
-            .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            .oldLayout(srcLayout.vkValue)
-            .newLayout(dstLayout.vkValue)
-            .subresourceRange(subResourceRange)
-
-        vkCmdPipelineBarrier(
-            cmdBuf.vkHandle, srcPipelineStage.vkBits, dstPipelineStage.vkBits, 0,
-            null, null, imageBarrier
-        )
-    }
-
-    protected fun assignName(objHandle: Long, objType: Int, name: String) = runMemorySafe {
-        val debugNameInfo = calloc(VkDebugUtilsObjectNameInfoEXT::calloc) {
-            sType(EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT)
-            pNext(0)
-            objectType(objType)
-            pObjectName(MemoryUtil.memUTF8(name))
-            objectHandle(objHandle)
-        }
-
-        EXTDebugUtils.vkSetDebugUtilsObjectNameEXT(device.vkHandle, debugNameInfo)
-    }
-
-
     open fun destroy() {
         device.waitIdle()
         imageAvailableSemaphores.forEach { it.destroy(device) }
@@ -422,6 +265,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         commandPool.destroy(device)
         swapchain.destroy(device)
         surface.destroy(core.instance)
+        deviceUtil.destroy()
         core.destroy()
     }
 

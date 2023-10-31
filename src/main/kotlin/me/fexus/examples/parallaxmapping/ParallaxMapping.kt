@@ -129,7 +129,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         stagingVertexBuffer.put(0, vertexBufferData, 0)
         // Copy from Staging to Vertex Buffer
         runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
 
             val copyRegion = calloc(VkBufferCopy::calloc, 1)
             copyRegion[0]
@@ -138,7 +138,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
                 .size(ParallaxMappingQuadModel.SIZE_BYTES.toLong())
             vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, vertexBuffer.vkBufferHandle, copyRegion)
 
-            endSingleTimeCommandBuffer(cmdBuf)
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
         stagingVertexBuffer.destroy()
         // -- VERTEX BUFFER --
@@ -171,7 +171,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         imgStagingBuf.put(diffTexture.imageSize.toInt(), dispTexture.pixels)
         imgStagingBuf.put(dispTexture.imageSize.toInt() * 2, normTexture.pixels)
         runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
 
             val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
                 aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
@@ -243,7 +243,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
                 null, null, imageBarrier
             )
 
-            endSingleTimeCommandBuffer(cmdBuf)
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
         imgStagingBuf.destroy()
         // -- IMAGES --

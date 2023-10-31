@@ -56,8 +56,8 @@ import java.nio.ByteOrder
 
 class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        private const val EXTENT = 16
-        private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
+        private const val EXTENT = 8
+        //private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
 
         @JvmStatic
         fun main(args: Array<String>) {
@@ -90,7 +90,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
-    private val renderDistance = IVec3(8, 8, 8)
+    private val renderDistance = IVec3(4)
 
     private val inputHandler = InputHandler(window)
 
@@ -150,7 +150,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         stagingVertexBuffer.put(0, vertexBufferData, 0)
         // Copy from Staging to Vertex Buffer
         runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
 
             val copyRegion = calloc(VkBufferCopy::calloc, 1)
             copyRegion[0]
@@ -159,7 +159,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 .size(cubeVertexBufSize.toLong())
             vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, vertexBuffer.vkBufferHandle, copyRegion)
 
-            endSingleTimeCommandBuffer(cmdBuf)
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
         stagingVertexBuffer.destroy()
 
@@ -187,7 +187,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
         stagingBufImg.put(0, cobbleTex.pixels, 0)
         runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
 
             val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
                 aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
@@ -242,7 +242,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                     null, null, imageBarrier
             )
 
-            endSingleTimeCommandBuffer(cmdBuf)
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
         stagingBufImg.destroy()
         // -- TEXTURES --
@@ -530,18 +530,6 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             println("Camera Pos: ${-camera.position}")
             println("Camera Rot: ${camera.rotation}")
         }
-    }
-
-    fun worldPosToChunkPos(worldPos: IVec3): IVec3 {
-        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 && worldPos.x % EXTENT != 0) 1 else 0,
-            worldPos.y / EXTENT - if (worldPos.y < 0 && worldPos.y % EXTENT != 0) 1 else 0,
-            worldPos.z / EXTENT - if (worldPos.z < 0 && worldPos.z % EXTENT != 0) 1 else 0)
-    }
-
-    fun worldPosToChunkPos(worldPos: Vec3): IVec3 {
-        return IVec3(worldPos.x / EXTENT - if (worldPos.x < 0 || (worldPos.x) % EXTENT == 0f) 1 else 0,
-            worldPos.y / EXTENT - if (worldPos.y < 0 || (worldPos.y) % EXTENT == 0f) 1 else 0,
-            worldPos.z / EXTENT - if (worldPos.z < 0 || (worldPos.z) % EXTENT == 0f) 1 else 0)
     }
 
     override fun onResizeDestroy() {

@@ -140,7 +140,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             )
         )
         this.descriptorPool.create(device, poolPlan)
-        assignName(this.descriptorPool.vkHandle, VK_OBJECT_TYPE_DESCRIPTOR_POOL, "default_desc_pool")
+        deviceUtil.assignName(this.descriptorPool.vkHandle, VK_OBJECT_TYPE_DESCRIPTOR_POOL, "default_desc_pool")
         // -- DESCRIPTOR POOL --
 
         // -- DEPTH ATTACHMENT IMAGE --
@@ -153,7 +153,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             MemoryProperty.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
-        assignName(this.depthAttachment.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "depth_image")
+        deviceUtil.assignName(this.depthAttachment.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "depth_image")
         // -- DEPTH ATTACHMENT IMAGE --
 
         // -- VERTEX BUFFER --
@@ -166,7 +166,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferConfig)
-        assignName(this.vertexBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "vertex_buffer")
+        deviceUtil.assignName(this.vertexBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "vertex_buffer")
         // -- VERTEX BUFFER --
 
         // -- INDEX BUFFER --
@@ -179,7 +179,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
         )
         this.indexBuffer = bufferFactory.createBuffer(indexBufferConfig)
-        assignName(this.indexBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "index_buffer")
+        deviceUtil.assignName(this.indexBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "index_buffer")
         // -- INDEX BUFFER --
 
         // -- TRANSFORM DATA BUFFER --
@@ -191,7 +191,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                     BufferUsage.TRANSFER_DST
         )
         this.objTransformBuffer = bufferFactory.createBuffer(transformBufLayout)
-        assignName(this.objTransformBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "transform_buffer")
+        deviceUtil.assignName(this.objTransformBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "transform_buffer")
         // -- TRANSFORM DATA BUFFER --
 
         // -- INSTANCE DATA BUFFER
@@ -203,7 +203,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                     BufferUsage.TRANSFER_DST
         )
         this.instanceDataBuffer = bufferFactory.createBuffer(instanceDataBufLayout)
-        assignName(this.instanceDataBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "instance_data_buffer")
+        deviceUtil.assignName(this.instanceDataBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "instance_data_buffer")
         // -- INSTANCE DATA BUFFER
 
         // -- CAMERA BUFFER --
@@ -213,7 +213,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
-        assignName(this.cameraBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "camera_uniform_buffer")
+        deviceUtil.assignName(this.cameraBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "camera_uniform_buffer")
         // -- CAMERA BUFFER --
 
         // -- TEXTURES --
@@ -223,7 +223,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
         )
         this.cobbleImage = imageFactory.createImage(cobbleImageConfig)
-        assignName(this.cobbleImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "cobble_image")
+        deviceUtil.assignName(this.cobbleImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "cobble_image")
         // -- TEXTURES --
 
         // -- STORAGE IMAGE --
@@ -233,9 +233,9 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
-        assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
-        runSingleTimeCommands { cmdBuf ->
-            cmdTransitionImageLayout(
+        deviceUtil.assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
+        deviceUtil.runSingleTimeCommands { cmdBuf ->
+            deviceUtil.cmdTransitionImageLayout(
                 cmdBuf, this@SimpleRaytracing.storageImage,
                 AccessMask.NONE, AccessMask.SHADER_READ,
                 ImageLayout.UNDEFINED, ImageLayout.GENERAL,
@@ -247,7 +247,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         // -- SAMPLER --
         val samplerLayout = VulkanSamplerLayout(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.sampler = imageFactory.createSampler(samplerLayout)
-        assignName(this.sampler.vkHandle, VK_OBJECT_TYPE_SAMPLER, "soompler")
+        deviceUtil.assignName(this.sampler.vkHandle, VK_OBJECT_TYPE_SAMPLER, "soompler")
         // -- SAMPLER --
 
         // -- DESCRIPTOR SET LAYOUT --
@@ -290,7 +290,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             PushConstantsLayout(128, shaderStages = ShaderStage.VERTEX + ShaderStage.CLOSEST_HIT)
         )
         this.raytracingPipeline.create(device, descriptorSetLayout, config)
-        assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
+        deviceUtil.assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
     }
 
     private fun initDescriptors() {
@@ -304,7 +304,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 vertexBufferData.putFloat(offset, fl)
             }
         }
-        stagingCopy(vertexBufferData, this.vertexBuffer, 0L, 0L, cubeVertexBufSize.toLong())
+        deviceUtil.stagingCopy(vertexBufferData, this.vertexBuffer, 0L, 0L, cubeVertexBufSize.toLong())
         // VERTEX BUFFER
 
         // INDEX BUFFER
@@ -315,14 +315,14 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             val offset = iIndex * Int.SIZE_BYTES
             indexByteBuffer.putInt(offset, cubeIndex)
         }
-        stagingCopy(indexByteBuffer, this.indexBuffer, 0L, 0L, cubeIndexBufferSize.toLong())
+        deviceUtil.stagingCopy(indexByteBuffer, this.indexBuffer, 0L, 0L, cubeIndexBufferSize.toLong())
         // INDEX BUFFER
 
         // TRANSFORM BUFFER
         val transformByteBuffer = ByteBuffer.allocate(Mat4.SIZE_BYTES)
         transformByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
         cubeTransform.toByteBuffer(transformByteBuffer, 0)
-        stagingCopy(transformByteBuffer, this.objTransformBuffer, 0L, 0L, Mat4.SIZE_BYTES.toLong())
+        deviceUtil.stagingCopy(transformByteBuffer, this.objTransformBuffer, 0L, 0L, Mat4.SIZE_BYTES.toLong())
         // TRANSFORM BUFFER
 
         initBottomLevelAccelerationStructure()
@@ -337,10 +337,10 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
         stagingBufImg.put(0, cobbleTexture.pixels, 0)
-        assignName(stagingBufImg.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "img_staging_buf_cobble")
+        deviceUtil.assignName(stagingBufImg.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "img_staging_buf_cobble")
         runMemorySafe {
-            val cmdBuf = beginSingleTimeCommandBuffer()
-            cmdTransitionImageLayout(
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
+            deviceUtil.cmdTransitionImageLayout(
                 cmdBuf, this@SimpleRaytracing.cobbleImage,
                 AccessMask.NONE, AccessMask.TRANSFER_WRITE,
                 ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
@@ -363,14 +363,14 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
             )
 
-            cmdTransitionImageLayout(
+            deviceUtil.cmdTransitionImageLayout(
                 cmdBuf, this@SimpleRaytracing.cobbleImage,
                 AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
                 ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
                 PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
             )
 
-            endSingleTimeCommandBuffer(cmdBuf)
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
         stagingBufImg.destroy()
         // TEXTURE IMAGE
@@ -385,12 +385,12 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         this.bottomLevelAS.createAndBuild(
             device,
             bufferFactory,
-            this::beginSingleTimeCommandBuffer,
-            this::endSingleTimeCommandBuffer,
+            deviceUtil::beginSingleTimeCommandBuffer,
+            deviceUtil::endSingleTimeCommandBuffer,
             bottomLevelASConfig
         )
 
-        assignName(this.bottomLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "bottom_level_as")
+        deviceUtil.assignName(this.bottomLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "bottom_level_as")
     }
 
     private fun initTopLevelAccelerationStructure() {
@@ -403,19 +403,19 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
         val instanceByteBuffer = ByteBuffer.allocate(AccelerationStructureInstance.SIZE_BYTES)
         instanceByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
         instance.toByteBuffer(instanceByteBuffer, 0)
-        stagingCopy(instanceByteBuffer, this.instanceDataBuffer, 0L, 0L, AccelerationStructureInstance.SIZE_BYTES.toLong())
+        deviceUtil.stagingCopy(instanceByteBuffer, this.instanceDataBuffer, 0L, 0L, AccelerationStructureInstance.SIZE_BYTES.toLong())
         // INSTANCE DATA BUFFER
 
         val topLevelASConfig = TopLevelAccelerationStructureConfiguration(instanceDataBuffer)
         this.topLevelAS.createAndBuild(
             device,
             bufferFactory,
-            this::beginSingleTimeCommandBuffer,
-            this::endSingleTimeCommandBuffer,
+            deviceUtil::beginSingleTimeCommandBuffer,
+            deviceUtil::endSingleTimeCommandBuffer,
             topLevelASConfig
         )
 
-        assignName(this.topLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "top_level_as")
+        deviceUtil.assignName(this.topLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "top_level_as")
     }
 
     private fun createShaderBindingTable() = runMemorySafe {
@@ -651,7 +651,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 swapchain.imageExtent.width, swapchain.imageExtent.height, 1
             )
 
-            cmdTransitionImageLayout(
+            deviceUtil.cmdTransitionImageLayout(
                 commandBuffer, storageImage,
                 AccessMask.SHADER_WRITE, AccessMask.TRANSFER_READ,
                 ImageLayout.GENERAL, ImageLayout.TRANSFER_SRC_OPTIMAL,
@@ -674,7 +674,7 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
                 copyRegion
             )
 
-            cmdTransitionImageLayout(
+            deviceUtil.cmdTransitionImageLayout(
                 commandBuffer, storageImage,
                 AccessMask.TRANSFER_READ, AccessMask.SHADER_WRITE,
                 ImageLayout.TRANSFER_SRC_OPTIMAL, ImageLayout.GENERAL,
@@ -755,9 +755,9 @@ class SimpleRaytracing: VulkanRendererBase(createWindow()) {
             ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
-        assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
-        runSingleTimeCommands { cmdBuf ->
-            cmdTransitionImageLayout(
+        deviceUtil.assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
+        deviceUtil.runSingleTimeCommands { cmdBuf ->
+            deviceUtil.cmdTransitionImageLayout(
                 cmdBuf, this@SimpleRaytracing.storageImage,
                 AccessMask.NONE, AccessMask.SHADER_READ,
                 ImageLayout.UNDEFINED, ImageLayout.GENERAL,
