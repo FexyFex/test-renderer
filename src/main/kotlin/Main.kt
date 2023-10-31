@@ -1,3 +1,3 @@
 fun main() {
-    me.fexus.examples.simpleraytracing.SimpleRaytracing.main(arrayOf())
+    me.fexus.examples.hardwarevoxelraytracing.HardwareVoxelRaytracing.main(arrayOf())
 }

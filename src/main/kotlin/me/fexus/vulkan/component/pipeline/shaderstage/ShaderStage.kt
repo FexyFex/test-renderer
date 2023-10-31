@@ -12,6 +12,7 @@ enum class ShaderStage(override val vkBits: Int): IShaderStage {
     RAYGEN(VK_SHADER_STAGE_RAYGEN_BIT_KHR),
     MISS(VK_SHADER_STAGE_MISS_BIT_KHR),
     CLOSEST_HIT(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR),
+    ANY_HIT(VK_SHADER_STAGE_ANY_HIT_BIT_KHR),
     ALL(VK12.VK_SHADER_STAGE_ALL);
 
     companion object {

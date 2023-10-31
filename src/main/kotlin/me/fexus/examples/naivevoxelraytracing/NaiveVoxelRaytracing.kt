@@ -1,7 +1,7 @@
-package me.fexus.examples.parallaxvoxelraytracing
+package me.fexus.examples.naivevoxelraytracing
 
 import me.fexus.camera.CameraPerspective
-import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkDataBufferArray
+import me.fexus.examples.naivevoxelraytracing.buffer.ChunkDataBufferArray
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
@@ -54,14 +54,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
+class NaiveVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
         private const val EXTENT = 8
         //private const val BLOCKS_PER_CHUNK = EXTENT * EXTENT * EXTENT
 
         @JvmStatic
         fun main(args: Array<String>) {
-            ParallaxVoxelRaytracing().start()
+            NaiveVoxelRaytracing().start()
         }
 
         private fun createWindow() = Window("Parallax Voxel Raytracing") {
@@ -201,7 +201,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             imageBarrier[0]
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
                     .pNext(0)
-                    .image(this@ParallaxVoxelRaytracing.cobbleImage.vkImageHandle)
+                    .image(this@NaiveVoxelRaytracing.cobbleImage.vkImageHandle)
                     .srcAccessMask(0)
                     .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                     .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -227,7 +227,7 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
             vkCmdCopyBufferToImage(
                     cmdBuf.vkHandle,
-                    stagingBufImg.vkBufferHandle, this@ParallaxVoxelRaytracing.cobbleImage.vkImageHandle,
+                    stagingBufImg.vkBufferHandle, this@NaiveVoxelRaytracing.cobbleImage.vkImageHandle,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
             )
 
@@ -272,8 +272,8 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 VertexAttribute(2, VertexAttributeFormat.VEC4, 32)
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxvoxelraytracing/chunk/frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/naivevoxelraytracing/chunk/vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/naivevoxelraytracing/chunk/frag.spv").readBytes(),
             listOf(SpecializationConstantInt(0, EXTENT)),
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
@@ -319,9 +319,9 @@ class ParallaxVoxelRaytracing: VulkanRendererBase(createWindow()) {
             }
             val descWrite = DescriptorBufferWrite(
                 1, DescriptorType.STORAGE_BUFFER, descriptorBufferInfos.size,
-                this@ParallaxVoxelRaytracing.descriptorSet, 0, descriptorBufferInfos
+                this@NaiveVoxelRaytracing.descriptorSet, 0, descriptorBufferInfos
             )
-            this@ParallaxVoxelRaytracing.descriptorSet.update(device, descWrite)
+            this@NaiveVoxelRaytracing.descriptorSet.update(device, descWrite)
             chunkDataBufferArray.bufferArrayChanged = false
         }
 

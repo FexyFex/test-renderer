@@ -1,7 +1,7 @@
-package me.fexus.examples.parallaxvoxelraytracing
+package me.fexus.examples.naivevoxelraytracing
 
-import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkBufferAddress
-import me.fexus.examples.parallaxvoxelraytracing.buffer.ChunkDataBufferArray
+import me.fexus.examples.naivevoxelraytracing.buffer.ChunkBufferAddress
+import me.fexus.examples.naivevoxelraytracing.buffer.ChunkDataBufferArray
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import java.nio.ByteBuffer

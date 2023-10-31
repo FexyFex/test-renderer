@@ -4,6 +4,7 @@ import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
 import me.fexus.vulkan.component.pipeline.IPipeline
+import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRRayTracingPipeline.*
 import org.lwjgl.vulkan.VK12.*
@@ -63,9 +64,10 @@ class RaytracingPipeline: IPipeline {
                 .intersectionShader(VK_SHADER_UNUSED_KHR)
                 .type(stage.groupType.vkValue)
 
-            when (stage.groupType) {
-                RaytracingShaderGroupType.GENERAL -> groups[index].generalShader(index)
-                RaytracingShaderGroupType.TRIANGLES_HIT -> groups[index].closestHitShader(index)
+            when (stage.stageType) {
+                ShaderStage.RAYGEN, ShaderStage.MISS -> groups[index].generalShader(index)
+                ShaderStage.CLOSEST_HIT -> groups[index].closestHitShader(index)
+                ShaderStage.ANY_HIT -> groups[index].anyHitShader(index)
             }
         }
 

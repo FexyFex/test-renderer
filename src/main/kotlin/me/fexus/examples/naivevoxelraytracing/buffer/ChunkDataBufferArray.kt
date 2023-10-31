@@ -1,4 +1,4 @@
-package me.fexus.examples.parallaxvoxelraytracing.buffer
+package me.fexus.examples.naivevoxelraytracing.buffer
 
 import me.fexus.math.vec.IVec3
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer

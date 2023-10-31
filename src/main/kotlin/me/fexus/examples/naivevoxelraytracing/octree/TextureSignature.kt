@@ -1,4 +1,4 @@
-package me.fexus.examples.parallaxvoxelraytracing.octree
+package me.fexus.examples.naivevoxelraytracing.octree
 
 enum class TextureSignature(val value: Int) {
     TEXTURED(1),

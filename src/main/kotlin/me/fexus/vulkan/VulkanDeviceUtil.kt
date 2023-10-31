@@ -20,9 +20,12 @@ import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 
 
-class VulkanDeviceUtil(val device: Device, private val bufferFactory: VulkanBufferFactory) {
+class VulkanDeviceUtil(private val device: Device, private val bufferFactory: VulkanBufferFactory) {
     private val commandPool = CommandPool()
     private val firstQueue = Queue()
+
+    val vkDeviceHandle: VkDevice; get() = device.vkHandle
+
 
     fun init() {
         val firstQueueFamily = QueueFamily(0, QueueFamilyCapability.GRAPHICS, false)

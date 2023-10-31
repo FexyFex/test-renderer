@@ -1,4 +1,4 @@
-package me.fexus.examples.parallaxvoxelraytracing.octree
+package me.fexus.examples.naivevoxelraytracing.octree
 
 enum class ContentType(val value: Int) {
     EMPTY(0),

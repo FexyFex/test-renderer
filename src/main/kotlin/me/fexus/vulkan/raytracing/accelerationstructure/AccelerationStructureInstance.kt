@@ -12,7 +12,6 @@ class AccelerationStructureInstance(
     val flags: Int,
     val accelerationStructureReference: Long
 ) {
-
     fun toByteBuffer(target: ByteBuffer, offset: Int) {
         val int1 = instanceCustomIndex or (mask shl 24)
         val int2 = instanceShaderBindingTableRecordOffset or (flags shl 24)

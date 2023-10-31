@@ -1,4 +1,4 @@
-package me.fexus.examples.parallaxvoxelraytracing.buffer
+package me.fexus.examples.naivevoxelraytracing.buffer
 
 data class ChunkBufferAddress(val bufferIndex: Int, val index: Int) {
     init {
