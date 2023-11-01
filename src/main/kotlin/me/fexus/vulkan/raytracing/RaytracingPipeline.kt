@@ -14,7 +14,6 @@ class RaytracingPipeline: IPipeline {
     override var vkHandle: Long = 0L; private set
     override var vkLayoutHandle: Long = 0L; private set
     private val shaderModules = mutableListOf<Long>()
-    lateinit var shaderGroupProperties: RaytracingProperties; private set
 
     val shaderGroupCount: Int; get() = shaderModules.size
 

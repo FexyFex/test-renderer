@@ -5,13 +5,12 @@ import me.fexus.math.repeatSquared
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
 import java.nio.ByteBuffer
-import java.nio.FloatBuffer
 import kotlin.math.cos
 import kotlin.math.sin
 
 
 // column major
-class Mat4(val columns: Array<Vec4>) {
+class Mat4(val rows: Array<Vec4>) {
     constructor(): this(1f)
     constructor(s: Float): this(s,s,s,s)
     constructor(x: Float, y: Float, z: Float, w: Float): this(
@@ -19,7 +18,7 @@ class Mat4(val columns: Array<Vec4>) {
             Vec4(x, 0f, 0f, 0f),
             Vec4(0f, y, 0f, 0f),
             Vec4(0f, 0f, z, 0f),
-            Vec4(0f, 0f, 0f, z)
+            Vec4(0f, 0f, 0f, w)
         )
     )
     constructor(
@@ -36,17 +35,17 @@ class Mat4(val columns: Array<Vec4>) {
         )
     )
 
-    val x: Vec4; get() = columns[0]
-    val y: Vec4; get() = columns[1]
-    val z: Vec4; get() = columns[2]
-    val w: Vec4; get() = columns[3]
+    val x: Vec4; get() = rows[0]
+    val y: Vec4; get() = rows[1]
+    val z: Vec4; get() = rows[2]
+    val w: Vec4; get() = rows[3]
 
-    operator fun get(index: Int) = columns[index]
-    operator fun get(columnIndex: Int, rowIndex: Int) = columns[columnIndex][rowIndex]
+    operator fun get(index: Int) = rows[index]
+    operator fun get(columnIndex: Int, rowIndex: Int) = rows[columnIndex][rowIndex]
 
     fun put(other: Mat4) {
         repeatSquared(4) { x, y ->
-            this.columns[x][y] = other.columns[x][y]
+            this.rows[x][y] = other.rows[x][y]
         }
     }
 
@@ -196,23 +195,43 @@ class Mat4(val columns: Array<Vec4>) {
     }
 
 
-    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
-        buf.putFloat(offset + 0 * Float.SIZE_BYTES, columns[0][0])
-        buf.putFloat(offset + 1 * Float.SIZE_BYTES, columns[0][1])
-        buf.putFloat(offset + 2 * Float.SIZE_BYTES, columns[0][2])
-        buf.putFloat(offset + 3 * Float.SIZE_BYTES, columns[0][3])
-        buf.putFloat(offset + 4 * Float.SIZE_BYTES, columns[1][0])
-        buf.putFloat(offset + 5 * Float.SIZE_BYTES, columns[1][1])
-        buf.putFloat(offset + 6 * Float.SIZE_BYTES, columns[1][2])
-        buf.putFloat(offset + 7 * Float.SIZE_BYTES, columns[1][3])
-        buf.putFloat(offset + 8 * Float.SIZE_BYTES, columns[2][0])
-        buf.putFloat(offset + 9 * Float.SIZE_BYTES, columns[2][1])
-        buf.putFloat(offset + 10 * Float.SIZE_BYTES, columns[2][2])
-        buf.putFloat(offset + 11 * Float.SIZE_BYTES, columns[2][3])
-        buf.putFloat(offset + 12 * Float.SIZE_BYTES, columns[3][0])
-        buf.putFloat(offset + 13 * Float.SIZE_BYTES, columns[3][1])
-        buf.putFloat(offset + 14 * Float.SIZE_BYTES, columns[3][2])
-        buf.putFloat(offset + 15 * Float.SIZE_BYTES, columns[3][3])
+    fun toByteBufferColumnMajor(buf: ByteBuffer, offset: Int) {
+        buf.putFloat(offset + 0 * Float.SIZE_BYTES, rows[0][0])
+        buf.putFloat(offset + 1 * Float.SIZE_BYTES, rows[0][1])
+        buf.putFloat(offset + 2 * Float.SIZE_BYTES, rows[0][2])
+        buf.putFloat(offset + 3 * Float.SIZE_BYTES, rows[0][3])
+        buf.putFloat(offset + 4 * Float.SIZE_BYTES, rows[1][0])
+        buf.putFloat(offset + 5 * Float.SIZE_BYTES, rows[1][1])
+        buf.putFloat(offset + 6 * Float.SIZE_BYTES, rows[1][2])
+        buf.putFloat(offset + 7 * Float.SIZE_BYTES, rows[1][3])
+        buf.putFloat(offset + 8 * Float.SIZE_BYTES, rows[2][0])
+        buf.putFloat(offset + 9 * Float.SIZE_BYTES, rows[2][1])
+        buf.putFloat(offset + 10 * Float.SIZE_BYTES, rows[2][2])
+        buf.putFloat(offset + 11 * Float.SIZE_BYTES, rows[2][3])
+        buf.putFloat(offset + 12 * Float.SIZE_BYTES, rows[3][0])
+        buf.putFloat(offset + 13 * Float.SIZE_BYTES, rows[3][1])
+        buf.putFloat(offset + 14 * Float.SIZE_BYTES, rows[3][2])
+        buf.putFloat(offset + 15 * Float.SIZE_BYTES, rows[3][3])
+    }
+
+
+    fun toByteBufferRowMajor(buf: ByteBuffer, offset: Int) {
+        buf.putFloat(offset + 0 * Float.SIZE_BYTES, rows[0][0])
+        buf.putFloat(offset + 1 * Float.SIZE_BYTES, rows[1][0])
+        buf.putFloat(offset + 2 * Float.SIZE_BYTES, rows[2][0])
+        buf.putFloat(offset + 3 * Float.SIZE_BYTES, rows[3][0])
+        buf.putFloat(offset + 4 * Float.SIZE_BYTES, rows[0][1])
+        buf.putFloat(offset + 5 * Float.SIZE_BYTES, rows[1][1])
+        buf.putFloat(offset + 6 * Float.SIZE_BYTES, rows[2][1])
+        buf.putFloat(offset + 7 * Float.SIZE_BYTES, rows[3][1])
+        buf.putFloat(offset + 8 * Float.SIZE_BYTES, rows[0][2])
+        buf.putFloat(offset + 9 * Float.SIZE_BYTES, rows[1][2])
+        buf.putFloat(offset + 10 * Float.SIZE_BYTES, rows[2][2])
+        buf.putFloat(offset + 11 * Float.SIZE_BYTES, rows[3][2])
+        buf.putFloat(offset + 12 * Float.SIZE_BYTES, rows[0][3])
+        buf.putFloat(offset + 13 * Float.SIZE_BYTES, rows[1][3])
+        buf.putFloat(offset + 14 * Float.SIZE_BYTES, rows[2][3])
+        buf.putFloat(offset + 15 * Float.SIZE_BYTES, rows[3][3])
     }
 
 
@@ -290,12 +309,13 @@ class Mat4(val columns: Array<Vec4>) {
         return res
     }
 
-
-    fun toFloatBuffer(buf: FloatBuffer, offset: Int) {
-        repeatSquared(4) { x, y ->
-            val bufferIndex = x * 4 + y + offset
-            buf.put(bufferIndex, this[x][y])
-        }
+    override fun toString(): String {
+        return """
+            [${x.x},${y.x},${z.x},${w.x}]
+            [${x.y},${y.y},${z.y},${w.y}]
+            [${x.z},${y.z},${z.z},${w.z}]
+            [${x.w},${y.w},${z.w},${w.w}]
+        """.trimIndent()
     }
 
 

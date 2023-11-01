@@ -37,10 +37,7 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
-import me.fexus.vulkan.extension.AccelerationStructureKHRExtension
-import me.fexus.vulkan.extension.BufferDeviceAddressKHRExtension
-import me.fexus.vulkan.extension.DeferredHostOperationsKHRExtension
-import me.fexus.vulkan.extension.RayTracingPipelineKHRExtension
+import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.raytracing.*
 import me.fexus.vulkan.raytracing.accelerationstructure.*
 import me.fexus.vulkan.util.ImageExtent2D
@@ -91,6 +88,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private lateinit var objTransformBuffer: VulkanBuffer
     private lateinit var instanceDataBuffer: VulkanBuffer
     private lateinit var raytracingProperties: RaytracingProperties
+    private lateinit var debugBuffer: VulkanBuffer
     private val bottomLevelAS = AABBBottomAccelerationStructure()
     private val topLevelAS = AABBTopLevelAccelerationStructure()
     private val descriptorPool = DescriptorPool()
@@ -121,11 +119,11 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         initDescriptors()
         createShaderBindingTable()
         writeDescriptorSets()
-        //startRenderLoop(window, this)
+        startRenderLoop(window, this)
     }
 
     private fun createDescriptors() {
-        camera.fov = 60f
+        camera.fov = 30f
         camera.position = Vec3(0f, 0f, 0f)
         camera.zNear = 0.1f
         camera.zFar = 512f
@@ -209,7 +207,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferConfiguration(
-            256L,
+            128L,
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )
@@ -251,6 +249,16 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         deviceUtil.assignName(this.sampler.vkHandle, VK_OBJECT_TYPE_SAMPLER, "soompler")
         // -- SAMPLER --
 
+        // -- DEBUG BUFFER --
+        val debugBufferConfig = VulkanBufferConfiguration(
+            128L,
+            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
+        )
+        this.debugBuffer = deviceUtil.createBuffer(debugBufferConfig)
+        deviceUtil.assignName(this.debugBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "debug_buffer")
+        // -- DEBUG BUFFER --
+
         // -- DESCRIPTOR SET LAYOUT --
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE, listOf(
@@ -272,6 +280,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                     ShaderStage.RAYGEN,
                     DescriptorSetLayoutBindingFlag.NONE
                 ),
+                DescriptorSetLayoutBinding(
+                    3, 1,
+                    DescriptorType.STORAGE_BUFFER,
+                    ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.ANY_HIT,
+                    DescriptorSetLayoutBindingFlag.NONE
+                )
             )
         )
         this.descriptorSetLayout.create(device, setLayoutPlan)
@@ -281,14 +295,14 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private fun createRaytracingPipeline() {
         val raygenShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rgen.spv").readBytes()
         val missShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rmiss.spv").readBytes()
-        val chitShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rahit.spv").readBytes()
+        val ahitShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rahit.spv").readBytes()
         val config = RaytracingPipelineConfiguration(
             listOf(
                 RaytracingShaderStage(ShaderStage.RAYGEN, RaytracingShaderGroupType.GENERAL, raygenShaderCode),
                 RaytracingShaderStage(ShaderStage.MISS, RaytracingShaderGroupType.GENERAL, missShaderCode),
-                RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, chitShaderCode)
+                RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, ahitShaderCode)
             ),
-            PushConstantsLayout(128, shaderStages = ShaderStage.VERTEX + ShaderStage.CLOSEST_HIT)
+            PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.ANY_HIT)
         )
         this.raytracingPipeline.create(device, descriptorSetLayout, config)
         deviceUtil.assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
@@ -322,7 +336,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // TRANSFORM BUFFER
         val transformByteBuffer = ByteBuffer.allocate(Mat4.SIZE_BYTES)
         transformByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        aabbTransform.toByteBuffer(transformByteBuffer, 0)
+        aabbTransform.toByteBufferColumnMajor(transformByteBuffer, 0)
         deviceUtil.stagingCopy(transformByteBuffer, this.objTransformBuffer, 0L, 0L, Mat4.SIZE_BYTES.toLong())
         // TRANSFORM BUFFER
 
@@ -375,10 +389,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
         stagingBufImg.destroy()
         // TEXTURE IMAGE
+
+        // DEBUG BUFFER
+        debugBuffer.set(0, 0, 128L)
+        // DEBUG BUFFER
     }
 
     private fun initBottomLevelAccelerationStructure() {
-        val blasConfig = AABBBlasConfiguration(listOf(AABB(0f, 0f, 0f, 1f, 1f, 1f)))
+        val blasConfig = AABBBlasConfiguration(listOf(
+            AABB(0f, 0f, 0f, 1f, 1f, 1f),
+            AABB(1f,1f,1f,2f,2f,2f)
+        ))
         this.bottomLevelAS.createAndBuild(deviceUtil, blasConfig)
         deviceUtil.assignName(this.bottomLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "bottom_level_as")
     }
@@ -427,9 +448,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         val bufferUsage = BufferUsage.SHADER_BINDING_TABLE + BufferUsage.SHADER_DEVICE_ADDRESS
         val memoryProperties = MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT
-        val bufferConfig = VulkanBufferConfiguration(
-            raytracingProperties.shaderGroupHandleSize.toLong(), memoryProperties, bufferUsage
-        )
+        val bufferConfig = VulkanBufferConfiguration(handleAlignmentSize.toLong(), memoryProperties, bufferUsage)
 
         this@HardwareVoxelRaytracing.raygenShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
         this@HardwareVoxelRaytracing.missShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
@@ -444,20 +463,24 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- DESCRIPTOR SET --
         this.descriptorSet.create(device, descriptorPool, descriptorSetLayout)
 
-        val descWriteAccStruct = DescriptorAccelerationStructureWrite (
-                0, DescriptorType.ACCELERATION_STRUCTURE, 1, this.descriptorSet, 0,
-                DescriptorBufferInfo(topLevelAS.vkHandle, 0L, VK_WHOLE_SIZE)
+        val descWriteAccStruct = DescriptorAccelerationStructureWrite(
+            0, DescriptorType.ACCELERATION_STRUCTURE, 1, this.descriptorSet, 0,
+            DescriptorBufferInfo(topLevelAS.vkHandle, 0L, VK_WHOLE_SIZE)
         )
         val storageImageWrite = DescriptorImageWrite(
-                1, DescriptorType.STORAGE_IMAGE, 1, this.descriptorSet, 0,
-                listOf(DescriptorImageInfo(0L, this.storageImage.vkImageViewHandle, ImageLayout.GENERAL))
+            1, DescriptorType.STORAGE_IMAGE, 1, this.descriptorSet, 0,
+            listOf(DescriptorImageInfo(0L, this.storageImage.vkImageViewHandle, ImageLayout.GENERAL))
         )
         val uniformBufWrite = DescriptorBufferWrite(
-                2, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
-                listOf(DescriptorBufferInfo(cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            2, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
+            listOf(DescriptorBufferInfo(cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+        val debugBufWrite = DescriptorBufferWrite(
+            3, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
+            listOf(DescriptorBufferInfo(debugBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
 
-        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite)
+        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite)
         // -- DESCRIPTOR SET --
     }
 
@@ -466,12 +489,30 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         handleInput()
 
+        val origin = Vec3(debugBuffer.getFloat(0), debugBuffer.getFloat(4), debugBuffer.getFloat(8))
+        val dir = Vec3(debugBuffer.getFloat(12), debugBuffer.getFloat(16), debugBuffer.getFloat(20))
+        val hitExecuted = debugBuffer.getFloat(40) == 1f
+
+        println("---------------------")
+        println("Origin: $origin")
+        println("Direction: $dir")
+        println("hit shader executed: $hitExecuted")
+
         val view = camera.calculateView().inverse()
-        val proj = camera.calculateProjection().inverse()
+        //val proj = camera.calculateProjection().inverse()
+        val proj = Mat4(
+            -11.387255f, 0.0f, -0.0f, 0.0f,
+            0.0f, -6.405331f, 0.0f, -0.0f,
+            -0.0f, -0.0f, -0.0f, -1.0f,
+            0.0f, -0.0f, -4.999023f, 5.000976f
+        )
+        //println("-----------------------------")
+        //println(view)
+        //println(proj)
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
-        view.toByteBuffer(data, 0)
-        proj.toByteBuffer(data, 64)
+        view.toByteBufferColumnMajor(data, 0)
+        proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data, 0)
 
         val width: Int = swapchain.imageExtent.width
@@ -602,20 +643,22 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 null
             )
 
+            val handleSizeAligned = alignedSize(raytracingProperties.shaderGroupHandleSize, raytracingProperties.shaderGroupHandleAlignment).toLong()
+
             val rayGenEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
                 deviceAddress(raygenShaderBindingTable.getDeviceAddress())
-                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
-                size(raytracingProperties.shaderGroupHandleSize.toLong())
+                stride(handleSizeAligned)
+                size(handleSizeAligned)
             }
             val missEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
                 deviceAddress(missShaderBindingTable.getDeviceAddress())
-                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
-                size(raytracingProperties.shaderGroupHandleSize.toLong())
+                stride(handleSizeAligned)
+                size(handleSizeAligned)
             }
-            val chitEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
+            val ahitEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
                 deviceAddress(anyHitShaderBindingTable.getDeviceAddress())
-                stride(raytracingProperties.shaderGroupHandleAlignment.toLong())
-                size(raytracingProperties.shaderGroupHandleSize.toLong())
+                stride(handleSizeAligned)
+                size(handleSizeAligned)
             }
             val callableShaderEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {}
 
@@ -625,13 +668,13 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             vkCmdPushConstants(
                 commandBuffer.vkHandle,
                 raytracingPipeline.vkLayoutHandle,
-                (ShaderStage.CLOSEST_HIT + ShaderStage.VERTEX).vkBits,
+                (ShaderStage.ANY_HIT + ShaderStage.RAYGEN).vkBits,
                 0,
                 pPushConstants
             )
             vkCmdTraceRaysKHR(
                 commandBuffer.vkHandle,
-                rayGenEntry, missEntry, chitEntry, callableShaderEntry,
+                rayGenEntry, missEntry, ahitEntry, callableShaderEntry,
                 swapchain.imageExtent.width, swapchain.imageExtent.height, 1
             )
 
@@ -695,6 +738,10 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         vkEndCommandBuffer(commandBuffer.vkHandle)
 
         return@runMemorySafe FrameSubmitData(preparation.acquireSuccessful, preparation.imageIndex)
+    }
+
+    private fun alignedSize(value: Int, alignment: Int): Int {
+        return (value + alignment - 1) and (alignment - 1).inv()
     }
 
     private fun handleInput() {
@@ -762,6 +809,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         raygenShaderBindingTable.destroy()
         missShaderBindingTable.destroy()
         anyHitShaderBindingTable.destroy()
+        debugBuffer.destroy()
         raytracingPipeline.destroy(device)
         cobbleImage.destroy()
         vertexBuffer.destroy()

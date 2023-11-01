@@ -83,6 +83,13 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
         vkCreateAccelerationStructureKHR(deviceUtil.vkDeviceHandle, tlasCreateInfo, null, pTLASHandle)
         vkHandle = pTLASHandle[0]
 
+        val scratchBufferConfig = VulkanBufferConfiguration(
+            buildSizesInfo.buildScratchSize(),
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
+        )
+        val scratchBuffer = deviceUtil.createBuffer(scratchBufferConfig)
+
         deviceUtil.runSingleTimeCommands { cmdBuf ->
             val buildRangeInfo = calloc(VkAccelerationStructureBuildRangeInfoKHR::calloc) {
                 primitiveCount(1)
@@ -92,8 +99,11 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
             }
 
             val ppBuildRanges = allocatePointerValues(buildRangeInfo.address())
+            buildGeometryInfo.dstAccelerationStructure(vkHandle)
+            buildGeometryInfo.scratchData().deviceAddress(scratchBuffer.getDeviceAddress())
             val pBuildGeometryInfos = calloc(VkAccelerationStructureBuildGeometryInfoKHR::calloc, 1)
             pBuildGeometryInfos.put(0, buildGeometryInfo)
+
             vkCmdBuildAccelerationStructuresKHR(cmdBuf.vkHandle, pBuildGeometryInfos, ppBuildRanges)
         }
 
@@ -103,5 +113,7 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
             accelerationStructure(vkHandle)
         }
         deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(deviceUtil.vkDeviceHandle, tlasDeviceAddressInfo)
+
+        scratchBuffer.destroy()
     }
 }

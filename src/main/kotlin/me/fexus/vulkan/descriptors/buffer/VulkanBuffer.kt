@@ -51,6 +51,26 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
         }
     }
 
+    fun getFloat(offset: Int): Float {
+        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+            // Copy can be done without staging
+            val address = getMemoryMappingHandle() + offset
+            return MemoryUtil.memGetFloat(address)
+        } else {
+            throw Exception("Device local buffers require staging")
+        }
+    }
+
+    fun getInt(offset: Int): Int {
+        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+            // Copy can be done without staging
+            val address = getMemoryMappingHandle() + offset
+            return MemoryUtil.memGetInt(address)
+        } else {
+            throw Exception("Device local buffers require staging")
+        }
+    }
+
     fun getDeviceAddress() = runMemorySafe {
         if (!hasUsage(BufferUsage.SHADER_DEVICE_ADDRESS))
             throw Exception("Only device local buffers and buffers flagged with usage DEVICE_ADDRESS_KHR may be assigned a device address")

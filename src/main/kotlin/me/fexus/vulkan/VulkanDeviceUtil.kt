@@ -18,6 +18,10 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
+import kotlin.contracts.ContractBuilder
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 
 class VulkanDeviceUtil(private val device: Device, private val bufferFactory: VulkanBufferFactory) {
@@ -66,7 +70,9 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
         vkFreeCommandBuffers(device.vkHandle, commandPool.vkHandle, pCommandBuffers)
     }
 
+    @OptIn(ExperimentalContracts::class)
     fun runSingleTimeCommands(commands: (commandBuffer: CommandBuffer) -> Unit) {
+        contract { callsInPlace(commands, InvocationKind.EXACTLY_ONCE) }
         val cmdBuf = beginSingleTimeCommandBuffer()
         commands(cmdBuf)
         endSingleTimeCommandBuffer(cmdBuf)

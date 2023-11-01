@@ -329,8 +329,8 @@ class NaiveVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val proj = camera.calculateReverseZProjection()
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
-        view.toByteBuffer(data, 0)
-        proj.toByteBuffer(data, 64)
+        view.toByteBufferColumnMajor(data, 0)
+        proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data, 0)
 
         val width: Int = swapchain.imageExtent.width

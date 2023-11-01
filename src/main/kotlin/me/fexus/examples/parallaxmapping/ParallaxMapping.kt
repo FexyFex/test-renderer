@@ -319,8 +319,8 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val proj = camera.calculateReverseZProjection()
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
-        view.toByteBuffer(data, 0)
-        proj.toByteBuffer(data, 64)
+        view.toByteBufferColumnMajor(data, 0)
+        proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data)
 
         val width: Int = swapchain.imageExtent.width
@@ -440,7 +440,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            modelMatrix.toByteBuffer(pPushConstants, 0)
+            modelMatrix.toByteBufferColumnMajor(pPushConstants, 0)
             Vec3(5f, 1.0f, 1f).toByteBuffer(pPushConstants, 64)
             (-camera.position).toByteBuffer(pPushConstants, 80)
             pPushConstants.putFloat(96, heightScale)

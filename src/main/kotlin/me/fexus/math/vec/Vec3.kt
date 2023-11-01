@@ -47,4 +47,9 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
         buf.putFloat(offset + 4, y)
         buf.putFloat(offset + 8, z)
     }
+
+
+    override fun toString(): String {
+        return "[$x, $y, $z]"
+    }
 }

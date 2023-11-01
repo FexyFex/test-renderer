@@ -47,4 +47,8 @@ abstract class TVec4<T: Number>: Vec<T> {
             else -> throw IndexOutOfBoundsException(index)
         }
     }
+
+    override fun toString(): String {
+        return "[$x, $y, $z, $w]"
+    }
 }

@@ -2,6 +2,7 @@ package me.fexus.examples.hardwarevoxelraytracing.accelerationstructure
 
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.vulkan.VulkanDeviceUtil
+import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
@@ -35,7 +36,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
         geometryStructure[0]
             .sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR)
             .pNext(0L)
-            .flags(VK_GEOMETRY_OPAQUE_BIT_KHR or VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR)
+            .flags(VK_GEOMETRY_OPAQUE_BIT_KHR)
             .geometryType(VK_GEOMETRY_TYPE_AABBS_KHR)
             .geometry().aabbs(geometryAABBsData)
 
@@ -45,6 +46,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
             flags(VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR)
             type(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR)
             mode(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR)
+            geometryCount(geometryStructure.capacity())
             pGeometries(geometryStructure)
         }
 
@@ -55,7 +57,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
             deviceUtil.vkDeviceHandle,
             VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
             buildGeometryInfo,
-            intArrayOf(1),
+            intArrayOf(config.aabbs.size),
             buildSizesInfo
         )
 
@@ -79,32 +81,43 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
         vkCreateAccelerationStructureKHR(deviceUtil.vkDeviceHandle, blasCreateInfo, null, pBLASHandle).catchVK()
         this@AABBBottomAccelerationStructure.vkHandle = pBLASHandle[0]
 
-        val buildRangeInfo = calloc(VkAccelerationStructureBuildRangeInfoKHR::calloc) {
-            primitiveCount(1)
-            primitiveOffset(0)
-            firstVertex(0)
-            transformOffset(0)
-        }
-
-        val ppBuildRangeInfos = allocatePointer(1)
-        ppBuildRangeInfos.put(0, buildRangeInfo)
-
-        val pBuildGeometryInfos = calloc(VkAccelerationStructureBuildGeometryInfoKHR::calloc, 1)
-        pBuildGeometryInfos.put(0, buildGeometryInfo)
-
-        val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
-        vkCmdBuildAccelerationStructuresKHR(
-            cmdBuf.vkHandle,
-            pBuildGeometryInfos,
-            ppBuildRangeInfos
+        val scratchBufferConfig = VulkanBufferConfiguration(
+            buildSizesInfo.buildScratchSize(),
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
-        deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+        val scratchBuffer = deviceUtil.createBuffer(scratchBufferConfig)
+
+        deviceUtil.runSingleTimeCommands { cmdBuf ->
+            val buildRangeInfo = calloc(VkAccelerationStructureBuildRangeInfoKHR::calloc) {
+                primitiveCount(config.aabbs.size)
+                primitiveOffset(0)
+                firstVertex(0)
+                transformOffset(0)
+            }
+
+            val ppBuildRangeInfos = allocatePointer(1)
+            ppBuildRangeInfos.put(0, buildRangeInfo)
+
+            buildGeometryInfo.dstAccelerationStructure(vkHandle)
+            buildGeometryInfo.scratchData().deviceAddress(scratchBuffer.getDeviceAddress())
+            val pBuildGeometryInfos = calloc(VkAccelerationStructureBuildGeometryInfoKHR::calloc, 1)
+            pBuildGeometryInfos.put(0, buildGeometryInfo)
+
+            vkCmdBuildAccelerationStructuresKHR(
+                cmdBuf.vkHandle,
+                pBuildGeometryInfos,
+                ppBuildRangeInfos
+            )
+        }
 
         val deviceAddressInfo = calloc(VkAccelerationStructureDeviceAddressInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR)
             accelerationStructure(this@AABBBottomAccelerationStructure.vkHandle)
         }
         deviceAddress = vkGetAccelerationStructureDeviceAddressKHR(deviceUtil.vkDeviceHandle, deviceAddressInfo)
+
+        scratchBuffer.destroy()
     }
 
 
@@ -125,5 +138,11 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
         }
 
         deviceUtil.stagingCopy(aabbsByteBuffer, aabbsBuffer, 0L, 0L, bufferSize.toLong())
+    }
+
+
+    override fun destroy(device: Device) {
+        super.destroy(device)
+        aabbsBuffer.destroy()
     }
 }
