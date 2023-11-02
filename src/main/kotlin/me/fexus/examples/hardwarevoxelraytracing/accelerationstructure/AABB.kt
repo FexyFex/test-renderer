@@ -24,6 +24,6 @@ data class AABB(
     }
 
     companion object {
-        const val SIZE_BYTES = Float.SIZE_BYTES * 6
+        const val SIZE_BYTES = 32
     }
 }

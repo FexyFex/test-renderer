@@ -63,11 +63,11 @@ class RaytracingPipeline: IPipeline {
                 .intersectionShader(VK_SHADER_UNUSED_KHR)
                 .type(stage.groupType.vkValue)
 
-            when (stage.stageType) {
-                ShaderStage.RAYGEN, ShaderStage.MISS -> groups[index].generalShader(index)
-                ShaderStage.CLOSEST_HIT -> groups[index].closestHitShader(index)
-                ShaderStage.ANY_HIT -> groups[index].anyHitShader(index)
-            }
+            if (ShaderStage.RAYGEN in stage.stageType) groups[index].generalShader(index)
+            if (ShaderStage.MISS in stage.stageType) groups[index].generalShader(index)
+            if (ShaderStage.CLOSEST_HIT in stage.stageType) groups[index].closestHitShader(index)
+            if (ShaderStage.ANY_HIT in stage.stageType) groups[index].anyHitShader(index)
+            if (ShaderStage.INTERSECTION in stage.stageType) groups[index].intersectionShader(index)
         }
 
         val raytracingPipelineCreateInfo = calloc(VkRayTracingPipelineCreateInfoKHR::calloc, 1)

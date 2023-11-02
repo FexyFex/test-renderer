@@ -89,6 +89,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private lateinit var instanceDataBuffer: VulkanBuffer
     private lateinit var raytracingProperties: RaytracingProperties
     private lateinit var debugBuffer: VulkanBuffer
+    private lateinit var aabbsBuffer: VulkanBuffer
     private val bottomLevelAS = AABBBottomAccelerationStructure()
     private val topLevelAS = AABBTopLevelAccelerationStructure()
     private val descriptorPool = DescriptorPool()
@@ -260,6 +261,16 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         deviceUtil.assignName(this.debugBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "debug_buffer")
         // -- DEBUG BUFFER --
 
+        // -- AABBS BUFFER --
+        val aabbsBufferConfig = VulkanBufferConfiguration(
+                AABB.SIZE_BYTES * Scene.aabbs.size.toLong(),
+                MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+                BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
+        )
+        this.aabbsBuffer = deviceUtil.createBuffer(aabbsBufferConfig)
+        deviceUtil.assignName(this.aabbsBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "aabbs_buffer")
+        // -- AABBS BUFFER --
+
         // -- DESCRIPTOR SET LAYOUT --
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE, listOf(
@@ -284,8 +295,14 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 DescriptorSetLayoutBinding(
                     3, 1,
                     DescriptorType.STORAGE_BUFFER,
-                    ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.ANY_HIT,
+                    ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.ANY_HIT + ShaderStage.INTERSECTION,
                     DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                        4, 1,
+                        DescriptorType.STORAGE_BUFFER,
+                        ShaderStage.RAYGEN + ShaderStage.INTERSECTION,
+                        DescriptorSetLayoutBindingFlag.NONE
                 )
             )
         )
@@ -303,7 +320,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 RaytracingShaderStage(ShaderStage.RAYGEN, RaytracingShaderGroupType.GENERAL, raygenShaderCode),
                 RaytracingShaderStage(ShaderStage.MISS, RaytracingShaderGroupType.GENERAL, missShaderCode),
                 RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, ahitShaderCode),
-                RaytracingShaderStage(ShaderStage.INTERSECTION, RaytracingShaderGroupType.GENERAL, intShaderCode)
+                RaytracingShaderStage(ShaderStage.INTERSECTION + ShaderStage.CLOSEST_HIT, RaytracingShaderGroupType.GENERAL, intShaderCode)
 
             ),
             PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.ANY_HIT)
@@ -343,6 +360,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         aabbTransform.toByteBufferColumnMajor(transformByteBuffer, 0)
         deviceUtil.stagingCopy(transformByteBuffer, this.objTransformBuffer, 0L, 0L, Mat4.SIZE_BYTES.toLong())
         // TRANSFORM BUFFER
+
+        // AABBS BUFFER
+        val aabbsBufferSize = AABB.SIZE_BYTES * Scene.aabbs.size
+        val aabbsByteBuffer = ByteBuffer.allocate(aabbsBufferSize)
+        aabbsByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        Scene.aabbs.forEachIndexed { index, aabb ->
+            val offset = index * AABB.SIZE_BYTES
+            aabb.toByteBuffer(aabbsByteBuffer, offset)
+        }
+        this.aabbsBuffer.put(0, aabbsByteBuffer)
+        // AABBS BUFFER
 
         initBottomLevelAccelerationStructure()
 
@@ -400,10 +428,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     private fun initBottomLevelAccelerationStructure() {
-        val blasConfig = AABBBlasConfiguration(listOf(
-            AABB(0f, 0f, 0f, 1f, 1f, 1f),
-            AABB(1f,1f,1f,2f,2f,2f)
-        ))
+        val blasConfig = AABBBlasConfiguration(Scene.aabbs)
         this.bottomLevelAS.createAndBuild(deviceUtil, blasConfig)
         deviceUtil.assignName(this.bottomLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "bottom_level_as")
     }
@@ -485,8 +510,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             3, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
             listOf(DescriptorBufferInfo(debugBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
+        val aabbsBufWrite = DescriptorBufferWrite(
+                4, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
+                listOf(DescriptorBufferInfo(aabbsBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
 
-        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite)
+        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite, aabbsBufWrite)
         // -- DESCRIPTOR SET --
     }
 
@@ -499,10 +528,10 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val dir = Vec3(debugBuffer.getFloat(12), debugBuffer.getFloat(16), debugBuffer.getFloat(20))
         val hitExecuted = debugBuffer.getFloat(40) == 1f
 
-        println("---------------------")
-        println("Origin: $origin")
-        println("Direction: $dir")
-        println("hit shader executed: $hitExecuted")
+        //println("---------------------")
+        //println("Origin: $origin")
+        //println("Direction: $dir")
+        //println("hit shader executed: $hitExecuted")
 
         val view = camera.calculateView().inverse()
         //val proj = camera.calculateProjection().inverse()
@@ -815,7 +844,9 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         raygenShaderBindingTable.destroy()
         missShaderBindingTable.destroy()
         anyHitShaderBindingTable.destroy()
+        intersectionShaderBindingTable.destroy()
         debugBuffer.destroy()
+        aabbsBuffer.destroy()
         raytracingPipeline.destroy(device)
         cobbleImage.destroy()
         vertexBuffer.destroy()
