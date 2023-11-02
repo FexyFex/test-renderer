@@ -1,0 +1,29 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_nonuniform_qualifier : enable
+
+struct AABB {
+    vec4 min;
+    vec4 max;
+};
+
+layout(set = 0, binding = 4) buffer AABBs { AABB arr[]; } aabbs;
+
+void main() {
+    vec3 rayOrigin = gl_WorldRayOriginEXT;
+    vec3 rayDirection = gl_WorldRayDirectionEXT;
+
+    AABB aabb = aabbs.arr[gl_PrimitiveID];
+
+    vec3 invDir = 1.0 / rayDirection;
+    vec3 tBot = invDir * (aabb.min.xyz - rayOrigin);
+    vec3 tTop = invDir * (aabb.max.xyz - rayOrigin);
+    vec3 tMin = min(tTop, tBot);
+    vec3 tMax = max(tTop, tBot);
+    float t0 = max(tMin.x, max(tMin.y, tMin.z));
+    float t1 = min(tMax.x, min(tMax.y, tMax.z));
+
+    float hit = t1 > max(t0, 0.0) ? t0 : -1.0;
+
+    if (hit > 0.0) reportIntersectionEXT(hit, 0);
+}

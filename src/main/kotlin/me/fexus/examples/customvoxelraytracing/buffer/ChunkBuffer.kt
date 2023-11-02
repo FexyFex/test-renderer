@@ -1,4 +1,4 @@
-package me.fexus.examples.naivevoxelraytracing.buffer
+package me.fexus.examples.customvoxelraytracing.buffer
 
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import java.nio.ByteBuffer

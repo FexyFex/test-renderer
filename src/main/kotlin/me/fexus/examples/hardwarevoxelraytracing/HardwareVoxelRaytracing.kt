@@ -98,10 +98,11 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     lateinit var raygenShaderBindingTable: VulkanBuffer
     lateinit var missShaderBindingTable: VulkanBuffer
     lateinit var anyHitShaderBindingTable: VulkanBuffer
+    lateinit var intersectionShaderBindingTable: VulkanBuffer
 
     private val aabbPosition = Vec3(0f, 0f, -5f)
     private val aabbTransform = Mat4(1f).translate(aabbPosition)
-    private val cobbleTexture = TextureLoader("textures/parallaxvoxelraytracing/cobblestone.png")
+    private val cobbleTexture = TextureLoader("textures/customvoxelraytracing/cobblestone.png")
 
     private val inputHandler = InputHandler(window)
 
@@ -296,11 +297,14 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val raygenShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rgen.spv").readBytes()
         val missShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rmiss.spv").readBytes()
         val ahitShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rahit.spv").readBytes()
+        val intShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rint.spv").readBytes()
         val config = RaytracingPipelineConfiguration(
             listOf(
                 RaytracingShaderStage(ShaderStage.RAYGEN, RaytracingShaderGroupType.GENERAL, raygenShaderCode),
                 RaytracingShaderStage(ShaderStage.MISS, RaytracingShaderGroupType.GENERAL, missShaderCode),
-                RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, ahitShaderCode)
+                RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, ahitShaderCode),
+                RaytracingShaderStage(ShaderStage.INTERSECTION, RaytracingShaderGroupType.GENERAL, intShaderCode)
+
             ),
             PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.ANY_HIT)
         )
@@ -453,10 +457,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this@HardwareVoxelRaytracing.raygenShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
         this@HardwareVoxelRaytracing.missShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
         this@HardwareVoxelRaytracing.anyHitShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
+        this@HardwareVoxelRaytracing.intersectionShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
 
-        this@HardwareVoxelRaytracing.raygenShaderBindingTable.put(0, pData, 0, handleAlignmentSize)
-        this@HardwareVoxelRaytracing.missShaderBindingTable.put(0, pData, handleAlignmentSize, handleAlignmentSize)
+        this@HardwareVoxelRaytracing.raygenShaderBindingTable.put(0, pData, handleAlignmentSize * 0, handleAlignmentSize)
+        this@HardwareVoxelRaytracing.missShaderBindingTable.put(0, pData, handleAlignmentSize * 1, handleAlignmentSize)
         this@HardwareVoxelRaytracing.anyHitShaderBindingTable.put(0, pData, handleAlignmentSize * 2, handleAlignmentSize)
+        this@HardwareVoxelRaytracing.intersectionShaderBindingTable.put(0, pData, handleAlignmentSize * 3, handleAlignmentSize)
     }
 
     private fun writeDescriptorSets() {
