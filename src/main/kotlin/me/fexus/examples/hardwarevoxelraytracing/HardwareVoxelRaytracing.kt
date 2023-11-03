@@ -39,6 +39,7 @@ import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
 import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.raytracing.*
+import me.fexus.vulkan.raytracing.RaytracingShaderGroup.Companion.UNUSED
 import me.fexus.vulkan.raytracing.accelerationstructure.*
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
@@ -98,8 +99,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private val raytracingPipeline = RaytracingPipeline()
     lateinit var raygenShaderBindingTable: VulkanBuffer
     lateinit var missShaderBindingTable: VulkanBuffer
-    lateinit var anyHitShaderBindingTable: VulkanBuffer
-    lateinit var intersectionShaderBindingTable: VulkanBuffer
+    lateinit var closestHitShaderBindingTable: VulkanBuffer
 
     private val aabbPosition = Vec3(0f, 0f, -5f)
     private val aabbTransform = Mat4(1f).translate(aabbPosition)
@@ -310,25 +310,6 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- DESCRIPTOR SET LAYOUT --
     }
 
-    private fun createRaytracingPipeline() {
-        val raygenShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rgen.spv").readBytes()
-        val missShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rmiss.spv").readBytes()
-        val ahitShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rahit.spv").readBytes()
-        val intShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rint.spv").readBytes()
-        val config = RaytracingPipelineConfiguration(
-            listOf(
-                RaytracingShaderStage(ShaderStage.RAYGEN, RaytracingShaderGroupType.GENERAL, raygenShaderCode),
-                RaytracingShaderStage(ShaderStage.MISS, RaytracingShaderGroupType.GENERAL, missShaderCode),
-                RaytracingShaderStage(ShaderStage.ANY_HIT, RaytracingShaderGroupType.PROCEDURAL_HIT, ahitShaderCode),
-                RaytracingShaderStage(ShaderStage.INTERSECTION + ShaderStage.CLOSEST_HIT, RaytracingShaderGroupType.GENERAL, intShaderCode)
-
-            ),
-            PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.ANY_HIT)
-        )
-        this.raytracingPipeline.create(device, descriptorSetLayout, config)
-        deviceUtil.assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
-    }
-
     private fun initDescriptors() {
         // VERTEX BUFFER
         val cubeVertexBufSize = CubeModelPositionsOnly.vertices.size * CubeModelPositionsOnly.Vertex.SIZE_BYTES
@@ -452,6 +433,29 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         deviceUtil.assignName(this.topLevelAS.vkHandle, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "top_level_as")
     }
 
+    private fun createRaytracingPipeline() {
+        val raygenShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rgen.spv").readBytes()
+        val missShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rmiss.spv").readBytes()
+        val chitShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rchit.spv").readBytes()
+        val intShaderCode = ClassLoader.getSystemResource("shaders/hardwarevoxelraytracing/rint.spv").readBytes()
+        val config = RaytracingPipelineConfiguration(
+            listOf(
+                RaytracingShaderStage(ShaderStage.RAYGEN, raygenShaderCode),
+                RaytracingShaderStage(ShaderStage.MISS, missShaderCode),
+                RaytracingShaderStage(ShaderStage.CLOSEST_HIT, chitShaderCode),
+                RaytracingShaderStage(ShaderStage.INTERSECTION, intShaderCode)
+            ),
+            listOf(
+                RaytracingShaderGroup(RaytracingShaderGroupType.GENERAL, 0, UNUSED, UNUSED, UNUSED),
+                RaytracingShaderGroup(RaytracingShaderGroupType.GENERAL, 1, UNUSED, UNUSED, UNUSED),
+                RaytracingShaderGroup(RaytracingShaderGroupType.PROCEDURAL_HIT, UNUSED, 2, UNUSED, 3)
+            ),
+            PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT)
+        )
+        this.raytracingPipeline.create(device, descriptorSetLayout, config)
+        deviceUtil.assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
+    }
+
     private fun createShaderBindingTable() = runMemorySafe {
         val raytracingProps = calloc(VkPhysicalDeviceRayTracingPipelinePropertiesKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR)
@@ -469,7 +473,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         )
 
         val handleAlignmentSize = raytracingProperties.shaderGroupHandleAlignment
-        val groupCount = raytracingPipeline.shaderGroupCount
+        val groupCount = raytracingPipeline.shadergroupCount
         val sbtSize = groupCount * handleAlignmentSize
 
         val pData = allocate(sbtSize)
@@ -481,13 +485,11 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         this@HardwareVoxelRaytracing.raygenShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
         this@HardwareVoxelRaytracing.missShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
-        this@HardwareVoxelRaytracing.anyHitShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
-        this@HardwareVoxelRaytracing.intersectionShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
+        this@HardwareVoxelRaytracing.closestHitShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
 
         this@HardwareVoxelRaytracing.raygenShaderBindingTable.put(0, pData, handleAlignmentSize * 0, handleAlignmentSize)
         this@HardwareVoxelRaytracing.missShaderBindingTable.put(0, pData, handleAlignmentSize * 1, handleAlignmentSize)
-        this@HardwareVoxelRaytracing.anyHitShaderBindingTable.put(0, pData, handleAlignmentSize * 2, handleAlignmentSize)
-        this@HardwareVoxelRaytracing.intersectionShaderBindingTable.put(0, pData, handleAlignmentSize * 3, handleAlignmentSize)
+        this@HardwareVoxelRaytracing.closestHitShaderBindingTable.put(0, pData, handleAlignmentSize * 2, handleAlignmentSize)
     }
 
     private fun writeDescriptorSets() {
@@ -691,7 +693,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 size(handleSizeAligned)
             }
             val ahitEntry = calloc(VkStridedDeviceAddressRegionKHR::calloc) {
-                deviceAddress(anyHitShaderBindingTable.getDeviceAddress())
+                deviceAddress(closestHitShaderBindingTable.getDeviceAddress())
                 stride(handleSizeAligned)
                 size(handleSizeAligned)
             }
@@ -843,8 +845,6 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         bottomLevelAS.destroy(device)
         raygenShaderBindingTable.destroy()
         missShaderBindingTable.destroy()
-        anyHitShaderBindingTable.destroy()
-        intersectionShaderBindingTable.destroy()
         debugBuffer.destroy()
         aabbsBuffer.destroy()
         raytracingPipeline.destroy(device)
