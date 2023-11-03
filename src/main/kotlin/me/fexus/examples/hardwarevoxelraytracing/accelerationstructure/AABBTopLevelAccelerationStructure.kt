@@ -60,7 +60,7 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
             deviceUtil.vkDeviceHandle,
             VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
             buildGeometryInfo,
-            intArrayOf(1),
+            intArrayOf(config.instancesBuffers.size),
             buildSizesInfo
         )
 
@@ -92,7 +92,7 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
 
         deviceUtil.runSingleTimeCommands { cmdBuf ->
             val buildRangeInfo = calloc(VkAccelerationStructureBuildRangeInfoKHR::calloc) {
-                primitiveCount(1)
+                primitiveCount(config.instancesBuffers.size)
                 primitiveOffset(0)
                 firstVertex(0)
                 transformOffset(0)

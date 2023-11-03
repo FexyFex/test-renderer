@@ -7,6 +7,7 @@ struct AABB {
     vec4 max;
 };
 
+layout(set = 0, binding = 3) buffer DebugBuffer { float arr[]; } debugBuffer;
 layout(set = 0, binding = 4) buffer AABBs { AABB arr[]; } aabbs;
 
 void main() {
@@ -14,6 +15,8 @@ void main() {
     vec3 rayDirection = gl_WorldRayDirectionEXT;
 
     AABB aabb = aabbs.arr[gl_PrimitiveID];
+
+    reportIntersectionEXT(0.5, 0);
 
     vec3 invDir = 1.0 / rayDirection;
     vec3 tBot = invDir * (aabb.min.xyz - rayOrigin);

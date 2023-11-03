@@ -11,7 +11,5 @@ void main() {
   const vec3 barycentricCoords = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
   hitValue = barycentricCoords;
 
-  debugBuffer.arr[10] = 1.0;
-
   hitValue = vec3(1.0,1.0,1.0);
 }

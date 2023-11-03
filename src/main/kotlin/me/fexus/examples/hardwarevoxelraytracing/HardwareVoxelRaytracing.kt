@@ -295,7 +295,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 DescriptorSetLayoutBinding(
                     3, 1,
                     DescriptorType.STORAGE_BUFFER,
-                    ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.ANY_HIT + ShaderStage.INTERSECTION,
+                    ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.INTERSECTION,
                     DescriptorSetLayoutBindingFlag.NONE
                 ),
                 DescriptorSetLayoutBinding(
@@ -450,7 +450,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                 RaytracingShaderGroup(RaytracingShaderGroupType.GENERAL, 1, UNUSED, UNUSED, UNUSED),
                 RaytracingShaderGroup(RaytracingShaderGroupType.PROCEDURAL_HIT, UNUSED, 2, UNUSED, 3)
             ),
-            PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT)
+            PushConstantsLayout(128, shaderStages = ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.INTERSECTION)
         )
         this.raytracingPipeline.create(device, descriptorSetLayout, config)
         deviceUtil.assignName(this.raytracingPipeline.vkHandle, VK_OBJECT_TYPE_PIPELINE, "raytracing_pipeline")
@@ -529,20 +529,24 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val origin = Vec3(debugBuffer.getFloat(0), debugBuffer.getFloat(4), debugBuffer.getFloat(8))
         val dir = Vec3(debugBuffer.getFloat(12), debugBuffer.getFloat(16), debugBuffer.getFloat(20))
         val hitExecuted = debugBuffer.getFloat(40) == 1f
+        val primitiveValue = debugBuffer.getFloat(48)
 
-        //println("---------------------")
-        //println("Origin: $origin")
-        //println("Direction: $dir")
-        //println("hit shader executed: $hitExecuted")
+        println("---------------------")
+        println("Origin: $origin")
+        println("Direction: $dir")
+        println("hit shader executed: $hitExecuted")
+        println("primitive: $primitiveValue")
 
         val view = camera.calculateView().inverse()
-        //val proj = camera.calculateProjection().inverse()
+        val proj = camera.calculateProjection().inverse()
+        /*
         val proj = Mat4(
             -11.387255f, 0.0f, -0.0f, 0.0f,
             0.0f, -6.405331f, 0.0f, -0.0f,
             -0.0f, -0.0f, -0.0f, -1.0f,
             0.0f, -0.0f, -4.999023f, 5.000976f
         )
+         */
         //println("-----------------------------")
         //println(view)
         //println(proj)
@@ -705,7 +709,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             vkCmdPushConstants(
                 commandBuffer.vkHandle,
                 raytracingPipeline.vkLayoutHandle,
-                (ShaderStage.ANY_HIT + ShaderStage.RAYGEN).vkBits,
+                (ShaderStage.RAYGEN + ShaderStage.CLOSEST_HIT + ShaderStage.INTERSECTION).vkBits,
                 0,
                 pPushConstants
             )
@@ -783,12 +787,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun handleInput() {
         val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
-        val rotX = inputHandler.isKeyDown(Key.ARROW_DOWN).toInt() - inputHandler.isKeyDown(Key.ARROW_UP).toInt()
+        val rotX = inputHandler.isKeyDown(Key.ARROW_UP).toInt() - inputHandler.isKeyDown(Key.ARROW_DOWN).toInt()
         camera.rotation.x += rotX.toFloat() * 1.2f
         camera.rotation.y += rotY.toFloat() * 1.2f
 
         val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val yMove = inputHandler.isKeyDown(Key.LSHIFT).toInt() - inputHandler.isKeyDown(Key.SPACE).toInt()
+        val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
         val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
 
         camera.position.x += xMove * 0.1f
@@ -845,6 +849,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         bottomLevelAS.destroy(device)
         raygenShaderBindingTable.destroy()
         missShaderBindingTable.destroy()
+        closestHitShaderBindingTable.destroy()
         debugBuffer.destroy()
         aabbsBuffer.destroy()
         raytracingPipeline.destroy(device)

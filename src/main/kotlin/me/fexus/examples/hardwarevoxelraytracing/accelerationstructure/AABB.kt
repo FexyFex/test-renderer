@@ -18,9 +18,9 @@ data class AABB(
         targetBuf.putFloat(offset, minX)
         targetBuf.putFloat(offset + 4, minY)
         targetBuf.putFloat(offset + 8, minZ)
-        targetBuf.putFloat(offset + 12, maxX)
-        targetBuf.putFloat(offset + 16, maxY)
-        targetBuf.putFloat(offset + 20, maxZ)
+        targetBuf.putFloat(offset + 16, maxX)
+        targetBuf.putFloat(offset + 20, maxY)
+        targetBuf.putFloat(offset + 24, maxZ)
     }
 
     companion object {
