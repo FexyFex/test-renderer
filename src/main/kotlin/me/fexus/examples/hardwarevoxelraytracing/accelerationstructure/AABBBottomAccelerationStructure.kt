@@ -134,7 +134,13 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
         val aabbsByteBuffer = ByteBuffer.allocate(bufferSize)
         aabbsByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
         aabbs.forEachIndexed { index, aabb ->
-            aabb.toByteBuffer(aabbsByteBuffer, index * AABB.SIZE_BYTES)
+            val offset = index * AABB.SIZE_BYTES
+            aabbsByteBuffer.putFloat(offset, aabb.minX)
+            aabbsByteBuffer.putFloat(offset + 4, aabb.minY)
+            aabbsByteBuffer.putFloat(offset + 8, aabb.minZ)
+            aabbsByteBuffer.putFloat(offset + 12, aabb.maxX)
+            aabbsByteBuffer.putFloat(offset + 16, aabb.maxY)
+            aabbsByteBuffer.putFloat(offset + 20, aabb.maxZ)
         }
 
         deviceUtil.stagingCopy(aabbsByteBuffer, aabbsBuffer, 0L, 0L, bufferSize.toLong())

@@ -125,7 +125,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     }
 
     private fun createDescriptors() {
-        camera.fov = 30f
+        camera.fov = 60f
         camera.position = Vec3(0f, 0f, 0f)
         camera.zNear = 0.1f
         camera.zFar = 512f
@@ -253,7 +253,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // -- DEBUG BUFFER --
         val debugBufferConfig = VulkanBufferConfiguration(
-            128L,
+            256L,
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
             BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
@@ -528,14 +528,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         val origin = Vec3(debugBuffer.getFloat(0), debugBuffer.getFloat(4), debugBuffer.getFloat(8))
         val dir = Vec3(debugBuffer.getFloat(12), debugBuffer.getFloat(16), debugBuffer.getFloat(20))
-        val hitExecuted = debugBuffer.getFloat(40) == 1f
-        val primitiveValue = debugBuffer.getFloat(48)
+        val origin2 = Vec3(debugBuffer.getFloat(52), debugBuffer.getFloat(56), debugBuffer.getFloat(60))
+        val dir2 = Vec3(debugBuffer.getFloat(64), debugBuffer.getFloat(68), debugBuffer.getFloat(72))
+        val prim = debugBuffer.getFloat(48)
 
         println("---------------------")
         println("Origin: $origin")
         println("Direction: $dir")
-        println("hit shader executed: $hitExecuted")
-        println("primitive: $primitiveValue")
+        println("Origin2: $origin2")
+        println("Direction2: $dir2")
+        //println("hit shader executed: $hitExecuted")
+        //println("prim $prim")
 
         val view = camera.calculateView().inverse()
         val proj = camera.calculateProjection().inverse()

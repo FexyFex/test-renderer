@@ -24,18 +24,6 @@ void main() {
 	float tmin = 0.001;
 	float tmax = 10000.0;
 
-	vec2 meh = inUV - vec2(0.5);
-
-	if (meh.x < 0.01 && meh.y < 0.01) {
-		debugBuffer.arr[0] = origin.x;
-		debugBuffer.arr[1] = origin.y;
-		debugBuffer.arr[2] = origin.z;
-
-		debugBuffer.arr[3] = direction.x;
-		debugBuffer.arr[4] = direction.y;
-		debugBuffer.arr[5] = direction.z;
-	}
-
     hitValue = vec3(0.0);
 
     traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
