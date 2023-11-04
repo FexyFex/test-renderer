@@ -5,11 +5,8 @@
 layout(set = 0, binding = 3) buffer DebugBuffer { float arr[]; } debugBuffer;
 
 layout(location = 0) rayPayloadInEXT vec3 hitValue;
-hitAttributeEXT vec2 attribs;
+hitAttributeEXT vec3 hitPosition;
 
 void main() {
-  const vec3 barycentricCoords = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
-  hitValue = barycentricCoords;
-
-  hitValue = vec3(1.0,1.0,1.0);
+    hitValue = hitPosition;
 }

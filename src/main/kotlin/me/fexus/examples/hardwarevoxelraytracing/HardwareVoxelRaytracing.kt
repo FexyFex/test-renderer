@@ -101,7 +101,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     lateinit var missShaderBindingTable: VulkanBuffer
     lateinit var closestHitShaderBindingTable: VulkanBuffer
 
-    private val aabbPosition = Vec3(0f, 0f, -5f)
+    private val aabbPosition = Vec3(0f, 0f, 0f)
     private val aabbTransform = Mat4(1f).translate(aabbPosition)
     private val cobbleTexture = TextureLoader("textures/customvoxelraytracing/cobblestone.png")
 
@@ -126,7 +126,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun createDescriptors() {
         camera.fov = 60f
-        camera.position = Vec3(0f, 0f, 0f)
+        camera.position = Vec3(0f, 0f, -5f)
         camera.zNear = 0.1f
         camera.zFar = 512f
 
@@ -532,24 +532,16 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val dir2 = Vec3(debugBuffer.getFloat(64), debugBuffer.getFloat(68), debugBuffer.getFloat(72))
         val prim = debugBuffer.getFloat(48)
 
-        println("---------------------")
-        println("Origin: $origin")
-        println("Direction: $dir")
-        println("Origin2: $origin2")
-        println("Direction2: $dir2")
+        //println("---------------------")
+        //println("Origin: $origin")
+        //println("Direction: $dir")
+        //println("Origin2: $origin2")
+        //println("Direction2: $dir2")
         //println("hit shader executed: $hitExecuted")
         //println("prim $prim")
 
         val view = camera.calculateView().inverse()
         val proj = camera.calculateProjection().inverse()
-        /*
-        val proj = Mat4(
-            -11.387255f, 0.0f, -0.0f, 0.0f,
-            0.0f, -6.405331f, 0.0f, -0.0f,
-            -0.0f, -0.0f, -0.0f, -1.0f,
-            0.0f, -0.0f, -4.999023f, 5.000976f
-        )
-         */
         //println("-----------------------------")
         //println(view)
         //println(proj)
@@ -791,8 +783,8 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private fun handleInput() {
         val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
         val rotX = inputHandler.isKeyDown(Key.ARROW_UP).toInt() - inputHandler.isKeyDown(Key.ARROW_DOWN).toInt()
-        camera.rotation.x += rotX.toFloat() * 1.2f
-        camera.rotation.y += rotY.toFloat() * 1.2f
+        camera.rotation.x += rotX.toFloat() * 1.5f
+        camera.rotation.y += rotY.toFloat() * 1.5f
 
         val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
         val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
