@@ -58,6 +58,9 @@ import java.nio.ByteOrder
 
 class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
+        const val CHUNK_EXTENT = 32
+
+
         @JvmStatic
         fun main(args: Array<String>) {
             HardwareVoxelRaytracing().start()

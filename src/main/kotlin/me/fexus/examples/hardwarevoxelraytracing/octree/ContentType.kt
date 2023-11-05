@@ -1,4 +1,4 @@
-package me.fexus.examples.customvoxelraytracing.octree
+package me.fexus.examples.hardwarevoxelraytracing.octree
 
 enum class ContentType(val value: Int) {
     EMPTY(0),
