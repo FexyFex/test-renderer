@@ -108,6 +108,9 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <languageVersion>1.9</languageVersion>
+                </configuration>
             </plugin>
 
             <plugin>

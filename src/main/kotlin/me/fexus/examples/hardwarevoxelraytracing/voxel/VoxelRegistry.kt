@@ -3,7 +3,7 @@ package me.fexus.examples.hardwarevoxelraytracing.voxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 
 
-class VoxelRegistry {
+object VoxelRegistry {
     private val registeredVoxels = mutableListOf<VoxelType>()
     private var nextID = 1 // 0 is empty, hence why we start at 1
 

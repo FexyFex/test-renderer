@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing
+package me.fexus.examples.hardwarevoxelraytracing.world
 
 import me.fexus.examples.hardwarevoxelraytracing.accelerationstructure.AABB
 

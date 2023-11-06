@@ -1,4 +1,6 @@
-package me.fexus.examples.hardwarevoxelraytracing
+package me.fexus.examples.hardwarevoxelraytracing.util
+
+import me.fexus.math.vec.IVec3
 
 
 class IntArray3D(private val extent: Int): Collection<Int> {
@@ -6,10 +8,12 @@ class IntArray3D(private val extent: Int): Collection<Int> {
     private val values = IntArray(size) { 0 }
 
 
+    operator fun set(position: IVec3, value: Int) = set(position.x, position.y, position.z, value)
     operator fun set(x: Int, y: Int, z: Int, value: Int) {
         values[z * extent * extent + y * extent + x] = value
     }
 
+    operator fun get(position: IVec3) = get(position.x, position.y, position.z)
     operator fun get(x: Int, y: Int, z: Int) = values[z * extent * extent + y * extent + x]
 
 

@@ -2,6 +2,7 @@ package me.fexus.examples.hardwarevoxelraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.hardwarevoxelraytracing.accelerationstructure.*
+import me.fexus.examples.hardwarevoxelraytracing.world.Scene
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
@@ -58,9 +59,6 @@ import java.nio.ByteOrder
 
 class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     companion object {
-        const val CHUNK_EXTENT = 32
-
-
         @JvmStatic
         fun main(args: Array<String>) {
             HardwareVoxelRaytracing().start()
