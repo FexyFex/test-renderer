@@ -1,8 +1,9 @@
 package me.fexus.examples.hardwarevoxelraytracing.octree.buffer
 
+import me.fexus.examples.hardwarevoxelraytracing.octree.IOctreeNode
 import me.fexus.examples.hardwarevoxelraytracing.octree.IOctreeParentNode
+import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeLeafNode
 import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeRootNode
-import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -22,10 +23,34 @@ class OctreeBufferWriter(private val octree: OctreeRootNode) {
 
     fun writeToBuffer(byteBuffer: ByteBuffer, offset: Int) {
         val nodeEntries = mutableListOf<INodeEntry>()
+        val nodes = mutableListOf<IOctreeNode>()
 
+        nodes.add(octree)
+        var currentNodeIndex = 0
+        var nextFreeIndex = 1
 
+        while (currentNodeIndex < nodes.size) {
+            val node = nodes[currentNodeIndex]
+            if (node is IOctreeParentNode) {
+                val childIndices = mutableListOf<Int>()
+                node.children.forEach {
+                    if (it != null) {
+                        nodes.add(it)
+                        childIndices.add(nextFreeIndex)
+                        nextFreeIndex++
+                    }
+                }
+                val entry = ParentNodeEntry(VoxelData(node.nodeData.voxelType), node.childCount.toByte(), childIndices.toIntArray())
+                nodeEntries.add(entry)
+            }
+            else if (node is OctreeLeafNode) {
+                val entry = LeafNodeEntry(VoxelData(node.nodeData.voxelType))
+                nodeEntries.add(entry)
+            }
+            currentNodeIndex++
+        }
 
-        val rootEntry = ParentNodeEntry(VoxelData(octree.nodeData.voxelType), octree.childCount, )
+        //val rootEntry = ParentNodeEntry(VoxelData(octree.nodeData.voxelType), octree.childCount, )
     }
 
 
