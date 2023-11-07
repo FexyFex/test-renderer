@@ -1,8 +1,6 @@
 package me.fexus.examples.hardwarevoxelraytracing.world
 
 import me.fexus.examples.hardwarevoxelraytracing.octree.*
-import me.fexus.examples.hardwarevoxelraytracing.util.IntArray3D
-import me.fexus.examples.hardwarevoxelraytracing.voxel.VoxelRegistry
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
@@ -12,7 +10,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 
-class Chunk() {
+class Chunk {
     val octree: IOctreeParentNode = OctreeRootNode(IVec3(0), OctreeNodeData(VoidVoxel))
 
 
@@ -38,7 +36,7 @@ class Chunk() {
             if (targetNode is IOctreeParentNode) {
                 insertIntoOctreeRec(pos, voxelType, targetNode, mipLevel + 1)
             } else {
-                targetNode.voxelData = OctreeNodeData(voxelType)
+                targetNode.nodeData = OctreeNodeData(voxelType)
             }
         }
     }
@@ -48,11 +46,10 @@ class Chunk() {
     fun getVoxelAt(pos: IVec3): VoxelType {
         assertCoords(pos)
         return if (!octree.hasChildren)
-            octree.voxelData.voxelType
+            octree.nodeData.voxelType
         else
             getVoxelAtRec(pos, octree, 0)
     }
-
     private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode, mipLevel: Int): VoxelType {
         val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
 
@@ -64,9 +61,9 @@ class Chunk() {
                 return if (targetNode.hasChildren)
                     getVoxelAtRec(pos, targetNode, mipLevel + 1)
                 else
-                    targetNode.voxelData.voxelType
+                    targetNode.nodeData.voxelType
             }
-            else (targetNode as OctreeLeafNode).voxelData.voxelType
+            else (targetNode as OctreeLeafNode).nodeData.voxelType
         }
     }
 

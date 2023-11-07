@@ -7,6 +7,7 @@
 
 layout(set = 0, binding = 3) buffer DebugBuffer { float arr[]; } debugBuffer;
 layout(set = 0, binding = 4) buffer AABBs { AABB arr[]; } aabbs;
+layout(set = 0, binding = 5) buffer OctreeBuffer { int arr[]; } octreeBuffer;
 
 hitAttributeEXT vec3 hitPosition;
 

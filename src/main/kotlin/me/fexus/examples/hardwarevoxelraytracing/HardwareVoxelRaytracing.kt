@@ -49,9 +49,7 @@ import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRAccelerationStructure.*
-import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRRayTracingPipeline.*
-import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -488,7 +486,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         this@HardwareVoxelRaytracing.missShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
         this@HardwareVoxelRaytracing.closestHitShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
 
-        this@HardwareVoxelRaytracing.raygenShaderBindingTable.put(0, pData, handleAlignmentSize * 0, handleAlignmentSize)
+        this@HardwareVoxelRaytracing.raygenShaderBindingTable.put(0, pData, 0, handleAlignmentSize)
         this@HardwareVoxelRaytracing.missShaderBindingTable.put(0, pData, handleAlignmentSize * 1, handleAlignmentSize)
         this@HardwareVoxelRaytracing.closestHitShaderBindingTable.put(0, pData, handleAlignmentSize * 2, handleAlignmentSize)
     }
@@ -527,25 +525,8 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         handleInput()
 
-        val origin = Vec3(debugBuffer.getFloat(0), debugBuffer.getFloat(4), debugBuffer.getFloat(8))
-        val dir = Vec3(debugBuffer.getFloat(12), debugBuffer.getFloat(16), debugBuffer.getFloat(20))
-        val origin2 = Vec3(debugBuffer.getFloat(52), debugBuffer.getFloat(56), debugBuffer.getFloat(60))
-        val dir2 = Vec3(debugBuffer.getFloat(64), debugBuffer.getFloat(68), debugBuffer.getFloat(72))
-        val prim = debugBuffer.getFloat(48)
-
-        //println("---------------------")
-        //println("Origin: $origin")
-        //println("Direction: $dir")
-        //println("Origin2: $origin2")
-        //println("Direction2: $dir2")
-        //println("hit shader executed: $hitExecuted")
-        //println("prim $prim")
-
         val view = camera.calculateView().inverse()
         val proj = camera.calculateProjection().inverse()
-        //println("-----------------------------")
-        //println(view)
-        //println(proj)
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBufferColumnMajor(data, 0)
@@ -564,65 +545,6 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         val commandBuffer = commandBuffers[currentFrameInFlight]
         val swapchainImage = swapchain.images[preparation.imageIndex]
-        val swapchainImageView = swapchain.imageViews[preparation.imageIndex]
-
-        val clearValueColor = calloc(VkClearValue::calloc) {
-            color()
-                .float32(0, 0.5f)
-                .float32(1, 0.2f)
-                .float32(2, 0.6f)
-                .float32(3, 1.0f)
-        }
-
-        val clearValueDepth = calloc(VkClearValue::calloc) {
-            color()
-                .float32(0, 0f)
-                .float32(1, 0f)
-                .float32(2, 0f)
-                .float32(3, 0f)
-        }
-
-        val defaultColorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
-        defaultColorAttachment[0]
-            .sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
-            .pNext(0)
-            .imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
-            .resolveMode(VK_RESOLVE_MODE_NONE)
-            .resolveImageView(0)
-            .resolveImageLayout(0)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .clearValue(clearValueColor)
-            .imageView(swapchainImageView)
-
-        val defaultDepthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
-            sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
-            pNext(0)
-            imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
-            resolveMode(VK_RESOLVE_MODE_NONE)
-            resolveImageView(0)
-            resolveImageLayout(0)
-            loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
-            storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            clearValue(clearValueDepth)
-            imageView(depthAttachment.vkImageViewHandle)
-        }
-
-        val renderArea = calloc(VkRect2D::calloc) {
-            extent().width(width).height(height)
-        }
-
-        val defaultRendering = calloc(VkRenderingInfoKHR::calloc) {
-            sType(VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
-            pNext(0)
-            flags(0)
-            renderArea(renderArea)
-            layerCount(1)
-            viewMask(0)
-            pColorAttachments(defaultColorAttachment)
-            pDepthAttachment(defaultDepthAttachment)
-            pStencilAttachment(null)
-        }
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 

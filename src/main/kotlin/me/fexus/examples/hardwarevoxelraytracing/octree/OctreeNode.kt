@@ -4,7 +4,7 @@ import me.fexus.math.vec.IVec3
 
 class OctreeNode(
     override val position: IVec3,
-    override var voxelData: OctreeNodeData
+    override var nodeData: OctreeNodeData
 ): IOctreeParentNode {
     override val children = Array<IOctreeNode?>(8) { null }
 }
