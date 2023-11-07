@@ -6,6 +6,7 @@ import java.nio.ByteBuffer
 data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float>() {
     constructor(s: Float): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toFloat(), y.toFloat(), z.toFloat())
+    constructor(vec: TVec3<*>): this(vec.x.toFloat(), vec.y.toFloat(), vec.z.toFloat())
 
     override operator fun plus(other: TVec3<Float>): Vec3 = Vec3(this.x + other.x, this.y + other.y, this.z + other.z)
     override operator fun minus(other: TVec3<Float>): Vec3 = Vec3(this.x - other.x, this.y - other.y, this.z - other.z)
@@ -39,6 +40,44 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
         val y = this.y * invSqrtDotThis
         val z = this.z * invSqrtDotThis
         return Vec3(x,y,z)
+    }
+
+    fun mod(mod: Int): Vec3 {
+        return Vec3(
+            x % mod,
+            y % mod,
+            z % mod
+        )
+    }
+
+    fun mod(mod: Float): Vec3 {
+        return Vec3(
+            x % mod,
+            y % mod,
+            z % mod
+        )
+    }
+
+    fun sqrt(): Vec3 {
+        return Vec3(
+            kotlin.math.sqrt(x),
+            kotlin.math.sqrt(y),
+            kotlin.math.sqrt(z)
+        )
+    }
+
+    fun ceil(): Vec3 {
+        return Vec3(
+            kotlin.math.ceil(x), kotlin.math.ceil(y), kotlin.math.ceil(z)
+        )
+    }
+
+    fun floor(): Vec3 {
+        return Vec3(
+            kotlin.math.floor(x),
+            kotlin.math.floor(y),
+            kotlin.math.floor(z),
+        )
     }
 
 

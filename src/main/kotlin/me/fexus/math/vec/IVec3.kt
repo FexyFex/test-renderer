@@ -56,4 +56,9 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
         buf.putInt(offset + 4, y)
         buf.putInt(offset + 8, z)
     }
+
+
+    override fun toString(): String {
+        return "[$x, $y, $z]"
+    }
 }

@@ -8,5 +8,5 @@ sealed class VoxelType {
     abstract val color: VoxelColor
 
 
-    var id: Int = -1
+    open var id: Int = -1
 }
