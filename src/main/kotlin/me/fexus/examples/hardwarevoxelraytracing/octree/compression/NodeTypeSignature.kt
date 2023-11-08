@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree.buffer
+package me.fexus.examples.hardwarevoxelraytracing.octree.compression
 
 enum class NodeTypeSignature(val value: Byte) {
     PARENT(0),
