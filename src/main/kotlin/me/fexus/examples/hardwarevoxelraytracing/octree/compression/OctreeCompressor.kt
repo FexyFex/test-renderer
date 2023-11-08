@@ -18,7 +18,7 @@ class OctreeCompressor(private val octree: OctreeRootNode) {
         val textureIndexBufferSize = uniqueNodeData.size * Int.SIZE_BYTES
         val textureIndexBuffer = ByteBuffer.allocate(textureIndexBufferSize)
 
-        val indexBufferSize = ceil((bitsPerIndex * uniqueNodeData.size) / 8f).toInt()
+        val indexBufferSize = ceil((bitsPerIndex * indexedNodes.size) / 8f).toInt()
         val indexBuffer = ByteBuffer.allocate(indexBufferSize)
 
         val nodeBufferSize = svoNodes.sumOf { Int.SIZE_BYTES + it.childPointers.size * Int.SIZE_BYTES }
