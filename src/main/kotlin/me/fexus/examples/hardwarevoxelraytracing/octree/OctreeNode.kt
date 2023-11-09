@@ -2,7 +2,7 @@ package me.fexus.examples.hardwarevoxelraytracing.octree
 
 import me.fexus.math.vec.IVec3
 
-class OctreeNode(
+data class OctreeNode(
     override val position: IVec3,
     override var nodeData: OctreeNodeData
 ): IOctreeParentNode {

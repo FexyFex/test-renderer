@@ -1,12 +1,14 @@
 package me.fexus.math.mat
 
 import me.fexus.math.inverseSqrt
+import me.fexus.math.quat.Quat
 import me.fexus.math.repeatSquared
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
 import java.nio.ByteBuffer
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 
 // column major
@@ -35,10 +37,10 @@ class Mat4(val rows: Array<Vec4>) {
         )
     )
 
-    val x: Vec4; get() = rows[0]
-    val y: Vec4; get() = rows[1]
-    val z: Vec4; get() = rows[2]
-    val w: Vec4; get() = rows[3]
+    var x: Vec4; get() = rows[0]; set(value) = rows.set(0, value)
+    var y: Vec4; get() = rows[1]; set(value) = rows.set(1, value)
+    var z: Vec4; get() = rows[2]; set(value) = rows.set(2, value)
+    var w: Vec4; get() = rows[3]; set(value) = rows.set(3, value)
 
     operator fun get(index: Int) = rows[index]
     operator fun get(columnIndex: Int, rowIndex: Int) = rows[columnIndex][rowIndex]
@@ -190,6 +192,21 @@ class Mat4(val rows: Array<Vec4>) {
         return res
     }
 
+    operator fun times(other: Vec4): Vec4 {
+        val a = this
+        val res = Vec4()
+
+        val x = a[0][0] * other.x + a[1][0] * other.y + a[2][0] * other.z + a[3][0] * other.w
+        val y = a[0][1] * other.x + a[1][1] * other.y + a[2][1] * other.z + a[3][1] * other.w
+        val z = a[0][2] * other.x + a[1][2] * other.y + a[2][2] * other.z + a[3][2] * other.w
+        val w = a[0][3] * other.x + a[1][3] * other.y + a[2][3] * other.z + a[3][3] * other.w
+        res.x = x
+        res.y = y
+        res.z = z
+        res.w = w
+        return res
+    }
+
     operator fun div(other: Mat4): Mat4 {
         return other.inverse() * this
     }
@@ -305,6 +322,73 @@ class Mat4(val rows: Array<Vec4>) {
         res[3][1] = i31 * oneOverDet
         res[3][2] = i32 * oneOverDet
         res[3][3] = i33 * oneOverDet
+
+        return res
+    }
+
+    fun toQuat(): Quat {
+        val res = Quat()
+
+        val m00 = x.x
+        val m01 = x.y
+        val m02 = x.z
+        val m10 = y.x
+        val m11 = y.y
+        val m12 = y.z
+        val m20 = z.x
+        val m21 = z.y
+        val m22 = z.z
+
+        val fourXSquaredMinus1 = m00 - m11 - m22
+        val fourYSquaredMinus1 = m11 - m00 - m22
+        val fourZSquaredMinus1 = m22 - m00 - m11
+        val fourWSquaredMinus1 = m00 + m11 + m22
+
+        var biggestIndex = 0
+        var fourBiggestSquaredMinus1 = fourWSquaredMinus1
+        if (fourXSquaredMinus1 > fourBiggestSquaredMinus1) {
+            fourBiggestSquaredMinus1 = fourXSquaredMinus1
+            biggestIndex = 1
+        }
+        if (fourYSquaredMinus1 > fourBiggestSquaredMinus1) {
+            fourBiggestSquaredMinus1 = fourYSquaredMinus1
+            biggestIndex = 2
+        }
+        if (fourZSquaredMinus1 > fourBiggestSquaredMinus1) {
+            fourBiggestSquaredMinus1 = fourZSquaredMinus1
+            biggestIndex = 3
+        }
+
+        val biggestVal = sqrt(fourBiggestSquaredMinus1 + 1f) * 0.5f
+        val mult = 0.25f / biggestVal
+
+        when (biggestIndex) {
+            0 -> {
+                res.w = biggestVal
+                res.x = (m12 - m21) * mult
+                res.y = (m20 - m02) * mult
+                res.z = (m01 - m10) * mult
+            }
+            1 -> {
+                res.w = (m12 - m21) * mult
+                res.x = biggestVal
+                res.y = (m01 + m10) * mult
+                res.z = (m20 + m02) * mult
+            }
+            2 -> {
+                res.w = (m20 - m02) * mult
+                res.x = (m01 + m10) * mult
+                res.y = biggestVal
+                res.z = (m12 + m21) * mult
+            }
+            3 -> {
+                res.w = (m01 - m10) * mult
+                res.x = (m20 + m02) * mult
+                res.y = (m12 + m21) * mult
+                res.z = biggestVal
+            }
+            else -> throw Exception("How TF?")
+        }
 
         return res
     }

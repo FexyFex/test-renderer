@@ -2,6 +2,7 @@ package me.fexus.math.vec
 
 import me.fexus.math.inverseSqrt
 import java.nio.ByteBuffer
+import kotlin.math.roundToInt
 
 data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float>() {
     constructor(s: Float): this(s,s,s)
@@ -33,6 +34,14 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
     override operator fun unaryMinus(): Vec3 = Vec3(-x, -y, -z)
 
     override fun dot(other: TVec3<Float>): Float = this.x * other.x + this.y * other.y + this.z * other.z
+
+    fun roundToIVec3(): IVec3 {
+        return IVec3(
+            x.roundToInt(),
+            y.roundToInt(),
+            z.roundToInt()
+        )
+    }
 
     fun normalize(): Vec3 {
         val invSqrtDotThis = inverseSqrt(dot(this))
