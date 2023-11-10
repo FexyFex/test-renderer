@@ -1,6 +1,7 @@
 package me.fexus.model
 
 import me.fexus.math.vec.Vec3
+import java.nio.ByteBuffer
 
 
 object CubeModelPositionsOnly {
@@ -20,39 +21,45 @@ object CubeModelPositionsOnly {
     )
 
     val indices = intArrayOf(
-        5, 3, 1,
-        3, 8, 4,
-        7, 6, 8,
-        2, 8, 6,
-        1, 4, 2,
-        5, 2, 6,
-        5, 7, 3,
-        3, 7, 8,
-        7, 5, 6,
-        2, 4, 8,
-        1, 3, 4,
-        5, 1, 2
+        4, 2, 0,
+        2, 7, 3,
+        6, 5, 7,
+        1, 7, 5,
+        0, 3, 1,
+        4, 1, 5,
+        4, 6, 2,
+        2, 6, 7,
+        6, 4, 5,
+        1, 3, 7,
+        0, 2, 3,
+        4, 0, 1
     )
 
-    val verticesWireframe = arrayOf(
-        Vertex(pos1), Vertex(pos2),
-        Vertex(pos2), Vertex(pos6),
-        Vertex(pos6), Vertex(pos5),
-        Vertex(pos5), Vertex(pos1),
+    val wireframeIndices = intArrayOf(
+        0, 1,
+        1, 5,
+        5, 4,
+        4, 0,
 
-        Vertex(pos3), Vertex(pos4),
-        Vertex(pos4), Vertex(pos8),
-        Vertex(pos8), Vertex(pos7),
-        Vertex(pos7), Vertex(pos3),
+        2, 3,
+        3, 7,
+        7, 6,
+        6, 2,
 
-        Vertex(pos1), Vertex(pos3),
-        Vertex(pos2), Vertex(pos4),
-        Vertex(pos5), Vertex(pos7),
-        Vertex(pos6), Vertex(pos8),
+        0, 2,
+        1, 3,
+        4, 6,
+        5, 7
     )
 
     data class Vertex(val pos: Vec3) {
         fun toFloatArray() = floatArrayOf(pos.x, pos.y, pos.z, 1.0f)
+        fun writeToByteBuffer(buffer: ByteBuffer, offset: Int) {
+            buffer.putFloat(offset, pos.x)
+            buffer.putFloat(offset + 4, pos.y)
+            buffer.putFloat(offset + 8, pos.z)
+            buffer.putFloat(offset + 12, 1f)
+        }
 
         companion object {
             const val SIZE_BYTES = 16

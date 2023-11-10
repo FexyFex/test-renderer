@@ -12,6 +12,7 @@ import kotlin.math.roundToInt
 
 
 class VoxelGrid(val extent: Int) {
+    val voxelCount: Int = extent * extent * extent
     private val log2 = log2(extent.toFloat())
     private val bounds = 0 until extent
     private val maxMipLevel = log2.roundToInt() - 1
@@ -109,6 +110,17 @@ class VoxelGrid(val extent: Int) {
     private fun assertCoords(x: Int, y: Int, z: Int) {
         if (x !in bounds || y !in bounds || z !in bounds)
             throw AssertionError("Out of bounds $x, $y, $z")
+    }
+
+
+    fun forEachVoxel(action: (x: Int, y: Int, z: Int, voxelType: VoxelType) -> Unit) {
+        repeat(extent) { z ->
+            repeat(extent) { y ->
+                repeat(extent) { x ->
+                    action(x,y,z,getVoxelAt(x,y,z))
+                }
+            }
+        }
     }
 
 

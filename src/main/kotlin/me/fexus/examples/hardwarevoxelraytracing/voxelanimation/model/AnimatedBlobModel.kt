@@ -1,5 +1,6 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model
 
+import me.fexus.examples.hardwarevoxelraytracing.voxel.type.CloudVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.CoalVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelGrid
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelGridSubRange
@@ -8,6 +9,7 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.quat.Quat
 import me.fexus.math.vec.*
 import me.fexus.skeletalanimation.*
+import kotlin.math.absoluteValue
 import kotlin.math.round
 
 
@@ -18,18 +20,21 @@ class AnimatedBlobModel: AnimatedVoxelModel() {
     private val animations = listOf<Animation>(
         Animation("exist", listOf(
             KeyFrame(0f, listOf(BoneTransform(0, Vec3(0f), Quat()))),
-            KeyFrame(1f, listOf(BoneTransform(1, Vec3(0.25f), Quat()))),
-            KeyFrame(1f, listOf(BoneTransform(1, Vec3(0f), Quat())))
+            KeyFrame(1f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
+            KeyFrame(2f, listOf(BoneTransform(0, Vec3(0f), Quat())))
         ))
     )
     override val skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
     private val hotspots = listOf<VoxelHotspot>(
-        VoxelHotspot(0, Vec3(0.5f), Vec3(0, 1, 0), 3) { relPos -> CoalVoxel }
+        VoxelHotspot(0, Vec3(0.0f), Vec3(0, 1, 0), 1) { relPos ->
+            val sum = relPos.x.absoluteValue + relPos.y.absoluteValue + relPos.z.absoluteValue
+            if (sum > 2) CoalVoxel else CloudVoxel
+        }
     )
 
-    private val voxelGrid = VoxelGrid(8)
+    val voxelGrid = VoxelGrid(8)
 
-    private val skeletonUpdateInterval = 0.25f // Time until next update in seconds
+    private val skeletonUpdateInterval = 0.125f // Time until next update in seconds
     private var timeSinceLastSkeletonUpdate: Float = 0f
 
 
