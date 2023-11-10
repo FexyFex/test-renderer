@@ -1,0 +1,3 @@
+package me.fexus.examples.hardwarevoxelraytracing.octree
+
+interface IOctreeNodeData

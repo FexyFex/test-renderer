@@ -5,7 +5,7 @@ import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedBl
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
-import me.fexus.model.CubeModelPositionsOnly
+import me.fexus.model.CubeModelZeroToOne
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
@@ -81,7 +81,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
     private val wireframePipeline = GraphicsPipeline()
-
 
 
     fun start() {
@@ -190,7 +189,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
     private fun createMeshBuffers() {
         // VERETX BUFFER
-        val vertexBufferSize = CubeModelPositionsOnly.Vertex.SIZE_BYTES * CubeModelPositionsOnly.vertices.size
+        val vertexBufferSize = CubeModelZeroToOne.Vertex.SIZE_BYTES * CubeModelZeroToOne.vertices.size
         val vertexBufferConfig = VulkanBufferConfiguration(
             vertexBufferSize.toLong(),
             MemoryProperty.DEVICE_LOCAL,
@@ -200,8 +199,8 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         val vertexByteBuffer = ByteBuffer.allocate(vertexBufferSize)
         vertexByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        CubeModelPositionsOnly.vertices.forEachIndexed { index, vertex ->
-            val offset = index * CubeModelPositionsOnly.Vertex.SIZE_BYTES
+        CubeModelZeroToOne.vertices.forEachIndexed { index, vertex ->
+            val offset = index * CubeModelZeroToOne.Vertex.SIZE_BYTES
             vertex.writeToByteBuffer(vertexByteBuffer, offset)
         }
 
@@ -209,7 +208,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         // VERETX BUFFER
 
         // INDEX BUFFER
-        val indexBufferSize = CubeModelPositionsOnly.indices.size * Int.SIZE_BYTES
+        val indexBufferSize = CubeModelZeroToOne.indices.size * Int.SIZE_BYTES
         val indexBufferConfig = VulkanBufferConfiguration(
             indexBufferSize.toLong(),
             MemoryProperty.DEVICE_LOCAL,
@@ -219,7 +218,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         val indexByteBuffer = ByteBuffer.allocate(indexBufferSize)
         indexByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        CubeModelPositionsOnly.indices.forEachIndexed { index, cubeIndex ->
+        CubeModelZeroToOne.indices.forEachIndexed { index, cubeIndex ->
             val offset = index * Int.SIZE_BYTES
             indexByteBuffer.putInt(offset, cubeIndex)
         }
@@ -228,7 +227,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         // INDEX BUFFER
 
         // WIREFRAME INDEX BUFFER
-        val wireframeIndexBufferSize = CubeModelPositionsOnly.wireframeIndices.size * Int.SIZE_BYTES
+        val wireframeIndexBufferSize = CubeModelZeroToOne.wireframeIndices.size * Int.SIZE_BYTES
         val wireframeIndexBufferConfig = VulkanBufferConfiguration(
             wireframeIndexBufferSize.toLong(),
             MemoryProperty.DEVICE_LOCAL,
@@ -238,7 +237,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         val wireframeIndexByteBuffer = ByteBuffer.allocate(wireframeIndexBufferSize)
         wireframeIndexByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        CubeModelPositionsOnly.wireframeIndices.forEachIndexed { index, cubeIndex ->
+        CubeModelZeroToOne.wireframeIndices.forEachIndexed { index, cubeIndex ->
             val offset = index * Int.SIZE_BYTES
             wireframeIndexByteBuffer.putInt(offset, cubeIndex)
         }
@@ -251,9 +250,9 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         val extent = voxelModel.voxelGrid.extent
         val byteBuffer = ByteBuffer.allocate(instanceDataBuffer.config.size.toInt())
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        voxelModel.voxelGrid.forEachVoxel { x, y, z, voxelType ->
+        voxelModel.voxelGrid.forEachVoxel { x, y, z, color ->
             val offset = (z * extent * extent + y * extent + x) * VoxelData.SIZE_BYTES
-            val voxelData = VoxelData(Vec3(x,y,z), voxelType.color.colorVec4)
+            val voxelData = VoxelData(Vec3(x,y,z), color)
             voxelData.toByteBuffer(byteBuffer, offset)
         }
         instanceDataBuffer.put(0, byteBuffer)
@@ -396,8 +395,8 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             val pPushConstants = allocate(128)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
-            val indexCount = CubeModelPositionsOnly.indices.size
-            val wireframeIndexCount = CubeModelPositionsOnly.wireframeIndices.size
+            val indexCount = CubeModelZeroToOne.indices.size
+            val wireframeIndexCount = CubeModelZeroToOne.wireframeIndices.size
             val instanceCount = voxelModel.voxelGrid.voxelCount
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
@@ -411,7 +410,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, wireframePipeline.vkHandle)
             Mat4(1f)
-                .translate(Vec3(voxelModel.voxelGrid.extent.toFloat() / 2f - 0.5f))
                 .scale(Vec3(voxelModel.voxelGrid.extent.toFloat()))
                 .toByteBufferColumnMajor(pPushConstants, 0)
             vkCmdPushConstants(commandBuffer.vkHandle, wireframePipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)

@@ -26,12 +26,12 @@ layout (location = 0) out vec4 outColor;
 void main() {
     VoxelData voxel = voxelBuffer.voxels[gl_InstanceIndex];
 
-    if (voxel.color.w == 0.0) {
+    if (voxel.color.w <= 0.0) {
         gl_Position = vec4(0/0);
         return;
     }
 
-    vec4 voxelPos = vec4((inPosition.xyz * 0.5) + voxel.position.xyz, 1.0);
+    vec4 voxelPos = vec4(inPosition.xyz + voxel.position.xyz, 1.0);
     gl_Position = cameraBuffer.camera.proj * cameraBuffer.camera.view * voxelPos;
     outColor = voxel.color;
 }

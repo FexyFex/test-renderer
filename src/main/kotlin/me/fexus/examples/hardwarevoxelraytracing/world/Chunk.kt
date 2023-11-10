@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 
 
 class Chunk {
-    val octree = OctreeRootNode(IVec3(0), OctreeNodeData(VoidVoxel))
+    val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
 
     fun insertIntoOctree(x: Int, y: Int, z: Int, voxelType: VoxelType) = insertIntoOctree(IVec3(x,y,z), voxelType)
@@ -19,7 +19,7 @@ class Chunk {
         assertCoords(pos)
         insertIntoOctreeRec(pos, voxelType, octree, 0)
     }
-    private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode, mipLevel: Int) {
+    private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int) {
         assertCoords(pos)
         val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
 
@@ -28,9 +28,9 @@ class Chunk {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
                     if (mipLevel == maxMipLevel) {
-                        OctreeLeafNode(pos, OctreeNodeData(voxelType))
+                        OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
-                        val newNode = OctreeNode(pos, OctreeNodeData(voxelType))
+                        val newNode = OctreeNode(pos, OctreeNodeDataVoxelType(voxelType))
                         insertIntoOctreeRec(pos, voxelType, newNode, mipLevel + 1)
                         newNode
                     }
@@ -41,7 +41,7 @@ class Chunk {
                 if (voxelType == VoidVoxel)
                     parentNode.children[posIndex] = null
                 else
-                    targetNode.nodeData = OctreeNodeData(voxelType)
+                    targetNode.nodeData = OctreeNodeDataVoxelType(voxelType)
             }
         }
     }
@@ -55,7 +55,7 @@ class Chunk {
         else
             getVoxelAtRec(pos, octree, 0)
     }
-    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode, mipLevel: Int): VoxelType {
+    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int): VoxelType {
         val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]

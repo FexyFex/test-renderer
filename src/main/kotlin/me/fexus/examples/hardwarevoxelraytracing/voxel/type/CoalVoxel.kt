@@ -5,5 +5,5 @@ import me.fexus.examples.hardwarevoxelraytracing.voxel.VoxelColor
 
 data object CoalVoxel: VoxelType() {
     override val name: String = "coal"
-    override val color: VoxelColor = VoxelColor.BLACK
+    override val color: VoxelColor = VoxelColor.DARK_GRAY
 }

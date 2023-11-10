@@ -24,7 +24,7 @@ layout(push_constant) uniform PushConstants{
 layout (location = 0) out vec4 outColor;
 
 void main() {
-    vec4 position = vec4(inPosition.xyz * 0.5, 1.0);
+    vec4 position = vec4(inPosition.xyz, 1.0);
     gl_Position = cameraBuffer.camera.proj * cameraBuffer.camera.view * modelMatrix * position;
     outColor = vec4(0.3, 1.0, 0.2, 1.0);
 }

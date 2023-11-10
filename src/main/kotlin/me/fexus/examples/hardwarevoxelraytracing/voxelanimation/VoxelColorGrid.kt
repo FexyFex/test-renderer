@@ -5,84 +5,85 @@ import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
+import me.fexus.math.vec.Vec4
 import kotlin.math.ceil
 import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 
-class VoxelGrid(val extent: Int) {
+class VoxelColorGrid(val extent: Int) {
     val voxelCount: Int = extent * extent * extent
     private val log2 = log2(extent.toFloat())
     private val bounds = 0 until extent
     private val maxMipLevel = log2.roundToInt() - 1
 
-    val octree = OctreeRootNode(IVec3(0), OctreeNodeData(VoidVoxel))
+    val octree = OctreeRootNode(IVec3(0), OctreeNodeDataColor(Vec4(0f)))
 
     init {
         if (log2 != ceil(log2)) throw Exception("Only powers of two pls")
     }
 
 
-    fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType) = setVoxelAt(IVec3(x,y,z), voxelType)
-    fun setVoxelAt(pos: IVec3, voxelType: VoxelType) {
+    fun setVoxelAt(x: Int, y: Int, z: Int, color: Vec4) = setVoxelAt(IVec3(x,y,z), color)
+    fun setVoxelAt(pos: IVec3, color: Vec4) {
         assertCoords(pos)
-        insertIntoOctreeRec(pos, voxelType, octree, 0)
+        insertIntoOctreeRec(pos, color, octree, 0)
     }
-    private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode, mipLevel: Int) {
+    private fun insertIntoOctreeRec(pos: IVec3, color: Vec4, parentNode: IOctreeParentNode<OctreeNodeDataColor>, mipLevel: Int) {
         assertCoords(pos)
         val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
-            if (voxelType != VoidVoxel)
+            if (color.w > 0f)
                 parentNode.children[posIndex] =
                     if (mipLevel == maxMipLevel) {
-                        OctreeLeafNode(pos, OctreeNodeData(voxelType))
+                        OctreeLeafNode(pos, OctreeNodeDataColor(color))
                     } else {
-                        val newNode = OctreeNode(pos, OctreeNodeData(voxelType))
-                        insertIntoOctreeRec(pos, voxelType, newNode, mipLevel + 1)
+                        val newNode = OctreeNode(pos, OctreeNodeDataColor(color))
+                        insertIntoOctreeRec(pos, color, newNode, mipLevel + 1)
                         newNode
                     }
         } else {
             if (targetNode is IOctreeParentNode) {
-                insertIntoOctreeRec(pos, voxelType, targetNode, mipLevel + 1)
+                insertIntoOctreeRec(pos, color, targetNode, mipLevel + 1)
             } else {
-                if (voxelType == VoidVoxel)
+                if (color.w == 0f)
                     parentNode.children[posIndex] = null
                 else
-                    targetNode.nodeData = OctreeNodeData(voxelType)
+                    targetNode.nodeData = OctreeNodeDataColor(color)
             }
         }
     }
 
     fun clear() {
         octree.children.fill(null, 0)
-        octree.nodeData = OctreeNodeData(VoidVoxel)
+        octree.nodeData = OctreeNodeDataColor(Vec4(0f))
     }
 
     fun getVoxelAt(x: Int, y: Int, z: Int) = getVoxelAt(IVec3(x,y,z))
-    fun getVoxelAt(pos: IVec3): VoxelType {
+    fun getVoxelAt(pos: IVec3): Vec4 {
         assertCoords(pos)
         return if (!octree.hasChildren)
-            octree.nodeData.voxelType
+            octree.nodeData.color
         else
             getVoxelAtRec(pos, octree, 0)
     }
-    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode, mipLevel: Int): VoxelType {
+    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataColor>, mipLevel: Int): Vec4 {
         val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
-            return VoidVoxel
+            return Vec4(0f)
         } else {
             return if (targetNode is IOctreeParentNode) {
                 return if (targetNode.hasChildren)
                     getVoxelAtRec(pos, targetNode, mipLevel + 1)
                 else
-                    targetNode.nodeData.voxelType
+                    targetNode.nodeData.color
             }
-            else (targetNode as OctreeLeafNode).nodeData.voxelType
+            else (targetNode as OctreeLeafNode).nodeData.color
         }
     }
 
@@ -113,11 +114,11 @@ class VoxelGrid(val extent: Int) {
     }
 
 
-    fun forEachVoxel(action: (x: Int, y: Int, z: Int, voxelType: VoxelType) -> Unit) {
+    fun forEachVoxel(action: (x: Int, y: Int, z: Int, color: Vec4) -> Unit) {
         repeat(extent) { z ->
             repeat(extent) { y ->
                 repeat(extent) { x ->
-                    action(x,y,z,getVoxelAt(x,y,z))
+                    action(x, y, z, getVoxelAt(x,y,z))
                 }
             }
         }

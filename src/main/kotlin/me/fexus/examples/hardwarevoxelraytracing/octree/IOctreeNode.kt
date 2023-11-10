@@ -3,7 +3,7 @@ package me.fexus.examples.hardwarevoxelraytracing.octree
 import me.fexus.math.vec.IVec3
 
 
-interface IOctreeNode {
+interface IOctreeNode<T: IOctreeNodeData> {
     val position: IVec3
-    var nodeData: OctreeNodeData
+    var nodeData: T
 }
