@@ -6,4 +6,5 @@ import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeNodeData
 interface IIndexedOctreeNode {
     val index: Int
     val nodeData: OctreeNodeData
+    var hashValue: Int
 }
