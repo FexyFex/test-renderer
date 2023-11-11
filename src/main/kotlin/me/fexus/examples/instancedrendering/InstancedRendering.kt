@@ -4,6 +4,7 @@ import me.fexus.camera.CameraPerspective
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedBlobModel
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
+import me.fexus.math.vec.Vec4
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.vulkan.util.FramePreparation
@@ -37,6 +38,7 @@ import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
@@ -105,7 +107,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
 
         // -- INSTANCE DATA BUFFER --
-        val instanceBufferSize = voxelModel.voxelGrid.voxelCount * VoxelData.SIZE_BYTES
+        val instanceBufferSize = voxelModel.voxelGrid.voxelCount * Vec4.SIZE_BYTES
         val instanceBufferConfig = VulkanBufferConfiguration(
             instanceBufferSize.toLong(),
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
@@ -246,14 +248,14 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         // WIREFRAME INDEX BUFFER
     }
 
-    private fun updateInstanceDataBuffer() {
+    private fun updateInstanceDataBuffer() = runMemorySafe {
         val extent = voxelModel.voxelGrid.extent
-        val byteBuffer = ByteBuffer.allocate(instanceDataBuffer.config.size.toInt())
+        val byteBuffer = allocate(instanceDataBuffer.config.size.toInt())
+        MemoryUtil.memSet(byteBuffer, 0)
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        voxelModel.voxelGrid.forEachVoxel { x, y, z, color ->
-            val offset = (z * extent * extent + y * extent + x) * VoxelData.SIZE_BYTES
-            val voxelData = VoxelData(Vec3(x,y,z), color)
-            voxelData.toByteBuffer(byteBuffer, offset)
+        voxelModel.voxelGrid.forEachFilledVoxel { x, y, z, color ->
+            val offset = (z * extent * extent + y * extent + x) * Vec4.SIZE_BYTES
+            color.toByteBuffer(byteBuffer, offset)
         }
         instanceDataBuffer.put(0, byteBuffer)
     }
@@ -393,6 +395,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
+            pPushConstants.putInt(0, voxelModel.voxelGrid.extent)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
             val indexCount = CubeModelZeroToOne.indices.size

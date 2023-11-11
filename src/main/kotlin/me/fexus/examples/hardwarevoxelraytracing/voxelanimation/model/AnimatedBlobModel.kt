@@ -7,9 +7,7 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.quat.Quat
 import me.fexus.math.vec.*
 import me.fexus.skeletalanimation.*
-import java.lang.Math.pow
 import kotlin.math.absoluteValue
-import kotlin.math.pow
 
 
 class AnimatedBlobModel: AnimatedVoxelModel() {
@@ -69,8 +67,8 @@ class AnimatedBlobModel: AnimatedVoxelModel() {
             val range = VoxelGridSubRange(subRangeMin, subRangeMax)
             range.forEachVoxel { x, y, z ->
                 val pos = IVec3(x,y,z)
-                val voxelType = hotspot.placeVoxel(roundedHotSpotPos - pos)
-                voxelGrid.setVoxelAt(pos, voxelType)
+                val voxelColor = hotspot.placeVoxel(roundedHotSpotPos - pos)
+                voxelGrid.setVoxelAt(pos, voxelColor)
             }
         }
     }
