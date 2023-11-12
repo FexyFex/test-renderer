@@ -1,10 +1,10 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation
 
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedBlobModel
+import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedFishModel
 
 
 fun main() {
-    val blob = AnimatedBlobModel()
+    val blob = AnimatedFishModel()
 
     var previousLoopTime = System.nanoTime() / ONE_BILLION
     while (true) {

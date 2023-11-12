@@ -8,32 +8,46 @@ import me.fexus.math.quat.Quat
 import me.fexus.math.vec.*
 import me.fexus.skeletalanimation.*
 import kotlin.math.absoluteValue
+import kotlin.math.sign
 
 
-class AnimatedBlobModel: AnimatedVoxelModel() {
+class AnimatedFishModel : AnimatedVoxelModel() {
     private var time: Double = 0.0
 
-    private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(8f), Mat4(), null, mutableListOf()))
+    private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(2f, 4f, 4f), Mat4(), null, mutableListOf()))
     private val animations = listOf<Animation>(
-        Animation("exist", listOf(
-            KeyFrame(0f, listOf(BoneTransform(0, Vec3(-4f, -4f, -3f), Quat()))),
-            KeyFrame(5f, listOf(BoneTransform(0, Vec3(-4f, -4f, -3f), Quat()))),
-            //KeyFrame(3f, listOf(BoneTransform(0, Vec3(-15f), Quat())))
-        ))
+        Animation(
+            "exist", listOf(
+                KeyFrame(0f, listOf(BoneTransform(0, Vec3(0f), Quat()))),
+                KeyFrame(5f, listOf(BoneTransform(0, Vec3(0f), Quat()))),
+                //KeyFrame(3f, listOf(BoneTransform(0, Vec3(-15f), Quat())))
+            )
+        )
     )
     override val skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
     private val hotspots = listOf<VoxelHotspot>(
-        VoxelHotspot(0, Vec3(0f, 0f, 3f), Vec3(0, 1, 0), 1) { relPos ->
-            val len = relPos.x.absoluteValue + relPos.y.absoluteValue + relPos.z.absoluteValue
-            if (len > 1) Vec4(0f) else Vec4(0f,0f,0f,1f)
+        // Body
+        VoxelHotspot(0, Vec3(0f), 4) { relPos ->
+            val len = relPos.length
+            if (len > 2.3f) Vec4(0f) else {
+                if (relPos.x < 0 && len < 0.5f) return@VoxelHotspot Vec4(0f)
+                val e = relPos.y.sign * len / 11f
+                Vec4(0.7f + e, 0.2f, 0.2f, 1.0f)
+            }
         },
-        VoxelHotspot(0, Vec3(0f, 0f, -3f), Vec3(0, 1, 0), 1) { relPos ->
-            val len = relPos.x.absoluteValue + relPos.y.absoluteValue + relPos.z.absoluteValue
-            if (len > 1) Vec4(0f) else Vec4(0f,0f,0f,1f)
+
+        // Eyes
+        VoxelHotspot(0, Vec3(-2f, -1f, 1f), 0) { Vec4(0f, 0f, 0f, 1f) },
+        VoxelHotspot(0, Vec3(-2f, -1f, -1f), 0) { Vec4(0f, 0f, 0f, 1f) },
+
+        // Fin
+        VoxelHotspot(0, Vec3(3f, 0f, 0f), 1) { relPos ->
+            val onZ = (relPos.z == 0) && relPos.x <= 0 && (relPos.y.absoluteValue < 1 || relPos.x < 0)
+            Vec4(0.5f, 0.1f, 0.2f, onZ.toInt())
         },
     )
 
-    val voxelGrid = VoxelColorGrid(32)
+    val voxelGrid = VoxelColorGrid(8)
 
     private val skeletonUpdateInterval = 0.125f // Time until next update in seconds
     private var timeSinceLastSkeletonUpdate: Float = 0f
@@ -66,10 +80,17 @@ class AnimatedBlobModel: AnimatedVoxelModel() {
             val subRangeMax = min(subRangeMin + hotspot.range * 2, IVec3(voxelGrid.extent - 1))
             val range = VoxelGridSubRange(subRangeMin, subRangeMax)
             range.forEachVoxel { x, y, z ->
-                val pos = IVec3(x,y,z)
+                val pos = IVec3(x, y, z)
                 val voxelColor = hotspot.placeVoxel(roundedHotSpotPos - pos)
+                if (voxelColor.w == 0f) return@forEachVoxel
                 voxelGrid.setVoxelAt(pos, voxelColor)
             }
         }
+    }
+
+
+
+    companion object {
+        private fun Boolean.toInt() = if (this) 1 else 0
     }
 }

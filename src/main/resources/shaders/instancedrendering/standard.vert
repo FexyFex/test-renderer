@@ -39,5 +39,4 @@ void main() {
     vec4 voxelPos = vec4(inPosition.xyz + indexToPosition(gl_InstanceIndex), 1.0);
     gl_Position = cameraBuffer.camera.proj * cameraBuffer.camera.view * voxelPos;
     outColor = voxelColor;
-    outColor.xyz = mod(voxelPos.xyz, 1.0) / 16.0;
 }

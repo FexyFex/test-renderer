@@ -1,7 +1,7 @@
 package me.fexus.examples.instancedrendering
 
 import me.fexus.camera.CameraPerspective
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedBlobModel
+import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedFishModel
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
@@ -70,7 +70,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
     private val camera = CameraPerspective(window.aspect)
 
-    private val voxelModel = AnimatedBlobModel()
+    private val voxelModel = AnimatedFishModel()
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer
