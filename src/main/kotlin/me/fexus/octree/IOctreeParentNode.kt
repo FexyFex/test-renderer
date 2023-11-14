@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree
+package me.fexus.octree
 
 interface IOctreeParentNode<T: IOctreeNodeData>: IOctreeNode<T> {
     val children: Array<IOctreeNode<T>?>

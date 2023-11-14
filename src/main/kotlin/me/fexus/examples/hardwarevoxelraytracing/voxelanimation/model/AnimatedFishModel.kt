@@ -14,13 +14,13 @@ import kotlin.math.sign
 class AnimatedFishModel : AnimatedVoxelModel() {
     private var time: Double = 0.0
 
-    private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(2f, 4f, 4f), Mat4(), null, mutableListOf()))
+    private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf()))
     private val animations = listOf<Animation>(
         Animation(
             "exist", listOf(
-                KeyFrame(0f, listOf(BoneTransform(0, Vec3(0f), Quat()))),
-                KeyFrame(5f, listOf(BoneTransform(0, Vec3(0f), Quat()))),
-                //KeyFrame(3f, listOf(BoneTransform(0, Vec3(-15f), Quat())))
+                KeyFrame(0f, listOf(BoneTransform(0, Vec3(8f), Quat()))),
+                KeyFrame(3f, listOf(BoneTransform(0, Vec3(16f), Quat(0f, 2f, 0f, 0.9f)))),
+                KeyFrame(6f, listOf(BoneTransform(0, Vec3(8f), Quat()))),
             )
         )
     )
@@ -47,7 +47,7 @@ class AnimatedFishModel : AnimatedVoxelModel() {
         },
     )
 
-    val voxelGrid = VoxelColorGrid(8)
+    val voxelGrid = VoxelColorGrid(32)
 
     private val skeletonUpdateInterval = 0.125f // Time until next update in seconds
     private var timeSinceLastSkeletonUpdate: Float = 0f

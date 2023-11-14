@@ -1,9 +1,9 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree.compression
+package me.fexus.octree.compression
 
-import me.fexus.examples.hardwarevoxelraytracing.octree.IOctreeNodeData
-import me.fexus.examples.hardwarevoxelraytracing.octree.IOctreeParentNode
-import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeNodeDataVoxelType
-import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeRootNode
+import me.fexus.octree.IOctreeNodeData
+import me.fexus.octree.IOctreeParentNode
+import me.fexus.octree.OctreeNodeDataVoxelType
+import me.fexus.octree.OctreeRootNode
 import java.nio.ByteBuffer
 import kotlin.math.ceil
 import kotlin.math.log2

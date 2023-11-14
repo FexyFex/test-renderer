@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree.compression
+package me.fexus.octree.compression
 
 
 data class SVOChildNodePointer(val octantIndex: Int, val offset: Int, val childIndex: Int) {

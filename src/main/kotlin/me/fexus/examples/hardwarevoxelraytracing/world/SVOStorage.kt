@@ -1,14 +1,14 @@
 package me.fexus.examples.hardwarevoxelraytracing.world
 
-import me.fexus.examples.hardwarevoxelraytracing.octree.*
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
+import me.fexus.octree.*
 import kotlin.math.*
 
 
-class Chunk {
+class SVOStorage {
     val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
 
@@ -28,7 +28,7 @@ class Chunk {
                     if (mipLevel == maxMipLevel) {
                         OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
-                        val newNode = OctreeNode(pos, OctreeNodeDataVoxelType(voxelType))
+                        val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))
                         insertIntoOctreeRec(pos, voxelType, newNode, mipLevel + 1)
                         newNode
                     }

@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree
+package me.fexus.octree
 
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 
