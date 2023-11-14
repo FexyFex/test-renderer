@@ -1,6 +1,5 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model
 
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.IntRange3D
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelHotspot
 import me.fexus.math.mat.Mat4
 import me.fexus.math.quat.Quat
@@ -11,10 +10,8 @@ import kotlin.math.absoluteValue
 
 
 class AnimatedFishModel : AnimatedVoxelModel(16) {
-    private var time: Double = 0.0
-
-    private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf()))
-    private val animations = listOf<Animation>(
+    override val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf()))
+    override val animations = listOf<Animation>(
         Animation(
             "exist", listOf(
                 KeyFrame(0f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
@@ -65,30 +62,8 @@ class AnimatedFishModel : AnimatedVoxelModel(16) {
         }
     )
 
-
     init {
         skeletalAnimator.defaultAnimation = "exist"
-    }
-
-
-    fun updateModel(delta: Float) {
-        skeletalAnimator.update(delta)
-        voxelGrid.clear()
-        hotspots.forEach { hotspot ->
-            val targetBone = bones.first { hotspot.parentBoneIndex == it.index }
-            val roundedHotSpotPos = (hotspot.positionOffset + targetBone.offset).roundToIVec3()
-            val subRangeMin = roundedHotSpotPos - hotspot.range
-            val subRangeMax = roundedHotSpotPos + hotspot.range
-            val range = IntRange3D(subRangeMin, subRangeMax)
-            range.forEach inner@ { x, y, z ->
-                val pos = IVec3(x,y,z)
-                val color = hotspot.placeVoxel(roundedHotSpotPos - pos)
-                if (color.w == 0f) return@inner
-                val rotatedPos = (targetBone.animatedTransform * Vec4(x.toFloat(), y.toFloat(), z.toFloat(), 1.0f)).xyz.roundToIVec3()
-                if (voxelGrid.isInBounds(rotatedPos))
-                    voxelGrid.setVoxelAt(rotatedPos, color)
-            }
-        }
     }
 
 
