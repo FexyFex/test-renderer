@@ -5,9 +5,7 @@ import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
-import kotlin.math.log2
-import kotlin.math.max
-import kotlin.math.roundToInt
+import kotlin.math.*
 
 
 class Chunk {
@@ -21,7 +19,7 @@ class Chunk {
     }
     private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int) {
         assertCoords(pos)
-        val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
+        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
@@ -56,7 +54,7 @@ class Chunk {
             getVoxelAtRec(pos, octree, 0)
     }
     private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int): VoxelType {
-        val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
+        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
@@ -72,8 +70,8 @@ class Chunk {
         }
     }
 
-    private fun getOctantIndexOfMipLevelFromGlobalPosition(globalPosition: IVec3, mipLevel: Int): Int {
-        val mipExtent = EXTENT / max(2 * mipLevel, 1)
+    private fun getOctantIndexOfGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
+        val mipExtent = EXTENT shr mipLevel
         val rel = (Vec3(globalPosition) / mipExtent).floor()
         val mid = (rel * mipExtent) + (mipExtent / 2f)
         val x = (globalPosition.x >= mid.x).toInt()
