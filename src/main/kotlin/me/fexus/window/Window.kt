@@ -202,7 +202,7 @@ val e = GLFWWindowRefreshCallbackI {
         glfwSetWindowTitle(handle, title)
     }
 
-    fun setTitleVisualOnly(title: String) {
+    fun setTitleRememberFormer(title: String) {
         glfwSetWindowTitle(handle, title)
     }
 
