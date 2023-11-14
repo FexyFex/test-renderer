@@ -1,5 +1,6 @@
 package me.fexus.math
 
+import kotlin.math.floor
 import kotlin.math.sqrt
 
 
@@ -26,3 +27,8 @@ fun repeatCubed(times: Int, block: (x: Int, y: Int, z: Int) -> Unit) {
 
 val Float.rad get() = Math.toRadians(this.toDouble()).toFloat()
 val Double.rad get() = Math.toRadians(this)
+
+
+fun fract(value: Float): Float {
+    return value - floor(value)
+}

@@ -102,9 +102,12 @@ class VoxelColorGrid(val extent: Int) {
 
     private fun assertCoords(pos: IVec3) = assertCoords(pos.x, pos.y, pos.z)
     private fun assertCoords(x: Int, y: Int, z: Int) {
-        if (x !in bounds || y !in bounds || z !in bounds)
+        if (!isInBounds(x,y,z))
             throw AssertionError("Out of bounds $x, $y, $z")
     }
+
+    fun isInBounds(pos: IVec3) = isInBounds(pos.x, pos.y, pos.z)
+    fun isInBounds(x: Int, y: Int, z: Int) = x in bounds && y in bounds && z in bounds
 
 
     fun forEachFilledVoxel(action: (x: Int, y: Int, z: Int, color: Vec4) -> Unit) {

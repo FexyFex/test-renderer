@@ -1,14 +1,14 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model
 
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelColorGrid
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelGridSubRange
+import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.IntRange3D
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelHotspot
 import me.fexus.math.mat.Mat4
 import me.fexus.math.quat.Quat
+import me.fexus.math.random
 import me.fexus.math.vec.*
 import me.fexus.skeletalanimation.*
 import kotlin.math.absoluteValue
-import kotlin.math.sign
 
 
 class AnimatedFishModel : AnimatedVoxelModel() {
@@ -18,39 +18,54 @@ class AnimatedFishModel : AnimatedVoxelModel() {
     private val animations = listOf<Animation>(
         Animation(
             "exist", listOf(
-                KeyFrame(0f, listOf(BoneTransform(0, Vec3(8f), Quat()))),
-                KeyFrame(3f, listOf(BoneTransform(0, Vec3(16f), Quat(0f, 2f, 0f, 0.9f)))),
-                KeyFrame(6f, listOf(BoneTransform(0, Vec3(8f), Quat()))),
+                KeyFrame(0f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
+                KeyFrame(2f, listOf(BoneTransform(0, Vec3(7f), Quat(0f, 1.2f, 0f, 1f)))),
+                KeyFrame(6f, listOf(BoneTransform(0, Vec3(7f), Quat(0f, -1.2f, 0f, 1f)))),
+                KeyFrame(8f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
             )
         )
     )
     override val skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
     private val hotspots = listOf<VoxelHotspot>(
         // Body
-        VoxelHotspot(0, Vec3(0f), 4) { relPos ->
-            val len = relPos.length
-            if (len > 2.3f) Vec4(0f) else {
-                if (relPos.x < 0 && len < 0.5f) return@VoxelHotspot Vec4(0f)
-                val e = relPos.y.sign * len / 11f
-                Vec4(0.7f + e, 0.2f, 0.2f, 1.0f)
-            }
+        VoxelHotspot(0, Vec3(0f), IVec3(4, 2, 1)) { pos ->
+            // round shape
+            val naiveDist = pos.y.absoluteValue + pos.x.absoluteValue + pos.z.absoluteValue
+            if (naiveDist > 4) return@VoxelHotspot Vec4(0f)
+            val blueNoise: Float = random(pos + 6) * 0.5f + 0.4f
+            val yellowNoise: Float = random(pos + 2) * 0.17f * (pos.z == 0).toInt() + 0.1f
+            //if (random(pos + 11) > 0.995f) return@VoxelHotspot Vec4(1f)
+            Vec4(0.1f, yellowNoise, blueNoise, 1f)
         },
 
         // Eyes
-        VoxelHotspot(0, Vec3(-2f, -1f, 1f), 0) { Vec4(0f, 0f, 0f, 1f) },
-        VoxelHotspot(0, Vec3(-2f, -1f, -1f), 0) { Vec4(0f, 0f, 0f, 1f) },
+        VoxelHotspot(0, Vec3(-2f, -1f, 1f), IVec3(0)) { Vec4(0f, 0f, 0f, 1f) },
+        VoxelHotspot(0, Vec3(-2f, -1f, -1f), IVec3(0)) { Vec4(0f, 0f, 0f, 1f) },
 
-        // Fin
-        VoxelHotspot(0, Vec3(3f, 0f, 0f), 1) { relPos ->
-            val onZ = (relPos.z == 0) && relPos.x <= 0 && (relPos.y.absoluteValue < 1 || relPos.x < 0)
-            Vec4(0.5f, 0.1f, 0.2f, onZ.toInt())
+        // Back Fin
+        VoxelHotspot(0, Vec3(5f, 0f, 0f), IVec3(1, 3, 0)) { pos ->
+            if ((pos.x < 0 && pos.y.absoluteValue == 0) ||
+                (pos.y.absoluteValue > 1 && pos.x > 0) ||
+                (pos.y.absoluteValue > 2 && pos.x == 0))
+                return@VoxelHotspot Vec4(0f)
+
+            Vec4(0.1f, 0.1f, 0.2f + random(pos), 1f)
         },
+
+        // Top Fin
+        VoxelHotspot(0, Vec3(1f, -4f, 0f), IVec3(2, 1, 0)) { pos ->
+            if (pos.y + pos.x > 0 || (pos.x - pos.y.absoluteValue < -1)) return@VoxelHotspot Vec4(0f)
+            Vec4(0f, 0f, 1f, 1f)
+        },
+
+        // Bottom Fin
+        VoxelHotspot(0, Vec3(1f, 4f, 0f), IVec3(2, 1, 0)) { pos ->
+            if (pos.x - pos.y > 0 || (pos.x - pos.y < -1) || pos.y < 0) return@VoxelHotspot Vec4(0f)
+            Vec4(0f, 0f, 1f, 1f)
+        }
     )
 
-    val voxelGrid = VoxelColorGrid(32)
-
-    private val skeletonUpdateInterval = 0.125f // Time until next update in seconds
-    private var timeSinceLastSkeletonUpdate: Float = 0f
+    val voxelGrid = VoxelColorGrid(16)
 
 
     init {
@@ -58,36 +73,25 @@ class AnimatedFishModel : AnimatedVoxelModel() {
     }
 
 
-    fun tick(delta: Float) {
-        time += delta
-        if (timeSinceLastSkeletonUpdate >= skeletonUpdateInterval) {
-            updateModel()
-            timeSinceLastSkeletonUpdate = 0f
-        } else {
-            timeSinceLastSkeletonUpdate += delta
-        }
-    }
-
-
-    fun updateModel() {
-        skeletalAnimator.update(timeSinceLastSkeletonUpdate)
+    fun updateModel(delta: Float) {
+        skeletalAnimator.update(delta)
         voxelGrid.clear()
         hotspots.forEach { hotspot ->
             val targetBone = bones.first { hotspot.parentBoneIndex == it.index }
-            val hotspotPos = (targetBone.animatedTransform * Vec4(hotspot.positionOffset + targetBone.offset, 1f)).xyz
-            val roundedHotSpotPos = hotspotPos.roundToIVec3()
-            val subRangeMin = max(roundedHotSpotPos - hotspot.range, IVec3(0))
-            val subRangeMax = min(subRangeMin + hotspot.range * 2, IVec3(voxelGrid.extent - 1))
-            val range = VoxelGridSubRange(subRangeMin, subRangeMax)
-            range.forEachVoxel { x, y, z ->
-                val pos = IVec3(x, y, z)
-                val voxelColor = hotspot.placeVoxel(roundedHotSpotPos - pos)
-                if (voxelColor.w == 0f) return@forEachVoxel
-                voxelGrid.setVoxelAt(pos, voxelColor)
+            val roundedHotSpotPos = (hotspot.positionOffset + targetBone.offset).roundToIVec3()
+            val subRangeMin = roundedHotSpotPos - hotspot.range
+            val subRangeMax = roundedHotSpotPos + hotspot.range
+            val range = IntRange3D(subRangeMin, subRangeMax)
+            range.forEach inner@ { x, y, z ->
+                val pos = IVec3(x,y,z)
+                val color = hotspot.placeVoxel(roundedHotSpotPos - pos)
+                if (color.w == 0f) return@inner
+                val rotatedPos = (targetBone.animatedTransform * Vec4(x.toFloat(), y.toFloat(), z.toFloat(), 1.0f)).xyz.roundToIVec3()
+                if (voxelGrid.isInBounds(rotatedPos))
+                    voxelGrid.setVoxelAt(rotatedPos, color)
             }
         }
     }
-
 
 
     companion object {

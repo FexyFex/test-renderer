@@ -11,6 +11,7 @@ import kotlin.math.roundToInt
 class Window(title: String, config: WindowConfigContext.() -> Unit) {
     val handle: Long
 
+    var title: String = title; private set
     val extent2D: IVec2
         get() {
             val pWidth = IntArray(1) { 0 }
@@ -197,6 +198,11 @@ val e = GLFWWindowRefreshCallbackI {
     }
 
     fun setTitle(title: String) {
+        this.title = title
+        glfwSetWindowTitle(handle, title)
+    }
+
+    fun setTitleVisualOnly(title: String) {
         glfwSetWindowTitle(handle, title)
     }
 

@@ -8,9 +8,8 @@ import me.fexus.octree.*
 import kotlin.math.*
 
 
-class SVOStorage {
+class SparseVoxelOctree {
     val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
-
 
     fun insertIntoOctree(x: Int, y: Int, z: Int, voxelType: VoxelType) = insertIntoOctree(IVec3(x,y,z), voxelType)
     fun insertIntoOctree(pos: IVec3, voxelType: VoxelType) {

@@ -30,6 +30,7 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
 
     override operator fun unaryMinus(): IVec3 = IVec3(-x, -y, -z)
 
+    fun dot(other: TVec3<Float>): Float = this.x * other.x + this.y * other.y + this.z * other.z
     override fun dot(other: TVec3<Int>): Int = this.x * other.x + this.y * other.y + this.z * other.z
 
 

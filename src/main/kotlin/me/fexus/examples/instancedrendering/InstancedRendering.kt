@@ -92,7 +92,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        camera.position = Vec3(-4f, -4f, -16f)
+        camera.position = Vec3(-8f, -8f, -20f)
 
         createAttachmentImages()
         createMeshBuffers()
@@ -114,7 +114,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             BufferUsage.STORAGE_BUFFER
         )
         this.instanceDataBuffer = deviceUtil.createBuffer(instanceBufferConfig)
-        voxelModel.updateModel()
+        voxelModel.updateModel(0f)
         updateInstanceDataBuffer()
         // -- INSTANCE DATA BUFFER --
 
@@ -271,7 +271,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data)
 
-        voxelModel.tick(delta)
+        voxelModel.updateModel(delta)
         updateInstanceDataBuffer()
     }
 

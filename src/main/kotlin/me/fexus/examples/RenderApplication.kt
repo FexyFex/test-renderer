@@ -28,7 +28,7 @@ interface RenderApplication {
             lastFpsTime += updateLength
             frameCounter++
             if (lastFpsTime >= 1) {
-                //window.setTitle("TestRenderer; current FPS: $frameCounter")
+                window.setTitleVisualOnly("${window.title}; current FPS: $frameCounter")
                 lastFpsTime = 0.0
                 frameCounter = 0
             }

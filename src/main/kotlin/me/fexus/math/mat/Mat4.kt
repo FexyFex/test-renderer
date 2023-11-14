@@ -37,6 +37,13 @@ class Mat4(val rows: Array<Vec4>) {
         )
     )
 
+    constructor(other: Mat4): this(
+        other.x.x,other.x.y,other.x.z,other.x.w,
+        other.y.x,other.y.y,other.y.z,other.y.w,
+        other.z.x,other.z.y,other.z.z,other.z.w,
+        other.w.x,other.w.y,other.w.z,other.w.w,
+    )
+
     var x: Vec4; get() = rows[0]; set(value) = rows.set(0, value)
     var y: Vec4; get() = rows[1]; set(value) = rows.set(1, value)
     var z: Vec4; get() = rows[2]; set(value) = rows.set(2, value)
