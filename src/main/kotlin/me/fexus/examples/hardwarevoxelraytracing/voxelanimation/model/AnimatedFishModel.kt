@@ -1,6 +1,5 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model
 
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelColorGrid
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.IntRange3D
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelHotspot
 import me.fexus.math.mat.Mat4
@@ -11,7 +10,7 @@ import me.fexus.skeletalanimation.*
 import kotlin.math.absoluteValue
 
 
-class AnimatedFishModel : AnimatedVoxelModel() {
+class AnimatedFishModel : AnimatedVoxelModel(16) {
     private var time: Double = 0.0
 
     private val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf()))
@@ -26,7 +25,7 @@ class AnimatedFishModel : AnimatedVoxelModel() {
         )
     )
     override val skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
-    private val hotspots = listOf<VoxelHotspot>(
+    override val hotspots = listOf<VoxelHotspot>(
         // Body
         VoxelHotspot(0, Vec3(0f), IVec3(4, 2, 1)) { pos ->
             // round shape
@@ -39,8 +38,9 @@ class AnimatedFishModel : AnimatedVoxelModel() {
         },
 
         // Eyes
-        VoxelHotspot(0, Vec3(-2f, -1f, 1f), IVec3(0)) { Vec4(0f, 0f, 0f, 1f) },
-        VoxelHotspot(0, Vec3(-2f, -1f, -1f), IVec3(0)) { Vec4(0f, 0f, 0f, 1f) },
+        VoxelHotspot(0, Vec3(-2f, -1f, 0f), IVec3(0, 0, 1)) { pos ->
+            if (pos.z != 0) Vec4(0f, 0f, 0f, 1f) else Vec4(0f)
+        },
 
         // Back Fin
         VoxelHotspot(0, Vec3(5f, 0f, 0f), IVec3(1, 3, 0)) { pos ->
@@ -64,8 +64,6 @@ class AnimatedFishModel : AnimatedVoxelModel() {
             Vec4(0.2f, 0.2f, 1f, 1f)
         }
     )
-
-    val voxelGrid = VoxelColorGrid(16)
 
 
     init {
