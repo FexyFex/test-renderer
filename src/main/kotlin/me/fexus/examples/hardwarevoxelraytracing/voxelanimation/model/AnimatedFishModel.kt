@@ -55,13 +55,13 @@ class AnimatedFishModel : AnimatedVoxelModel() {
         // Top Fin
         VoxelHotspot(0, Vec3(1f, -4f, 0f), IVec3(2, 1, 0)) { pos ->
             if (pos.y + pos.x > 0 || (pos.x - pos.y.absoluteValue < -1)) return@VoxelHotspot Vec4(0f)
-            Vec4(0f, 0f, 1f, 1f)
+            Vec4(0.2f, 0.2f, 1f, 1f)
         },
 
         // Bottom Fin
         VoxelHotspot(0, Vec3(1f, 4f, 0f), IVec3(2, 1, 0)) { pos ->
             if (pos.x - pos.y > 0 || (pos.x - pos.y < -1) || pos.y < 0) return@VoxelHotspot Vec4(0f)
-            Vec4(0f, 0f, 1f, 1f)
+            Vec4(0.2f, 0.2f, 1f, 1f)
         }
     )
 

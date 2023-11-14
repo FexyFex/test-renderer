@@ -294,9 +294,9 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         val clearValueColor = calloc(VkClearValue::calloc) {
             color()
-                .float32(0, 0.5f)
+                .float32(0, 0.2f)
                 .float32(1, 0.2f)
-                .float32(2, 0.6f)
+                .float32(2, 0.2f)
                 .float32(3, 1.0f)
         }
 
