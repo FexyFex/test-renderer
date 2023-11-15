@@ -6,4 +6,5 @@ import me.fexus.octree.OctreeNodeDataVoxelType
 interface IIndexedOctreeNode {
     val index: Int
     val nodeData: OctreeNodeDataVoxelType
+    var hashValue: Int
 }

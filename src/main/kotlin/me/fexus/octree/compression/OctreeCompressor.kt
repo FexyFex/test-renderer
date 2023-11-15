@@ -1,6 +1,5 @@
 package me.fexus.octree.compression
 
-import me.fexus.octree.IOctreeNodeData
 import me.fexus.octree.IOctreeParentNode
 import me.fexus.octree.OctreeNodeDataVoxelType
 import me.fexus.octree.OctreeRootNode
