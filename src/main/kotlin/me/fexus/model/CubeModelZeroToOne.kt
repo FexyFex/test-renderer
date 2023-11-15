@@ -4,15 +4,15 @@ import me.fexus.math.vec.Vec3
 import java.nio.ByteBuffer
 
 
-object CubeModelPositionsOnly {
-    private val pos1 = Vec3(1f, 1f, -1f)
-    private val pos2 = Vec3(1f, -1f, -1f)
+object CubeModelZeroToOne {
+    private val pos1 = Vec3(1f, 1f, 0f)
+    private val pos2 = Vec3(1f, 0f, 0f)
     private val pos3 = Vec3(1f, 1f, 1f)
-    private val pos4 = Vec3(1f, -1f, 1f)
-    private val pos5 = Vec3(-1f, 1f, -1f)
-    private val pos6 = Vec3(-1f, -1f, -1f)
-    private val pos7 = Vec3(-1f, 1f, 1f)
-    private val pos8 = Vec3(-1f, -1f, 1f)
+    private val pos4 = Vec3(1f, 0f, 1f)
+    private val pos5 = Vec3(0f, 1f, 0f)
+    private val pos6 = Vec3(0f, 0f, 0f)
+    private val pos7 = Vec3(0f, 1f, 1f)
+    private val pos8 = Vec3(0f, 0f, 1f)
 
     val vertices = arrayOf(
         Vertex(pos1), Vertex(pos2), Vertex(pos3),

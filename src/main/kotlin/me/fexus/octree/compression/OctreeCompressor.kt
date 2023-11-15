@@ -1,14 +1,16 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree.compression
+package me.fexus.octree.compression
 
-import me.fexus.examples.hardwarevoxelraytracing.octree.IOctreeParentNode
-import me.fexus.examples.hardwarevoxelraytracing.octree.OctreeRootNode
+import me.fexus.octree.IOctreeNodeData
+import me.fexus.octree.IOctreeParentNode
+import me.fexus.octree.OctreeNodeDataVoxelType
+import me.fexus.octree.OctreeRootNode
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedTransferQueue
 import kotlin.math.ceil
 import kotlin.math.log2
 
 
-class OctreeCompressor(private val octree: OctreeRootNode) {
+class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelType>) {
     fun createSVO(): SVOSet {
         val indexedOctree = createIndexedOctree(octree, 0).node
         val indexedNodes = getNodeList(indexedOctree)
@@ -117,7 +119,7 @@ class OctreeCompressor(private val octree: OctreeRootNode) {
     }
 
     data class LastIndexAndNode(val lastIndex: Int, val node: IndexedParentNode)
-    private fun createIndexedOctree(parentNode: IOctreeParentNode, startingIndex: Int): LastIndexAndNode {
+    private fun createIndexedOctree(parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, startingIndex: Int): LastIndexAndNode {
         var currentIndex = startingIndex
 
         val indexedNode = IndexedParentNode(currentIndex++, parentNode.nodeData)

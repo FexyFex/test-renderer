@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.octree.compression
+package me.fexus.octree.compression
 
 import java.nio.ByteBuffer
 

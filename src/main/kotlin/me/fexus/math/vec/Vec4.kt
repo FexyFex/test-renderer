@@ -3,8 +3,12 @@ package me.fexus.math.vec
 import java.nio.ByteBuffer
 
 data class Vec4(override var x: Float, override var y: Float, override var z: Float, override var w: Float): TVec4<Float>() {
+    constructor(): this(0f)
     constructor(s: Float): this(s,s,s,s)
     constructor(x: Number, y: Number, z: Number, w: Number): this(x.toFloat(), y.toFloat(), z.toFloat(), w.toFloat())
+    constructor(vec3: Vec3, w: Float): this(vec3.x, vec3.y, vec3.z, w)
+
+    val xyz: Vec3; get() = Vec3(x,y,z)
 
     override operator fun plus(other: TVec4<Float>): Vec4 = Vec4(this.x + other.x, this.y + other.y, this.z + other.z, this.w + other.w)
     override operator fun minus(other: TVec4<Float>): Vec4 = Vec4(this.x - other.x, this.y - other.y, this.z - other.z, this.w - other.w)

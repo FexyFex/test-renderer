@@ -1,36 +1,33 @@
 package me.fexus.examples.hardwarevoxelraytracing.world
 
-import me.fexus.examples.hardwarevoxelraytracing.octree.*
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoidVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
-import kotlin.math.log2
-import kotlin.math.max
-import kotlin.math.roundToInt
+import me.fexus.octree.*
+import kotlin.math.*
 
 
-class Chunk {
-    val octree = OctreeRootNode(IVec3(0), OctreeNodeData(VoidVoxel))
-
+class SparseVoxelOctree {
+    val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
     fun insertIntoOctree(x: Int, y: Int, z: Int, voxelType: VoxelType) = insertIntoOctree(IVec3(x,y,z), voxelType)
     fun insertIntoOctree(pos: IVec3, voxelType: VoxelType) {
         assertCoords(pos)
         insertIntoOctreeRec(pos, voxelType, octree, 0)
     }
-    private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode, mipLevel: Int) {
+    private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int) {
         assertCoords(pos)
-        val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
+        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
                     if (mipLevel == maxMipLevel) {
-                        OctreeLeafNode(pos, OctreeNodeData(voxelType))
+                        OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
-                        val newNode = OctreeNode(pos, OctreeNodeData(voxelType))
+                        val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))
                         insertIntoOctreeRec(pos, voxelType, newNode, mipLevel + 1)
                         newNode
                     }
@@ -41,7 +38,7 @@ class Chunk {
                 if (voxelType == VoidVoxel)
                     parentNode.children[posIndex] = null
                 else
-                    targetNode.nodeData = OctreeNodeData(voxelType)
+                    targetNode.nodeData = OctreeNodeDataVoxelType(voxelType)
             }
         }
     }
@@ -55,8 +52,8 @@ class Chunk {
         else
             getVoxelAtRec(pos, octree, 0)
     }
-    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode, mipLevel: Int): VoxelType {
-        val posIndex = getOctantIndexOfMipLevelFromGlobalPosition(pos, mipLevel)
+    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int): VoxelType {
+        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
@@ -72,8 +69,8 @@ class Chunk {
         }
     }
 
-    private fun getOctantIndexOfMipLevelFromGlobalPosition(globalPosition: IVec3, mipLevel: Int): Int {
-        val mipExtent = EXTENT / max(2 * mipLevel, 1)
+    private fun getOctantIndexOfGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
+        val mipExtent = EXTENT shr mipLevel
         val rel = (Vec3(globalPosition) / mipExtent).floor()
         val mid = (rel * mipExtent) + (mipExtent / 2f)
         val x = (globalPosition.x >= mid.x).toInt()
