@@ -10,18 +10,30 @@ import kotlin.math.absoluteValue
 
 
 class AnimatedFishModel : AnimatedVoxelModel(16) {
-    override val bones = listOf<Bone>(Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf()))
+    override val skeletalAnimator: SkeletalAnimator
+    override val bones: List<Bone>
     override val animations = listOf<Animation>(
         Animation(
             "exist", listOf(
-                KeyFrame(0f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
-                KeyFrame(2f, listOf(BoneTransform(0, Vec3(7f), Quat(0f, 1.2f, 0f, 1f)))),
-                KeyFrame(6f, listOf(BoneTransform(0, Vec3(7f), Quat(0f, -1.2f, 0f, 1f)))),
-                KeyFrame(8f, listOf(BoneTransform(0, Vec3(7f), Quat()))),
+                KeyFrame(0f, listOf(
+                    BoneTransform(0, Vec3(7f), Quat()),
+                    BoneTransform(1, Vec3(5f, 0f, 0f), Quat(0f, 0.5f, 0f, 1f))
+                )),
+                KeyFrame(2f, listOf(
+                    BoneTransform(0, Vec3(7f), Quat(0f, 1.2f, 0f, 1f)),
+                    BoneTransform(1, Vec3(5f, 0f, 0f), Quat(0f, -0.5f, 0f, 1f))
+                )),
+                KeyFrame(6f, listOf(
+                    BoneTransform(0, Vec3(7f), Quat(0f, -1.2f, 0f, 1f)),
+                    BoneTransform(1, Vec3(5f, 0f, 0f), Quat(0f, 0.5f, 0f, 1f))
+                )),
+                KeyFrame(8f, listOf(
+                    BoneTransform(0, Vec3(7f), Quat()),
+                    BoneTransform(1, Vec3(5f, 0f, 0f), Quat())
+                )),
             )
         )
     )
-    override val skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
     override val hotspots = listOf<VoxelHotspot>(
         // Body
         VoxelHotspot(0, Vec3(0f), IVec3(4, 2, 1)) { pos ->
@@ -40,7 +52,7 @@ class AnimatedFishModel : AnimatedVoxelModel(16) {
         },
 
         // Back Fin
-        VoxelHotspot(0, Vec3(5f, 0f, 0f), IVec3(1, 3, 0)) { pos ->
+        VoxelHotspot(1, Vec3(0f, 0f, 0f), IVec3(1, 3, 0)) { pos ->
             if ((pos.x < 0 && pos.y.absoluteValue == 0) ||
                 (pos.y.absoluteValue > 1 && pos.x > 0) ||
                 (pos.y.absoluteValue > 2 && pos.x == 0))
@@ -63,7 +75,13 @@ class AnimatedFishModel : AnimatedVoxelModel(16) {
     )
 
     init {
-        skeletalAnimator.defaultAnimation = "exist"
+        val rootBone = Bone(0, "root", "root", Vec3(0f), Mat4(), null, mutableListOf())
+        val tailBone = Bone(1, "tail", "tail", Vec3(1f, 0f, 0f), Mat4(), rootBone, mutableListOf())
+        rootBone.children.add(tailBone)
+        this.bones = listOf(rootBone, tailBone)
+
+        this.skeletalAnimator = SkeletalAnimator("TestBlob", bones, animations)
+        this.skeletalAnimator.defaultAnimation = "exist"
     }
 
 

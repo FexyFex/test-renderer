@@ -17,7 +17,6 @@ class VulkanCore {
         DynamicRenderingExtension,
         DepthStencilResolveKHRExtension,
         Synchronization2Extension,
-        //DescriptorBufferExtension,
         DescriptorIndexingExtension
     )
 

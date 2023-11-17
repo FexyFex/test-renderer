@@ -19,5 +19,5 @@ fun main() {
 
 
     val bufferWriter = OctreeCompressor(chunk.octree)
-    val buf = bufferWriter.createSVO()
+    val buf = bufferWriter.createDAG()
 }

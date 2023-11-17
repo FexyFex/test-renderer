@@ -10,13 +10,12 @@ import kotlin.math.log2
 
 
 class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelType>) {
-    fun createSVO(): SVOSet {
+    fun createDAG(): DAGSet {
         val indexedOctree = createIndexedOctree(octree, 0).node
         val indexedNodes = getNodeList(indexedOctree)
         val uniqueNodeData = indexedNodes.distinctBy { it.nodeData }.map { it.nodeData }
         val bitsPerIndex = ceil(log2(uniqueNodeData.size.toFloat())).toInt()
         val svoNodes = createSVONodeList(indexedOctree)
-
 
         // reduce the indexedOctree to a DAG
         val svoLayers = getSVOLayers(indexedOctree)
@@ -69,7 +68,7 @@ class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelTyp
         val nodeBufferSize = svoNodes.sumOf { Int.SIZE_BYTES + it.childPointers.size * Int.SIZE_BYTES }
         val nodeBuffer = ByteBuffer.allocate(nodeBufferSize)
 
-        return SVOSet(nodeBuffer, bitsPerIndex, indexBuffer, textureIndexBuffer)
+        return DAGSet(nodeBuffer, bitsPerIndex, indexBuffer, textureIndexBuffer)
     }
 
     private fun getSVOLayers(indexedOctree: IndexedParentNode): List<List<IIndexedOctreeNode>> {

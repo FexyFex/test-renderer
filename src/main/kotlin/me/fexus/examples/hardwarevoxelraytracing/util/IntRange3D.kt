@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.voxelanimation
+package me.fexus.examples.hardwarevoxelraytracing.util
 
 import me.fexus.math.vec.IVec3
 

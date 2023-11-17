@@ -1,6 +1,6 @@
 package me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model
 
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.IntRange3D
+import me.fexus.examples.hardwarevoxelraytracing.util.IntRange3D
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelColorGrid
 import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.VoxelHotspot
 import me.fexus.math.vec.IVec3
