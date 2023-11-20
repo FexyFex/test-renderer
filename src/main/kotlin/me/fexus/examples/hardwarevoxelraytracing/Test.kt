@@ -5,19 +5,23 @@ import me.fexus.examples.hardwarevoxelraytracing.voxel.VoxelRegistry
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.CoalVoxel
 import me.fexus.examples.hardwarevoxelraytracing.voxel.type.StoneVoxel
 import me.fexus.examples.hardwarevoxelraytracing.world.SparseVoxelOctree
+import me.fexus.math.repeatCubed
 import me.fexus.math.repeatSquared
 
 
 fun main() {
     VoxelRegistry.init()
 
-    val chunk = SparseVoxelOctree()
-    repeatSquared(SparseVoxelOctree.EXTENT) { x, y ->
-        chunk.insertIntoOctree(x,y,0, StoneVoxel)
+    repeat(500) {
+        val chunk = SparseVoxelOctree()
+
+        repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
+            if (Math.random() > 0.5)
+                chunk.insertIntoOctree(x, y, z, CoalVoxel)
+        }
+
+        val bufferWriter = OctreeCompressorDAG(chunk.octree)
+
+        val buf = bufferWriter.createDAG()
     }
-    chunk.insertIntoOctree(1,1,1, CoalVoxel)
-
-
-    val bufferWriter = OctreeCompressorDAG(chunk.octree)
-    val buf = bufferWriter.createDAG()
 }

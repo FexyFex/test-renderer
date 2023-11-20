@@ -12,54 +12,18 @@ import kotlin.math.log2
 
 class OctreeCompressorDAG(private val octree: OctreeRootNode<OctreeNodeDataVoxelType>) {
     fun createDAG(): DAGSet {
+        val start = System.nanoTime()
         val indexedOctree = createIndexedOctree(octree, 0).node
         val indexedNodes = getNodeList(indexedOctree)
         val uniqueNodeData = indexedNodes.distinctBy { it.nodeData }.map { it.nodeData }
         val bitsPerIndex = ceil(log2(uniqueNodeData.size.toFloat())).toInt()
         val dagNodes = createDAGNodeList(indexedOctree)
-        val trimmedDAG = createTrimmedDAG(dagNodes)
 
-        // reduce the indexedOctree to a DAG
-        val svoLayers = getSVOLayers(indexedOctree)
-        val subtreeMap = mutableMapOf<Int, MutableList<IIndexedOctreeNode>>()
-        for (layerIndex in svoLayers.size - 1 downTo 0) {
-            svoLayers[layerIndex].forEach { subtree ->
-                if (subtree is IndexedParentNode) {
-                    subtree.children.forEachIndexed{ index, child ->
-                        if (child != null) {
-                            val hashCode = if (child is IndexedLeafNode) 0 else {
-                                child as IndexedParentNode
-                                (if (child.children[0] != null) child.children[0]!!.hashValue + 1 shl 0 else 0) +
-                                (if (child.children[1] != null) child.children[1]!!.hashValue + 1 shl 1 else 0) +
-                                (if (child.children[2] != null) child.children[2]!!.hashValue + 1 shl 2 else 0) +
-                                (if (child.children[3] != null) child.children[3]!!.hashValue + 1 shl 3 else 0) +
-                                (if (child.children[4] != null) child.children[4]!!.hashValue + 1 shl 4 else 0) +
-                                (if (child.children[5] != null) child.children[5]!!.hashValue + 1 shl 5 else 0) +
-                                (if (child.children[6] != null) child.children[6]!!.hashValue + 1 shl 6 else 0) +
-                                (if (child.children[7] != null) child.children[7]!!.hashValue + 1 shl 7 else 0)
-                            }
-                            child.hashValue = hashCode
-                            val list = subtreeMap[hashCode]
-                            if (list == null)
-                                subtreeMap[hashCode] = mutableListOf(child)
-                            else {
-                                var foundMatch = false
-                                list.forEachIndexed { i, node ->
-                                    if (!foundMatch && (child is IndexedLeafNode && node is IndexedLeafNode) ||
-                                        (child is IndexedParentNode && node is IndexedParentNode && child.children.contentDeepEquals(node.children))) {
-                                        subtree.children[index] = node
-                                        foundMatch = true
-                                    }
-                                }
-                                if (!foundMatch)
-                                    list.add(child)
-                            }
-                        }
-                    }
-                }
-            }
+        val nodeBuffer = buildDAGBuffer {
+            dagNodes.forEach { append(it) }
         }
-        val dag = indexedOctree
+        val end = System.nanoTime()
+        println("Time: ${end - start}")
 
         val textureIndexBufferSize = uniqueNodeData.size * Int.SIZE_BYTES
         val textureIndexBuffer = ByteBuffer.allocate(textureIndexBufferSize)
@@ -67,18 +31,14 @@ class OctreeCompressorDAG(private val octree: OctreeRootNode<OctreeNodeDataVoxel
         val indexBufferSize = ceil((bitsPerIndex * indexedNodes.size) / 8f).toInt()
         val indexBuffer = ByteBuffer.allocate(indexBufferSize)
 
-        val nodeBufferSize = dagNodes.sumOf { Int.SIZE_BYTES + it.childPointers.size * Int.SIZE_BYTES }
-        val nodeBuffer = ByteBuffer.allocate(nodeBufferSize)
-
         return DAGSet(nodeBuffer, bitsPerIndex, indexBuffer, textureIndexBuffer)
     }
 
-    // A heuristic attempt at merging nodes with the same pointer values.
+    // A not yet implemented heuristic attempt at merging nodes with the same pointer values.
     // Since checking every node against all others would be costly,
     // we only compare the parent nodes of the lowest layer
-    private fun createTrimmedDAG(dagNodes: List<DAGNode>): List<DAGNode> {
-
-    }
+    //private fun createTrimmedDAG(dagNodes: List<DAGNode>): List<DAGNode> {
+    //}
 
     private fun getSVOLayers(indexedOctree: IndexedParentNode): List<List<IIndexedOctreeNode>> {
         val layers : MutableList<MutableList<IIndexedOctreeNode>> = mutableListOf()
@@ -117,7 +77,7 @@ class OctreeCompressorDAG(private val octree: OctreeRootNode<OctreeNodeDataVoxel
                     rec(childNode)
                 }
             }
-            val svoNode = DAGNode(targetNode.index, childPointers.size, childPointers.toTypedArray())
+            val svoNode = DAGNode(targetNode.index, childPointers.size, childPointers)
             dagNodes.add(svoNode)
         }
 
@@ -159,3 +119,49 @@ class OctreeCompressorDAG(private val octree: OctreeRootNode<OctreeNodeDataVoxel
         return allNodes
     }
 }
+
+
+
+/*
+        // reduce the indexedOctree to a DAG
+        val svoLayers = getSVOLayers(indexedOctree)
+        val subtreeMap = mutableMapOf<Int, MutableList<IIndexedOctreeNode>>()
+        for (layerIndex in svoLayers.size - 1 downTo 0) {
+            svoLayers[layerIndex].forEach { subtree ->
+                if (subtree is IndexedParentNode) {
+                    subtree.children.forEachIndexed{ index, child ->
+                        if (child != null) {
+                            val hashCode = if (child is IndexedLeafNode) 0 else {
+                                child as IndexedParentNode
+                                (if (child.children[0] != null) child.children[0]!!.hashValue + 1 shl 0 else 0) +
+                                (if (child.children[1] != null) child.children[1]!!.hashValue + 1 shl 1 else 0) +
+                                (if (child.children[2] != null) child.children[2]!!.hashValue + 1 shl 2 else 0) +
+                                (if (child.children[3] != null) child.children[3]!!.hashValue + 1 shl 3 else 0) +
+                                (if (child.children[4] != null) child.children[4]!!.hashValue + 1 shl 4 else 0) +
+                                (if (child.children[5] != null) child.children[5]!!.hashValue + 1 shl 5 else 0) +
+                                (if (child.children[6] != null) child.children[6]!!.hashValue + 1 shl 6 else 0) +
+                                (if (child.children[7] != null) child.children[7]!!.hashValue + 1 shl 7 else 0)
+                            }
+                            child.hashValue = hashCode
+                            val list = subtreeMap[hashCode]
+                            if (list == null)
+                                subtreeMap[hashCode] = mutableListOf(child)
+                            else {
+                                var foundMatch = false
+                                list.forEachIndexed { i, node ->
+                                    if (!foundMatch && (child is IndexedLeafNode && node is IndexedLeafNode) ||
+                                        (child is IndexedParentNode && node is IndexedParentNode && child.children.contentDeepEquals(node.children))) {
+                                        subtree.children[index] = node
+                                        foundMatch = true
+                                    }
+                                }
+                                if (!foundMatch)
+                                    list.add(child)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val dag = indexedOctree
+*/

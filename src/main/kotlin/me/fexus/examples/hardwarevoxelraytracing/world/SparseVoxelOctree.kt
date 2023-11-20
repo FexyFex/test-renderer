@@ -97,7 +97,7 @@ class SparseVoxelOctree {
 
 
     companion object {
-        const val EXTENT = 2
+        const val EXTENT = 16
         private val bounds = 0 until EXTENT
         private val maxMipLevel = log2(EXTENT.toFloat()).roundToInt() - 1
 
