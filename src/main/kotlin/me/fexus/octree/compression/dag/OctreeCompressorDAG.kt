@@ -1,26 +1,28 @@
-package me.fexus.octree.compression
+package me.fexus.octree.compression.dag
 
 import me.fexus.octree.IOctreeParentNode
 import me.fexus.octree.OctreeNodeDataVoxelType
 import me.fexus.octree.OctreeRootNode
+import me.fexus.octree.compression.*
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedTransferQueue
 import kotlin.math.ceil
 import kotlin.math.log2
 
 
-class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelType>) {
+class OctreeCompressorDAG(private val octree: OctreeRootNode<OctreeNodeDataVoxelType>) {
     fun createDAG(): DAGSet {
         val indexedOctree = createIndexedOctree(octree, 0).node
         val indexedNodes = getNodeList(indexedOctree)
         val uniqueNodeData = indexedNodes.distinctBy { it.nodeData }.map { it.nodeData }
         val bitsPerIndex = ceil(log2(uniqueNodeData.size.toFloat())).toInt()
-        val svoNodes = createSVONodeList(indexedOctree)
+        val dagNodes = createDAGNodeList(indexedOctree)
+        val trimmedDAG = createTrimmedDAG(dagNodes)
 
         // reduce the indexedOctree to a DAG
         val svoLayers = getSVOLayers(indexedOctree)
         val subtreeMap = mutableMapOf<Int, MutableList<IIndexedOctreeNode>>()
-        for (layerIndex in svoLayers.size-1 downTo 0) {
+        for (layerIndex in svoLayers.size - 1 downTo 0) {
             svoLayers[layerIndex].forEach { subtree ->
                 if (subtree is IndexedParentNode) {
                     subtree.children.forEachIndexed{ index, child ->
@@ -65,10 +67,17 @@ class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelTyp
         val indexBufferSize = ceil((bitsPerIndex * indexedNodes.size) / 8f).toInt()
         val indexBuffer = ByteBuffer.allocate(indexBufferSize)
 
-        val nodeBufferSize = svoNodes.sumOf { Int.SIZE_BYTES + it.childPointers.size * Int.SIZE_BYTES }
+        val nodeBufferSize = dagNodes.sumOf { Int.SIZE_BYTES + it.childPointers.size * Int.SIZE_BYTES }
         val nodeBuffer = ByteBuffer.allocate(nodeBufferSize)
 
         return DAGSet(nodeBuffer, bitsPerIndex, indexBuffer, textureIndexBuffer)
+    }
+
+    // A heuristic attempt at merging nodes with the same pointer values.
+    // Since checking every node against all others would be costly,
+    // we only compare the parent nodes of the lowest layer
+    private fun createTrimmedDAG(dagNodes: List<DAGNode>): List<DAGNode> {
+
     }
 
     private fun getSVOLayers(indexedOctree: IndexedParentNode): List<List<IIndexedOctreeNode>> {
@@ -95,25 +104,25 @@ class OctreeCompressor(private val octree: OctreeRootNode<OctreeNodeDataVoxelTyp
         return layers
     }
 
-    private fun createSVONodeList(indexedOctree: IndexedParentNode): List<SVONode> {
-        val svoNodes = mutableListOf<SVONode>()
+    private fun createDAGNodeList(indexedOctree: IndexedParentNode): List<DAGNode> {
+        val dagNodes = mutableListOf<DAGNode>()
 
         fun rec(targetNode: IIndexedOctreeNode) {
-            val childPointers = mutableListOf<SVOChildNodePointer>()
+            val childPointers = mutableListOf<DAGChildNodePointer>()
             if (targetNode is IndexedParentNode) {
                 targetNode.children.forEachIndexed { octantIndex, childNode ->
                     if (childNode == null) return@forEachIndexed
-                    val pointer = SVOChildNodePointer(octantIndex, childNode.index - targetNode.index, childNode.index)
+                    val pointer = DAGChildNodePointer(octantIndex, childNode.index - targetNode.index, childNode.index)
                     childPointers.add(pointer)
                     rec(childNode)
                 }
             }
-            val svoNode = SVONode(targetNode.index, childPointers.size, childPointers.toTypedArray())
-            svoNodes.add(svoNode)
+            val svoNode = DAGNode(targetNode.index, childPointers.size, childPointers.toTypedArray())
+            dagNodes.add(svoNode)
         }
 
         rec(indexedOctree)
-        return svoNodes.sortedBy { it.index }
+        return dagNodes.sortedBy { it.index }
     }
 
     data class LastIndexAndNode(val lastIndex: Int, val node: IndexedParentNode)

@@ -1,4 +1,4 @@
-package me.fexus.octree.compression
+package me.fexus.octree.compression.dag
 
 import java.nio.ByteBuffer
 
