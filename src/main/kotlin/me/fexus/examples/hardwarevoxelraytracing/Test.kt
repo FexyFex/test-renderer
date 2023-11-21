@@ -1,12 +1,13 @@
 package me.fexus.examples.hardwarevoxelraytracing
 
-import me.fexus.octree.compression.dag.OctreeCompressorDAG
-import me.fexus.examples.hardwarevoxelraytracing.voxel.VoxelRegistry
-import me.fexus.examples.hardwarevoxelraytracing.voxel.type.CoalVoxel
-import me.fexus.examples.hardwarevoxelraytracing.voxel.type.StoneVoxel
-import me.fexus.examples.hardwarevoxelraytracing.world.SparseVoxelOctree
+import me.fexus.voxel.VoxelRegistry
+import me.fexus.voxel.type.CoalVoxel
+import me.fexus.voxel.SparseVoxelOctree
 import me.fexus.math.repeatCubed
-import me.fexus.math.repeatSquared
+import me.fexus.voxel.octree.buffer.buildSVOBuffer
+import me.fexus.voxel.octree.buffer.createIndexedOctree
+import me.fexus.voxel.octree.buffer.getNodeList
+import kotlin.system.measureNanoTime
 
 
 fun main() {
@@ -20,8 +21,14 @@ fun main() {
                 chunk.insertIntoOctree(x, y, z, CoalVoxel)
         }
 
-        val bufferWriter = OctreeCompressorDAG(chunk.octree)
+        val time = measureNanoTime {
+            val indexedOctree = createIndexedOctree(chunk.octree, 0).node
+            val nodeList = getNodeList(indexedOctree)
 
-        val buf = bufferWriter.createDAG()
+            val buf = buildSVOBuffer {
+                nodeList.forEach { append(it) }
+            }
+        }
+        println("Time: $time")
     }
 }

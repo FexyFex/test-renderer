@@ -1,7 +1,7 @@
 package me.fexus.examples.instancedrendering
 
 import me.fexus.camera.CameraPerspective
-import me.fexus.examples.hardwarevoxelraytracing.voxelanimation.model.AnimatedFishModel
+import me.fexus.voxel.animation.model.AnimatedFishModel
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4

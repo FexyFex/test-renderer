@@ -2,7 +2,6 @@ package me.fexus.examples.hardwarevoxelraytracing
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.hardwarevoxelraytracing.accelerationstructure.*
-import me.fexus.examples.hardwarevoxelraytracing.world.Scene
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
