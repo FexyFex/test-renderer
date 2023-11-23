@@ -1,6 +1,7 @@
 package me.fexus.voxel.octree.buffer
 
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 
 // Reference: https://github.com/Kotlin/kotlinx-io/blob/master/bytestring/common/src/ByteStringBuilder.kt (& epic Fxshlein code)
@@ -12,6 +13,7 @@ class SVOBufferBuilder {
 
     fun toByteBuffer(): ByteBuffer {
         val buffer = ByteBuffer.allocate(offset)
+        buffer.order(ByteOrder.LITTLE_ENDIAN)
         svoNodes.forEach {
             var offset = it.offset
             buffer.putInt(offset, it.childCount)
@@ -66,9 +68,12 @@ class SVOBufferBuilder {
     private class UnsafeBufferReference {
         var value: Int = -1
             set(newValue) {
-                if (this.value == -1) field = newValue
+                if (field == -1) field = newValue
             }
 
+        override fun toString(): String {
+            return "UnsafeBufferReference($value)"
+        }
     }
 }
 

@@ -1,15 +1,16 @@
-package me.fexus.examples.instancedrendering
+package me.fexus.examples.instancedrenderingoctree
 
 import me.fexus.camera.CameraPerspective
-import me.fexus.examples.instancedrenderingoctree.InstancedRenderingOctree
-import me.fexus.voxel.animation.model.AnimatedFishModel
 import me.fexus.math.mat.Mat4
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.Vec3
-import me.fexus.math.vec.Vec4
 import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.VoxelRegistry
+import me.fexus.voxel.octree.buffer.buildSVOBuffer
+import me.fexus.voxel.octree.buffer.createIndexedOctree
+import me.fexus.voxel.octree.buffer.createIndexedOctreeNodeList
 import me.fexus.voxel.type.CoalVoxel
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -42,7 +43,6 @@ import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
@@ -51,14 +51,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class InstancedRendering: VulkanRendererBase(createWindow()) {
+class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
             InstancedRenderingOctree().start()
         }
 
-        private fun createWindow() = Window("Instanced Rendering") {
+        private fun createWindow() = Window("Instanced Rendering with Voxel Octree (Stupid)") {
             windowVisible()
             enableResizable()
             setInitialWindowSize(1067,600)
@@ -74,7 +74,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
     private val camera = CameraPerspective(window.aspect)
 
-    private val voxelModel = AnimatedFishModel()
     private val randomChunk = SparseVoxelOctree()
 
     private lateinit var depthAttachment: VulkanImage
@@ -82,7 +81,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     private lateinit var indexBuffer: VulkanBuffer
     private lateinit var wireframeIndexBuffer: VulkanBuffer
     private lateinit var cameraBuffer: VulkanBuffer
-    private lateinit var instanceDataBuffer: VulkanBuffer
     private lateinit var octreeBuffer: VulkanBuffer
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
@@ -98,10 +96,12 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        camera.position = Vec3(-8f, -8f, -20f)
+        VoxelRegistry.init()
+
+        camera.position = Vec3(-8f, -8f, -30f)
 
         repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
-            if (Math.random() > 0.5)
+            if (Math.random() > 0.92)
                 randomChunk.insertIntoOctree(x, y, z, CoalVoxel)
         }
 
@@ -117,16 +117,15 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferConfig)
         // -- CAMERA BUFFER --
 
-        // -- INSTANCE DATA BUFFER --
-        val instanceBufferSize = voxelModel.voxelGrid.voxelCount * Vec4.SIZE_BYTES
-        val instanceBufferConfig = VulkanBufferConfiguration(
-            instanceBufferSize.toLong(),
+        // -- OCTREE BUFFER --
+        val octreeBufferSize = 50000
+        val octreeBufferConfig = VulkanBufferConfiguration(
+            octreeBufferSize.toLong(),
             MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
-        this.instanceDataBuffer = deviceUtil.createBuffer(instanceBufferConfig)
-        voxelModel.updateModel(0f)
-        updateInstanceDataBuffer()
+        this.octreeBuffer = deviceUtil.createBuffer(octreeBufferConfig)
+        writeOctreeBuffer()
         // -- INSTANCE DATA BUFFER --
 
         // Descriptor Sets and Pipeline
@@ -155,8 +154,8 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
                 VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/instancedrendering/standard_vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/instancedrendering/standard_frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/instancedrenderingoctree/standard_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/instancedrenderingoctree/standard_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = false, cullMode = CullMode.BACKFACE
         )
@@ -167,8 +166,8 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
                 VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/instancedrendering/wireframe_vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/instancedrendering/standard_frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/instancedrenderingoctree/wireframe_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/instancedrenderingoctree/standard_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = false, primitive = Primitive.LINES
         )
@@ -182,7 +181,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         val descWriteInstanceBuf = DescriptorBufferWrite(
             1, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(instanceDataBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            listOf(DescriptorBufferInfo(octreeBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
 
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteInstanceBuf)
@@ -259,16 +258,20 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         // WIREFRAME INDEX BUFFER
     }
 
-    private fun updateInstanceDataBuffer() = runMemorySafe {
-        val extent = voxelModel.voxelGrid.extent
-        val byteBuffer = allocate(instanceDataBuffer.config.size.toInt())
-        MemoryUtil.memSet(byteBuffer, 0)
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-        voxelModel.voxelGrid.forEachFilledVoxel { x, y, z, color ->
-            val offset = (z * extent * extent + y * extent + x) * Vec4.SIZE_BYTES
-            color.toByteBuffer(byteBuffer, offset)
+    private fun writeOctreeBuffer() = runMemorySafe {
+        val indexedOctree = createIndexedOctree(randomChunk.octree, 0).node
+        val octreeList = createIndexedOctreeNodeList(indexedOctree)
+        val byteBuffer = buildSVOBuffer {
+            octreeList.forEach{
+                append(it)
+            }
         }
-        instanceDataBuffer.put(0, byteBuffer)
+        println(byteBuffer.capacity())
+        val offheapBuf = allocate(byteBuffer.capacity())
+        repeat(byteBuffer.capacity()) {
+            offheapBuf.put(it, byteBuffer[it])
+        }
+        octreeBuffer.put(0, offheapBuf)
     }
 
     private fun frameUpdate(delta: Float) {
@@ -281,9 +284,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         view.toByteBufferColumnMajor(data, 0)
         proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data)
-
-        voxelModel.updateModel(delta)
-        updateInstanceDataBuffer()
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -406,12 +406,12 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            pPushConstants.putInt(0, voxelModel.voxelGrid.extent)
+            pPushConstants.putInt(0, SparseVoxelOctree.EXTENT)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
             val indexCount = CubeModelZeroToOne.indices.size
             val wireframeIndexCount = CubeModelZeroToOne.wireframeIndices.size
-            val instanceCount = voxelModel.voxelGrid.voxelCount
+            val instanceCount = SparseVoxelOctree.VOXEL_COUNT
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
@@ -424,7 +424,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, wireframePipeline.vkHandle)
             Mat4(1f)
-                .scale(Vec3(voxelModel.voxelGrid.extent.toFloat()))
+                .scale(Vec3(SparseVoxelOctree.EXTENT.toFloat()))
                 .toByteBufferColumnMajor(pPushConstants, 0)
             vkCmdPushConstants(commandBuffer.vkHandle, wireframePipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, wireframeIndexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
@@ -473,9 +473,9 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
         val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
 
-        camera.position.x += xMove * 0.1f
-        camera.position.y += yMove * 0.1f
-        camera.position.z += zMove * 0.1f
+        camera.position.x += xMove * delta * 3f
+        camera.position.y += yMove * delta * 3f
+        camera.position.z += zMove * delta * 3f
     }
 
     override fun onResizeDestroy() {
@@ -492,7 +492,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
         indexBuffer.destroy()
         wireframeIndexBuffer.destroy()
         cameraBuffer.destroy()
-        instanceDataBuffer.destroy()
+        octreeBuffer.destroy()
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)

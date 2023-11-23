@@ -4,28 +4,29 @@ import me.fexus.voxel.octree.IOctreeParentNode
 import me.fexus.voxel.octree.OctreeNodeDataVoxelType
 
 
+
 data class LastIndexAndNode(val lastIndex: Int, val node: IndexedOctreeNode)
 fun createIndexedOctree(parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, startingIndex: Int): LastIndexAndNode {
-    var currentIndex = startingIndex
+    var nextIndex = startingIndex + 1
 
     val children = mutableListOf<IndexedOctreeChildLink>()
-    parentNode.children.forEachIndexed { index, childNode ->
+    parentNode.children.forEachIndexed { octantIndex, childNode ->
         if (childNode == null) return@forEachIndexed
-        if (childNode is IOctreeParentNode) {
-            val packetThingy = createIndexedOctree(childNode, currentIndex++)
-            currentIndex = packetThingy.lastIndex
-            children.add(IndexedOctreeChildLink(index, IndexedOctreeNode(currentIndex++, childNode.nodeData, packetThingy.node.children)))
+        if (childNode is IOctreeParentNode && childNode.hasChildren) {
+            val packetThingy = createIndexedOctree(childNode, nextIndex)
+            children.add(IndexedOctreeChildLink(octantIndex, packetThingy.node))
+            nextIndex = packetThingy.lastIndex
         } else {
-            children.add(IndexedOctreeChildLink(index, IndexedOctreeNode(currentIndex++, childNode.nodeData, emptyList())))
+            children.add(IndexedOctreeChildLink(octantIndex, IndexedOctreeNode(nextIndex++, childNode.nodeData, emptyList())))
         }
     }
 
-    val indexedNode = IndexedOctreeNode(currentIndex++, parentNode.nodeData, children)
+    val indexedNode = IndexedOctreeNode(startingIndex, parentNode.nodeData, children)
 
-    return LastIndexAndNode(currentIndex, indexedNode)
+    return LastIndexAndNode(nextIndex, indexedNode)
 }
 
-fun getNodeList(rootNode: IndexedOctreeNode): List<IndexedOctreeNode> {
+fun createIndexedOctreeNodeList(rootNode: IndexedOctreeNode): List<IndexedOctreeNode> {
     val allNodes = mutableListOf<IndexedOctreeNode>()
     allNodes.add(rootNode)
     var nodeIndex = 0

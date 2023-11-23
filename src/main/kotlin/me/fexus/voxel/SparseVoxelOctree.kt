@@ -98,6 +98,7 @@ class SparseVoxelOctree {
 
     companion object {
         const val EXTENT = 16
+        const val VOXEL_COUNT = EXTENT * EXTENT * EXTENT
         private val bounds = 0 until EXTENT
         private val maxMipLevel = log2(EXTENT.toFloat()).roundToInt() - 1
 

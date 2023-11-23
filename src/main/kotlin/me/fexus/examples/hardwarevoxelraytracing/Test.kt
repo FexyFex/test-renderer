@@ -6,7 +6,7 @@ import me.fexus.voxel.SparseVoxelOctree
 import me.fexus.math.repeatCubed
 import me.fexus.voxel.octree.buffer.buildSVOBuffer
 import me.fexus.voxel.octree.buffer.createIndexedOctree
-import me.fexus.voxel.octree.buffer.getNodeList
+import me.fexus.voxel.octree.buffer.createIndexedOctreeNodeList
 import kotlin.system.measureNanoTime
 
 
@@ -23,7 +23,7 @@ fun main() {
 
         val time = measureNanoTime {
             val indexedOctree = createIndexedOctree(chunk.octree, 0).node
-            val nodeList = getNodeList(indexedOctree)
+            val nodeList = createIndexedOctreeNodeList(indexedOctree)
 
             val buf = buildSVOBuffer {
                 nodeList.forEach { append(it) }
