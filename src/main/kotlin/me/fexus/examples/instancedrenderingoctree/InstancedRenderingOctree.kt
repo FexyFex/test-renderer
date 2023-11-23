@@ -100,11 +100,6 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
         camera.position = Vec3(-8f, -8f, -30f)
 
-        repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
-            if (Math.random() > 0.92)
-                randomChunk.insertIntoOctree(x, y, z, CoalVoxel)
-        }
-
         createAttachmentImages()
         createMeshBuffers()
 
@@ -259,6 +254,12 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
     }
 
     private fun writeOctreeBuffer() = runMemorySafe {
+        randomChunk.clear()
+        repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
+            if (Math.random() > 0.92)
+                randomChunk.insertIntoOctree(x, y, z, CoalVoxel)
+        }
+
         val indexedOctree = createIndexedOctree(randomChunk.octree, 0).node
         val octreeList = createIndexedOctreeNodeList(indexedOctree)
         val byteBuffer = buildSVOBuffer {
@@ -284,6 +285,9 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         view.toByteBufferColumnMajor(data, 0)
         proj.toByteBufferColumnMajor(data, 64)
         cameraBuffer.put(0, data)
+
+        //octreeBuffer.set(0, 0, octreeBuffer.config.size)
+        //writeOctreeBuffer()
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -466,16 +470,16 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
     private fun handleInput(delta: Float) {
         val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
         val rotX = inputHandler.isKeyDown(Key.ARROW_UP).toInt() - inputHandler.isKeyDown(Key.ARROW_DOWN).toInt()
-        camera.rotation.x += rotX.toFloat() * 1.2f
-        camera.rotation.y += rotY.toFloat() * 1.2f
+        camera.rotation.x += rotX.toFloat() * 60f * delta
+        camera.rotation.y += rotY.toFloat() * 60f * delta
 
         val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
         val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
         val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
 
-        camera.position.x += xMove * delta * 3f
-        camera.position.y += yMove * delta * 3f
-        camera.position.z += zMove * delta * 3f
+        camera.position.x += xMove * delta * 5f
+        camera.position.y += yMove * delta * 5f
+        camera.position.z += zMove * delta * 5f
     }
 
     override fun onResizeDestroy() {

@@ -69,6 +69,10 @@ class SparseVoxelOctree {
         }
     }
 
+    fun clear() {
+        octree.children.fill(null)
+    }
+
     private fun getOctantIndexOfGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
         val mipExtent = EXTENT shr mipLevel
         val rel = (Vec3(globalPosition) / mipExtent).floor()

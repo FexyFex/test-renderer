@@ -6,7 +6,7 @@ import me.fexus.window.Window
 
 interface RenderApplication {
     fun startRenderLoop(window: Window, renderer: VulkanRendererBase) {
-        val desiredFPS = 60
+        val desiredFPS = 150
 
         val optimalTime: Double = 1.0 / desiredFPS
 
@@ -54,7 +54,7 @@ interface RenderApplication {
 
             // Frame limiting
             //------------------------------------------------------------------------------------------
-            //if (!AppInfo.cappedFPS) continue
+            // continue // use this if you want to set frames to UNLIMITED
 
             val nanosPerFrame = 1_000_000_000 / desiredFPS
             val frameEnd = frameStart + nanosPerFrame
