@@ -6,7 +6,7 @@ import me.fexus.window.Window
 
 interface RenderApplication {
     fun startRenderLoop(window: Window, renderer: VulkanRendererBase) {
-        val desiredFPS = 150
+        val desiredFPS = 200
 
         val optimalTime: Double = 1.0 / desiredFPS
 

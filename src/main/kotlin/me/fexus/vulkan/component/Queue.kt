@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import org.lwjgl.vulkan.VK10.vkGetDeviceQueue
 import org.lwjgl.vulkan.VkQueue

@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkSemaphoreCreateInfo

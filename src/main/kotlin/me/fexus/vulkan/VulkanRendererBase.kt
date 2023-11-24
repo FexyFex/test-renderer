@@ -1,7 +1,7 @@
 package me.fexus.vulkan
 
 import me.fexus.examples.RenderApplication
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.CommandPool
 import me.fexus.vulkan.component.Surface

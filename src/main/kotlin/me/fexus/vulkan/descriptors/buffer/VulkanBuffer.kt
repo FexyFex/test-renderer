@@ -1,6 +1,6 @@
 package me.fexus.vulkan.descriptors.buffer
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
@@ -18,14 +18,25 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     fun hasProperty(memProp: MemoryProperties) = memProp in config.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in config.usage
 
+    // This function works with HeapByteBuffers as well
     fun put(dstOffset: Int, data: ByteBuffer, srcOffset: Int = 0, srcSize: Int = data.capacity()) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
-            // Copy can be done without staging
+            // Put can be done without staging
             val address = getMemoryMappingHandle() + dstOffset
             repeat(srcSize) {
                 val lOffset = address + it
                 MemoryUtil.memPutByte(lOffset, data[it + srcOffset])
             }
+        } else {
+            throw Exception("Device local buffers require staging")
+        }
+    }
+
+    // This function only works with off-heap data
+    fun copy(srcAddress: Long, dstAddress: Long, size: Long) {
+        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+            // Copy can be done without staging
+            MemoryUtil.memCopy(srcAddress, dstAddress, size)
         } else {
             throw Exception("Device local buffers require staging")
         }

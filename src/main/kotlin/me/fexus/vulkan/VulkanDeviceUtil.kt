@@ -1,6 +1,6 @@
 package me.fexus.vulkan
 
-import me.fexus.memory.OffHeapSafeAllocator
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.accessmask.IAccessMask
 import me.fexus.vulkan.component.*
 import me.fexus.vulkan.component.pipeline.pipelinestage.IPipelineStage
@@ -37,7 +37,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
         commandPool.create(device, firstQueueFamily)
     }
 
-    fun beginSingleTimeCommandBuffer(): CommandBuffer = OffHeapSafeAllocator.runMemorySafe {
+    fun beginSingleTimeCommandBuffer(): CommandBuffer = runMemorySafe {
         val cmdBuf = CommandBuffer().create(device, commandPool)
 
         val beginInfo = calloc(VkCommandBufferBeginInfo::calloc) {
@@ -52,7 +52,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
         return@runMemorySafe cmdBuf
     }
 
-    fun endSingleTimeCommandBuffer(cmdBuf: CommandBuffer): Unit = OffHeapSafeAllocator.runMemorySafe {
+    fun endSingleTimeCommandBuffer(cmdBuf: CommandBuffer): Unit = runMemorySafe {
         vkEndCommandBuffer(cmdBuf.vkHandle)
 
         val pCommandBuffers = allocatePointer(1)
@@ -90,7 +90,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
 
         stagingBuffer.put(srcOffset.toInt(), srcData)
 
-        OffHeapSafeAllocator.runMemorySafe {
+        runMemorySafe {
             val cmdBuf = beginSingleTimeCommandBuffer()
 
             val copyRegion = calloc(VkBufferCopy::calloc, 1)
@@ -115,7 +115,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
         dstLayout: ImageLayout,
         srcPipelineStage: IPipelineStage,
         dstPipelineStage: IPipelineStage
-    ) = OffHeapSafeAllocator.runMemorySafe {
+    ) = runMemorySafe {
         val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
             aspectMask(image.config.imageAspect.vkBits)
             baseMipLevel(0)
@@ -152,7 +152,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
         dstLayout: ImageLayout,
         srcPipelineStage: IPipelineStage,
         dstPipelineStage: IPipelineStage
-    ) = OffHeapSafeAllocator.runMemorySafe {
+    ) = runMemorySafe {
         val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
             aspectMask(imageAspect.vkBits)
             baseMipLevel(0)
@@ -182,7 +182,7 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
 
     fun createBuffer(bufferConfiguration: VulkanBufferConfiguration) = bufferFactory.createBuffer(bufferConfiguration)
 
-    fun assignName(objHandle: Long, objType: Int, name: String) = OffHeapSafeAllocator.runMemorySafe {
+    fun assignName(objHandle: Long, objType: Int, name: String) = runMemorySafe {
         val debugNameInfo = calloc(VkDebugUtilsObjectNameInfoEXT::calloc) {
             sType(EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT)
             pNext(0)

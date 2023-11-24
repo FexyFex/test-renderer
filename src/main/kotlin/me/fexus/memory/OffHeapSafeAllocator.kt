@@ -13,7 +13,7 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 
-class OffHeapSafeAllocator private constructor(
+class OffHeapSafeAllocator (
     private val offHeapBuffersAddresses: MutableList<Long>,
     private val vkStructs: MutableList<Struct<*>>,
     private val vkStructBuffers: MutableList<StructBuffer<*,*>>
@@ -90,21 +90,20 @@ class OffHeapSafeAllocator private constructor(
         vkStructBuffers.add(structBuffer)
         return structBuffer
     }
+}
 
-    companion object {
-        @OptIn(ExperimentalContracts::class)
-        fun <R> runMemorySafe(block: OffHeapSafeAllocator.() -> R): R {
-            contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
-            val offHeapBufferAddresses = mutableListOf<Long>()
-            val vkStructs = mutableListOf<Struct<*>>()
-            val vkStructBuffers = mutableListOf<StructBuffer<*,*>>()
-            val context = OffHeapSafeAllocator(offHeapBufferAddresses, vkStructs, vkStructBuffers)
-            val ret = context.block()
-            offHeapBufferAddresses.forEach { MemoryUtil.nmemFree(it) }
-            vkStructs.forEach { it.free() }
-            vkStructBuffers.forEach { it.free() }
-            return ret
-        }
-    }
+@OptIn(ExperimentalContracts::class)
+fun <R> runMemorySafe(block: OffHeapSafeAllocator.() -> R): R {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+
+    val offHeapBufferAddresses = mutableListOf<Long>()
+    val vkStructs = mutableListOf<Struct<*>>()
+    val vkStructBuffers = mutableListOf<StructBuffer<*,*>>()
+    val context = OffHeapSafeAllocator(offHeapBufferAddresses, vkStructs, vkStructBuffers)
+    val ret = context.block()
+    offHeapBufferAddresses.forEach { MemoryUtil.nmemFree(it) }
+    vkStructs.forEach { it.free() }
+    vkStructBuffers.forEach { it.free() }
+    return ret
 }

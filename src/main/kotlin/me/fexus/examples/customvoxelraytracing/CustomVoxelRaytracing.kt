@@ -5,7 +5,7 @@ import me.fexus.examples.customvoxelraytracing.buffer.ChunkDataBufferArray
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModel
 import me.fexus.texture.TextureLoader
 import me.fexus.vulkan.util.FramePreparation

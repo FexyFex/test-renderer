@@ -3,7 +3,7 @@ package me.fexus.examples.parallaxmapping
 import me.fexus.camera.CameraPerspective
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.ParallaxMappingQuadModel
 import me.fexus.texture.TextureLoader
 import me.fexus.vulkan.util.FramePreparation

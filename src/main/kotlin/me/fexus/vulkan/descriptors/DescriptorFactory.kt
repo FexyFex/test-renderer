@@ -1,6 +1,6 @@
 package me.fexus.vulkan.descriptors
 
-import me.fexus.memory.OffHeapSafeAllocator
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
@@ -14,7 +14,7 @@ interface DescriptorFactory {
 
 
     fun findMemoryTypeIndex(typeBits: Int, memProps: MemoryProperties): Int {
-        return OffHeapSafeAllocator.runMemorySafe {
+        return runMemorySafe {
             val deviceMemProps = calloc(VkPhysicalDeviceMemoryProperties::calloc)
             VK12.vkGetPhysicalDeviceMemoryProperties(physicalDevice.vkHandle, deviceMemProps)
 

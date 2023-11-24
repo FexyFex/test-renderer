@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.window.Window
 import org.lwjgl.glfw.GLFWVulkan.glfwCreateWindowSurface
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR

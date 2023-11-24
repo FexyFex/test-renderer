@@ -1,6 +1,6 @@
 package me.fexus.vulkan.raytracing.accelerationstructure
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.Device

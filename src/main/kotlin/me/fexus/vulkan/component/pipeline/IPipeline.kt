@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component.pipeline
 
-import me.fexus.memory.OffHeapSafeAllocator
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import org.lwjgl.vulkan.VK12
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
@@ -10,7 +10,7 @@ interface IPipeline {
     val vkHandle: Long
     val vkLayoutHandle: Long
 
-    fun createShaderModule(device: Device, shaderCode: ByteArray): Long = OffHeapSafeAllocator.runMemorySafe {
+    fun createShaderModule(device: Device, shaderCode: ByteArray): Long = runMemorySafe {
         val pCode = allocate(shaderCode.size)
         shaderCode.forEachIndexed { index, byte -> pCode.put(index, byte) }
 

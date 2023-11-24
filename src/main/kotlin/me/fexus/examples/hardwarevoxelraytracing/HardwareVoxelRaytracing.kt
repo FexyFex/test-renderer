@@ -4,9 +4,14 @@ import me.fexus.camera.CameraPerspective
 import me.fexus.examples.hardwarevoxelraytracing.accelerationstructure.*
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.texture.TextureLoader
+import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.octree.buffer.buildSVOBuffer
+import me.fexus.voxel.octree.buffer.createIndexedOctree
+import me.fexus.voxel.octree.buffer.createIndexedOctreeNodeList
+import me.fexus.voxel.type.CoalVoxel
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
@@ -77,6 +82,8 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private val camera = CameraPerspective(window.aspect)
 
+    private val chunk = SparseVoxelOctree()
+
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer
     private lateinit var indexBuffer: VulkanBuffer
@@ -89,15 +96,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
     private lateinit var raytracingProperties: RaytracingProperties
     private lateinit var debugBuffer: VulkanBuffer
     private lateinit var aabbsBuffer: VulkanBuffer
+    private lateinit var octreeBuffer: VulkanBuffer
     private val bottomLevelAS = AABBBottomAccelerationStructure()
     private val topLevelAS = AABBTopLevelAccelerationStructure()
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val raytracingPipeline = RaytracingPipeline()
-    lateinit var raygenShaderBindingTable: VulkanBuffer
-    lateinit var missShaderBindingTable: VulkanBuffer
-    lateinit var closestHitShaderBindingTable: VulkanBuffer
+    private lateinit var raygenShaderBindingTable: VulkanBuffer
+    private lateinit var missShaderBindingTable: VulkanBuffer
+    private lateinit var closestHitShaderBindingTable: VulkanBuffer
+    private val wireframePipeline = GraphicsPipeline()
 
     private val aabbPosition = Vec3(0f, 0f, 0f)
     private val aabbTransform = Mat4(1f).translate(aabbPosition)
@@ -215,6 +224,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         deviceUtil.assignName(this.cameraBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "camera_uniform_buffer")
         // -- CAMERA BUFFER --
 
+        // -- OCTREE BUFFER --
+        val octreeBufferSize = 50000
+        val octreeBufferConfig = VulkanBufferConfiguration(
+            octreeBufferSize.toLong(),
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.STORAGE_BUFFER
+        )
+        this.octreeBuffer = deviceUtil.createBuffer(octreeBufferConfig)
+        writeOctreeBuffer()
+        // -- INSTANCE DATA BUFFER --
+
         // -- TEXTURES --
         val cobbleImageConfig = VulkanImageConfiguration(
                 ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(cobbleTexture.width, cobbleTexture.height, 1),
@@ -301,6 +321,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
                         DescriptorType.STORAGE_BUFFER,
                         ShaderStage.RAYGEN + ShaderStage.INTERSECTION,
                         DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    5, 1,
+                    DescriptorType.STORAGE_BUFFER,
+                    ShaderStage.INTERSECTION,
+                    DescriptorSetLayoutBindingFlag.NONE
                 )
             )
         )
@@ -350,6 +376,8 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
         this.aabbsBuffer.put(0, aabbsByteBuffer)
         // AABBS BUFFER
+
+        writeOctreeBuffer()
 
         initBottomLevelAccelerationStructure()
 
@@ -404,6 +432,17 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // DEBUG BUFFER
         debugBuffer.set(0, 0, 128L)
         // DEBUG BUFFER
+    }
+
+    private fun writeOctreeBuffer() = runMemorySafe {
+        chunk.clear()
+        chunk.setVoxelAt(0,0,0, CoalVoxel)
+        chunk.setVoxelAt(5,4,3, CoalVoxel)
+
+        val indexedOctree = createIndexedOctree(chunk.octree, 0).node
+        val octreeList = createIndexedOctreeNodeList(indexedOctree)
+        val byteBuffer = buildSVOBuffer { octreeList.forEach{ append(it) } }
+        octreeBuffer.put(0, byteBuffer)
     }
 
     private fun initBottomLevelAccelerationStructure() {
@@ -511,8 +550,12 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             listOf(DescriptorBufferInfo(debugBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
         val aabbsBufWrite = DescriptorBufferWrite(
-                4, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
-                listOf(DescriptorBufferInfo(aabbsBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            4, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
+            listOf(DescriptorBufferInfo(aabbsBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+        val octreeBufferWrite = DescriptorBufferWrite(
+            5, DescriptorType.STORAGE_BUFFER, 1, this.descriptorSet, 0,
+            listOf(DescriptorBufferInfo(octreeBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
 
         this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite, aabbsBufWrite)

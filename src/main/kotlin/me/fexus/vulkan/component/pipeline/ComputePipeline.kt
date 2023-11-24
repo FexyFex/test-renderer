@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component.pipeline
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
 import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantFloat

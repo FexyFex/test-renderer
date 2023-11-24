@@ -1,7 +1,7 @@
 package me.fexus.vulkan.component.debug
 
 import me.fexus.memory.OffHeapSafeAllocator
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Instance
 import me.fexus.vulkan.component.debug.utils.FullValidationHandler
 import me.fexus.vulkan.component.debug.utils.VulkanDebugCallback

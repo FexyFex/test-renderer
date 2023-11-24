@@ -1,6 +1,6 @@
 package me.fexus.texture
 
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import org.lwjgl.stb.STBImage
 import java.nio.ByteBuffer
 

@@ -7,7 +7,7 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.Vec3
 import me.fexus.math.vec.Vec4
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.voxel.SparseVoxelOctree
 import me.fexus.voxel.type.CoalVoxel
@@ -102,7 +102,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
             if (Math.random() > 0.5)
-                randomChunk.insertIntoOctree(x, y, z, CoalVoxel)
+                randomChunk.setVoxelAt(x, y, z, CoalVoxel)
         }
 
         createAttachmentImages()

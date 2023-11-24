@@ -11,8 +11,8 @@ import kotlin.math.*
 class SparseVoxelOctree {
     val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
-    fun insertIntoOctree(x: Int, y: Int, z: Int, voxelType: VoxelType) = insertIntoOctree(IVec3(x,y,z), voxelType)
-    fun insertIntoOctree(pos: IVec3, voxelType: VoxelType) {
+    fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType) = setVoxelAt(IVec3(x,y,z), voxelType)
+    fun setVoxelAt(pos: IVec3, voxelType: VoxelType) {
         assertCoords(pos)
         insertIntoOctreeRec(pos, voxelType, octree, 0)
     }

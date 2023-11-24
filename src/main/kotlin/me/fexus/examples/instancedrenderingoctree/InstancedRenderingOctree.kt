@@ -4,7 +4,7 @@ import me.fexus.camera.CameraPerspective
 import me.fexus.math.mat.Mat4
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.Vec3
-import me.fexus.memory.OffHeapSafeAllocator.Companion.runMemorySafe
+import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.voxel.SparseVoxelOctree
 import me.fexus.voxel.VoxelRegistry
@@ -257,7 +257,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         randomChunk.clear()
         repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
             if (Math.random() > 0.92)
-                randomChunk.insertIntoOctree(x, y, z, CoalVoxel)
+                randomChunk.setVoxelAt(x, y, z, CoalVoxel)
         }
 
         val indexedOctree = createIndexedOctree(randomChunk.octree, 0).node
@@ -267,12 +267,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
                 append(it)
             }
         }
-        println(byteBuffer.capacity())
-        val offheapBuf = allocate(byteBuffer.capacity())
-        repeat(byteBuffer.capacity()) {
-            offheapBuf.put(it, byteBuffer[it])
-        }
-        octreeBuffer.put(0, offheapBuf)
+        octreeBuffer.put(0, byteBuffer)
     }
 
     private fun frameUpdate(delta: Float) {

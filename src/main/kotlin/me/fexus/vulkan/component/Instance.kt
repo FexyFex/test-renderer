@@ -1,6 +1,6 @@
 package me.fexus.vulkan.component
 
-import me.fexus.memory.OffHeapSafeAllocator
+import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.debug.DebugUtilsMessenger
 import me.fexus.vulkan.layer.VulkanLayer
 import org.lwjgl.glfw.GLFWVulkan
@@ -13,7 +13,7 @@ class Instance() {
 
 
     fun create(layers: List<VulkanLayer>): Instance {
-        this.vkHandle = OffHeapSafeAllocator.runMemorySafe {
+        this.vkHandle = runMemorySafe {
             val appInfo = calloc(VkApplicationInfo::calloc) {
                 sType(VK12.VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 pNext(0)
