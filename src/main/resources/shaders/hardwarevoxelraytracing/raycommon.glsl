@@ -9,18 +9,5 @@ struct AABB {
     vec4 max;
 };
 
-struct VoxelData {
-    bool isVoid;
-    uint textureIndex;
-};
-
-
-VoxelData voxelDataFromInt(uint voxelDataInt) {
-    VoxelData data;
-    data.isVoid = (voxelDataInt >> 31) == 1;
-    data.textureIndex = voxelDataInt & 2147483647;
-    return data;
-}
-
 
 

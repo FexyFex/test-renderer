@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_GOOGLE_include_directive : enable
 #include "./raycommon.glsl"
+#include "./intersection_lib.glsl"
 
 
 layout(set = 0, binding = 3) buffer DebugBuffer { float arr[]; } debugBuffer;
@@ -11,33 +12,15 @@ layout(set = 0, binding = 5) buffer OctreeBuffer { int arr[]; } octreeBuffer;
 
 hitAttributeEXT vec3 hitPosition;
 
-vec2 intersectSphere(vec3 origin, vec3 direction, AABB aabb) {
-    vec3 center = aabb.min.xyz + ((aabb.max.xyz - aabb.min.xyz) / 2);
-    vec3 oc = origin - center;
-    float a = dot(direction, direction);
-    float b = dot(oc, direction);
-    float c = dot(oc, oc) - (0.5 * 0.5);
-    float discr = b * b - a * c;
 
-    vec2 t = vec2(-1.0, -1.0);
-    if (discr >= 0.0) {
-        float t0 = (-b - sqrt(discr)) / a;
-        float t1 = (-b + sqrt(discr)) / a;
-        t = vec2(t0, t1);
-    }
-
-    return t;
-}
-
-vec2 intersectAABB(vec3 origin, vec3 direction, AABB aabb) {
-    vec3  invDir = 1.0 / direction;
-    vec3  tbot   = invDir * (aabb.min.xyz - origin);
-    vec3  ttop   = invDir * (aabb.max.xyz - origin);
-    vec3  tmin   = min(ttop, tbot);
-    vec3  tmax   = max(ttop, tbot);
-    float t0     = max(tmin.x, max(tmin.y, tmin.z));
-    float t1     = min(tmax.x, min(tmax.y, tmax.z));
-    return t1 > max(t0, 0.0) ? vec2(t0, t1) : vec2(-1.0, -1.0);
+int getOctantIndexOfGlobalPositionInMipLevel(vec3 globalPos, int mipLevel) {
+    int mipExtent = extent >> mipLevel;
+    vec3 rel = floor(globalPos / mipExtent);
+    vec3 mid = (rel * mipExtent) + (mipExtent / 2.0);
+    int x = int(globalPos.x >= mid.x);
+    int y = int(globalPos.y >= mid.y);
+    int z = int(globalPos.z >= mid.z);
+    return x | (y << 1) | (z << 2);
 }
 
 void main() {
@@ -55,7 +38,6 @@ void main() {
         t = intersectAABB(rayOrigin, rayDirection, aabb);
         hitKind = HIT_KIND_AABB;
     }
-
 
     hitPosition = mod(rayOrigin + t.x * rayDirection, 1.0);
     reportIntersectionEXT(t.x, hitKind);

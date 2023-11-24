@@ -133,7 +133,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun createDescriptors() {
         camera.fov = 60f
-        camera.position = Vec3(0f, 0f, -5f)
+        camera.position = Vec3(-8f, -8f, -32f)
         camera.zNear = 0.1f
         camera.zFar = 512f
 
@@ -812,6 +812,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         closestHitShaderBindingTable.destroy()
         debugBuffer.destroy()
         aabbsBuffer.destroy()
+        octreeBuffer.destroy()
         raytracingPipeline.destroy(device)
         cobbleImage.destroy()
         vertexBuffer.destroy()
