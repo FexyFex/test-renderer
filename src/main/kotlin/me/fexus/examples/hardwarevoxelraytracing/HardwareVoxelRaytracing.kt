@@ -436,8 +436,9 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun writeOctreeBuffer() = runMemorySafe {
         chunk.clear()
-        chunk.setVoxelAt(0,0,0, CoalVoxel)
-        chunk.setVoxelAt(5,4,3, CoalVoxel)
+        repeat(SparseVoxelOctree.EXTENT) {
+            chunk.setVoxelAt(it, it, it, CoalVoxel)
+        }
 
         val indexedOctree = createIndexedOctree(chunk.octree, 0).node
         val octreeList = createIndexedOctreeNodeList(indexedOctree)
