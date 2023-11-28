@@ -2,7 +2,6 @@ package me.fexus.examples.instancedrenderingoctree
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.math.mat.Mat4
-import me.fexus.math.repeatCubed
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
@@ -255,10 +254,13 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
     private fun writeOctreeBuffer() = runMemorySafe {
         randomChunk.clear()
-        repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
-            if (Math.random() > 0.92)
-                randomChunk.setVoxelAt(x, y, z, CoalVoxel)
-        }
+        randomChunk.setVoxelAt(0, 0, 0, CoalVoxel)
+        randomChunk.setVoxelAt(0, 1, 0, CoalVoxel)
+        randomChunk.setVoxelAt(1, 5, 0, CoalVoxel)
+        //repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
+        //    if (Math.random() > 0.92)
+        //        randomChunk.setVoxelAt(x, y, z, CoalVoxel)
+        //}
 
         val indexedOctree = createIndexedOctree(randomChunk.octree, 0).node
         val octreeList = createIndexedOctreeNodeList(indexedOctree)
@@ -464,12 +466,12 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
     private fun handleInput(delta: Float) {
         val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
-        val rotX = inputHandler.isKeyDown(Key.ARROW_UP).toInt() - inputHandler.isKeyDown(Key.ARROW_DOWN).toInt()
+        val rotX = inputHandler.isKeyDown(Key.ARROW_DOWN).toInt() - inputHandler.isKeyDown(Key.ARROW_UP).toInt()
         camera.rotation.x += rotX.toFloat() * 60f * delta
         camera.rotation.y += rotY.toFloat() * 60f * delta
 
         val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
+        val yMove = inputHandler.isKeyDown(Key.LSHIFT).toInt() - inputHandler.isKeyDown(Key.SPACE).toInt()
         val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
 
         camera.position.x += xMove * delta * 5f

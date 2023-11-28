@@ -55,7 +55,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            InstancedRenderingOctree().start()
+            InstancedRendering().start()
         }
 
         private fun createWindow() = Window("Instanced Rendering") {
@@ -83,7 +83,6 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     private lateinit var wireframeIndexBuffer: VulkanBuffer
     private lateinit var cameraBuffer: VulkanBuffer
     private lateinit var instanceDataBuffer: VulkanBuffer
-    private lateinit var octreeBuffer: VulkanBuffer
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
@@ -465,17 +464,17 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
     private fun handleInput(delta: Float) {
         val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
-        val rotX = inputHandler.isKeyDown(Key.ARROW_UP).toInt() - inputHandler.isKeyDown(Key.ARROW_DOWN).toInt()
-        camera.rotation.x += rotX.toFloat() * 1.2f
-        camera.rotation.y += rotY.toFloat() * 1.2f
+        val rotX = inputHandler.isKeyDown(Key.ARROW_DOWN).toInt() - inputHandler.isKeyDown(Key.ARROW_UP).toInt()
+        camera.rotation.x += rotX.toFloat() * 60f * delta
+        camera.rotation.y += rotY.toFloat() * 60f * delta
 
         val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
+        val yMove = inputHandler.isKeyDown(Key.LSHIFT).toInt() - inputHandler.isKeyDown(Key.SPACE).toInt()
         val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
 
-        camera.position.x += xMove * 0.1f
-        camera.position.y += yMove * 0.1f
-        camera.position.z += zMove * 0.1f
+        camera.position.x += xMove * 10f * delta
+        camera.position.y += yMove * 10f * delta
+        camera.position.z += zMove * 10f * delta
     }
 
     override fun onResizeDestroy() {

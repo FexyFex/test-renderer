@@ -47,7 +47,7 @@ class AnimatedFishModel : AnimatedVoxelModel(16) {
         },
 
         // Eyes
-        VoxelHotspot(0, Vec3(-2f, -1f, 0f), IVec3(0, 0, 1)) { pos ->
+        VoxelHotspot(0, Vec3(-2f, 1f, 0f), IVec3(0, 0, 1)) { pos ->
             if (pos.z != 0) Vec4(0f, 0f, 0f, 1f) else Vec4(0f)
         },
 

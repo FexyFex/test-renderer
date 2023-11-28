@@ -39,6 +39,8 @@ class CameraPerspective(var aspect: Float) {
         res[2][2] = -(zFar + zNear) / (zFar - zNear)
         res[3][2] = -(2f * zFar * zNear) / (zFar - zNear)
 
+        res.y.y *= -1
+
         return res
     }
 

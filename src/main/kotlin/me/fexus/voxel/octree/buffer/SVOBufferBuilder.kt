@@ -14,21 +14,25 @@ class SVOBufferBuilder {
     fun toByteBuffer(): ByteBuffer {
         val buffer = ByteBuffer.allocate(offset)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
+        toByteBuffer(buffer, 0)
+        return buffer
+    }
+
+    fun toByteBuffer(buffer: ByteBuffer, offset: Int) {
         svoNodes.forEach {
-            var offset = it.offset
-            buffer.putInt(offset, it.childCount)
-            offset += Int.SIZE_BYTES
+            var lOffset = it.offset + offset
+            buffer.putInt(lOffset, it.childCount) // could be 16 bits
+            lOffset += Int.SIZE_BYTES
 
             it.childPointers.forEach { childPointer ->
                 assert(childPointer.reference.value > 0)
 
-                buffer.putInt(offset, childPointer.octantIndex)
-                offset += Int.SIZE_BYTES
-                buffer.putInt(offset, childPointer.reference.value)
-                offset += Int.SIZE_BYTES
+                buffer.putInt(lOffset, childPointer.octantIndex) // could be 3 or 4 bits
+                lOffset += Int.SIZE_BYTES
+                buffer.putInt(lOffset, childPointer.reference.value) // could be 16 bits
+                lOffset += Int.SIZE_BYTES
             }
         }
-        return buffer
     }
 
 
