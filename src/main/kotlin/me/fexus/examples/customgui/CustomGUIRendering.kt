@@ -1,8 +1,6 @@
 package me.fexus.examples.customgui
 
-import me.fexus.examples.customgui.component.SpatialComponent
-import me.fexus.examples.customgui.component.TextureRect
-import me.fexus.examples.customgui.component.TexturedComponent
+import me.fexus.examples.customgui.component.*
 import me.fexus.examples.customgui.component.alignment.ComponentAlignment
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.IVec3
@@ -13,6 +11,7 @@ import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
 import me.fexus.vulkan.accessmask.AccessMask
+import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPool
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolPlan
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolSize
@@ -45,13 +44,11 @@ import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
-import me.fexus.window.input.InputHandler
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
-import java.awt.event.ComponentEvent
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -71,15 +68,15 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             setInitialWindowPosition(400, 300)
             enableAutoIconify()
         }
-
-        private fun Boolean.toInt(): Int = if (this) 1 else 0
     }
 
-    private val inputHandler = InputHandler(window)
+    //private val inputHandler = InputHandler(window)
 
+    private val glyphAtlas = GlyphAtlas()
     private val gui = GUI()
-    private val images = mutableMapOf<Int, VulkanImage>()
 
+    private val images = mutableMapOf<Int, VulkanImage>()
+    private lateinit var glyphImage: VulkanImage
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer
     private lateinit var indexBuffer: VulkanBuffer
@@ -94,7 +91,8 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     fun start() {
         initVulkanCore()
         initObjects()
-        createGUIObjects()
+        createGUIDescriptors()
+        createGUI()
         createDescriptorSet()
         startRenderLoop(window, this)
     }
@@ -173,7 +171,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     }
 
 
-    private fun createGUIObjects() {
+    private fun createGUIDescriptors() {
         val texture0 = TextureLoader("textures/customgui/texture0.jpg")
         val image0Config = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(texture0.width, texture0.height, 1),
@@ -187,9 +185,9 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
             BufferUsage.TRANSFER_SRC
         )
-        val stagingBuf = deviceUtil.createBuffer(stagingBufConfig)
+        val img0stagingBuf = deviceUtil.createBuffer(stagingBufConfig)
 
-        stagingBuf.copy(MemoryUtil.memAddress(texture0.pixels), 0, texture0.imageSize)
+        img0stagingBuf.copy(MemoryUtil.memAddress(texture0.pixels), 0, texture0.imageSize)
 
         runMemorySafe {
             deviceUtil.runSingleTimeCommands { cmdBuf ->
@@ -210,7 +208,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
 
                 vkCmdCopyBufferToImage(
                     cmdBuf.vkHandle,
-                    stagingBuf.vkBufferHandle, image0.vkImageHandle,
+                    img0stagingBuf.vkBufferHandle, image0.vkImageHandle,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegion
                 )
 
@@ -223,13 +221,89 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             }
         }
 
-        stagingBuf.destroy()
+        img0stagingBuf.destroy()
 
-        val rect = TextureRect(
-            IVec3(0, 0, 1), IVec2(128, 32), 0,
-            ComponentAlignment.TOP + ComponentAlignment.RIGHT
+        val textImageConfig = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D,
+            ImageExtent3D(glyphAtlas.glyphWidth * 12, glyphAtlas.glyphHeight, 1),
+            1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
+            ImageAspect.COLOR, ImageUsage.TRANSFER_DST + ImageUsage.SAMPLED, MemoryProperty.DEVICE_LOCAL
         )
-        gui.addComponent(rect)
+        images[1] = deviceUtil.createImage(textImageConfig)
+
+        val glyphImageConfig = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D,
+            ImageExtent3D(glyphAtlas.texture.width, glyphAtlas.texture.height, 1),
+            1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
+            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_SRC + ImageUsage.TRANSFER_DST,
+            MemoryProperty.DEVICE_LOCAL
+        )
+        this.glyphImage = deviceUtil.createImage(glyphImageConfig)
+
+        val glyphStagingBufConfig = VulkanBufferConfiguration(
+            glyphAtlas.texture.imageSize,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.TRANSFER_SRC
+        )
+        val glyphStagingBuf = deviceUtil.createBuffer(glyphStagingBufConfig)
+        glyphStagingBuf.copy(MemoryUtil.memAddress(glyphAtlas.texture.pixels), 0L, glyphAtlas.texture.imageSize)
+
+        runMemorySafe {
+            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
+
+            deviceUtil.cmdTransitionImageLayout(
+                cmdBuf, images[1]!!,
+                AccessMask.NONE, AccessMask.SHADER_READ,
+                ImageLayout.UNDEFINED, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                PipelineStage.BOTTOM_OF_PIPE, PipelineStage.FRAGMENT_SHADER
+            )
+
+            deviceUtil.cmdTransitionImageLayout(
+                cmdBuf, glyphImage,
+                AccessMask.NONE, AccessMask.TRANSFER_WRITE,
+                ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
+                PipelineStage.BOTTOM_OF_PIPE, PipelineStage.TRANSFER
+            )
+
+            val subResourceLayer = calloc(VkImageSubresourceLayers::calloc) {
+                set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            }
+            val extent3D = calloc(VkExtent3D::calloc) { set(glyphAtlas.texture.width, glyphAtlas.texture.height, 1) }
+            val offset3D = calloc(VkOffset3D::calloc) { set(0, 0, 0) }
+            val copy = calloc(VkBufferImageCopy::calloc, 1)
+            copy[0].set(0L, 0, 0, subResourceLayer, offset3D, extent3D)
+
+            vkCmdCopyBufferToImage(
+                cmdBuf.vkHandle,
+                glyphStagingBuf.vkBufferHandle, glyphImage.vkImageHandle,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy
+            )
+
+            deviceUtil.cmdTransitionImageLayout(
+                cmdBuf, glyphImage,
+                AccessMask.TRANSFER_WRITE, AccessMask.TRANSFER_READ,
+                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.TRANSFER_SRC_OPTIMAL,
+                PipelineStage.TRANSFER, PipelineStage.TRANSFER
+            )
+
+            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+        }
+
+        glyphStagingBuf.destroy()
+    }
+
+
+    private fun createGUI() {
+        val textScale = 5
+        val textRect = TextRect(
+            IVec3(0, 0, 1),
+            IVec2(glyphAtlas.glyphWidth * 12 * textScale, glyphAtlas.glyphHeight * textScale),
+            1, ComponentAlignment.CENTERED, "hello world!"
+        )
+        gui.addComponent(textRect)
+
+        val dummyRect = TextureRect(IVec3(0, 64, 2), IVec2(64, 16) * 5, 0, ComponentAlignment.CENTERED)
+        gui.addComponent(dummyRect)
     }
 
 
@@ -303,12 +377,12 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     }
 
 
-    private fun frameUpdate(delta: Float) {
-        handleInput(delta)
+    private fun frameUpdate() {
+        handleInput()
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
-        frameUpdate(delta)
+        frameUpdate()
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -409,6 +483,9 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             0, null, null, swapToRenderingBarrier
         )
 
+        val guiComponents = gui.getAllComponents().filterIsInstance<SpatialComponent>()
+        updateGUIText(commandBuffer, guiComponents.filterIsInstance<TextComponent>())
+
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
@@ -438,7 +515,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, indexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
 
-            gui.getAllComponents().filterIsInstance<SpatialComponent>().forEach {
+            guiComponents.forEach {
                 it.position.toByteBuffer(pPushConstants, 0)
                 it.extent.toByteBuffer(pPushConstants, 8)
                 pPushConstants.putInt(16, it.position.z)
@@ -483,7 +560,58 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         return@runMemorySafe FrameSubmitData(preparation.acquireSuccessful, preparation.imageIndex)
     }
 
-    private fun handleInput(delta: Float) {
+    private fun updateGUIText(cmdBuf: CommandBuffer, textComponents: List<TextComponent>) {
+        textComponents.filter { it.textRequiresUpdate }.forEach {
+            // Transition the component's texture to TRANSFER_DST first
+            val targetImage = images[it.textureIndex]!!
+            deviceUtil.cmdTransitionImageLayout(
+                cmdBuf, targetImage,
+                AccessMask.SHADER_READ, AccessMask.TRANSFER_WRITE,
+                ImageLayout.SHADER_READ_ONLY_OPTIMAL, ImageLayout.TRANSFER_DST_OPTIMAL,
+                PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
+            )
+
+            blitCharacters(cmdBuf, it.text, targetImage)
+
+            deviceUtil.cmdTransitionImageLayout(
+                cmdBuf, targetImage,
+                AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
+                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+            )
+
+            it.textRequiresUpdate = false
+        }
+    }
+
+    private fun blitCharacters(cmdBuf: CommandBuffer, text: String, dstImage: VulkanImage) = runMemorySafe {
+        val glyphHeight = dstImage.config.extent.height
+        val glyphWidth = (glyphHeight / glyphAtlas.glyphHeight) * glyphAtlas.glyphWidth
+        val pRegions = calloc(VkImageBlit::calloc, text.length)
+
+        repeat(text.length) { i ->
+            val glyphBounds = glyphAtlas.getGlyphBounds(text[i])
+
+            val dstMin = IVec2(i * glyphWidth, 0)
+            val dstMax = IVec2(i * glyphWidth + glyphWidth, glyphHeight)
+
+            pRegions[i].srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            pRegions[i].dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            pRegions[i].srcOffsets(0).x(glyphBounds.min.x).y(glyphBounds.min.y).z(0)
+            pRegions[i].srcOffsets(1).x(glyphBounds.max.x).y(glyphBounds.max.y).z(1)
+            pRegions[i].dstOffsets(0).x(dstMin.x).y(dstMin.y).z(0)
+            pRegions[i].dstOffsets(1).x(dstMax.x).y(dstMax.y).z(1)
+        }
+
+        vkCmdBlitImage(
+            cmdBuf.vkHandle,
+            glyphImage.vkImageHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            dstImage.vkImageHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            pRegions, VK_FILTER_NEAREST
+        )
+    }
+
+    private fun handleInput() {
     }
 
     private fun writeScreenInfoBuffer(extent: IVec2) {
@@ -506,6 +634,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
 
     override fun destroy() {
         device.waitIdle()
+        glyphImage.destroy()
         vertexBuffer.destroy()
         indexBuffer.destroy()
         screenInfoBuffer.destroy()
