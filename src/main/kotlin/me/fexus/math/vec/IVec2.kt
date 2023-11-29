@@ -1,5 +1,7 @@
 package me.fexus.math.vec
 
+import java.nio.ByteBuffer
+
 data class IVec2(override var x: Int, override var y: Int): TVec2<Int>() {
     constructor(s: Int): this(s,s)
 
@@ -28,4 +30,10 @@ data class IVec2(override var x: Int, override var y: Int): TVec2<Int>() {
     override operator fun unaryMinus(): IVec2 = IVec2(-x, -y)
 
     override fun dot(other: TVec2<Int>): Int = this.x * other.x + this.y * other.y
+
+
+    fun toByteBuffer(buffer: ByteBuffer, offset: Int) {
+        buffer.putInt(offset, x)
+        buffer.putInt(offset + Int.SIZE_BYTES, y)
+    }
 }

@@ -47,7 +47,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val device; get() = core.device
     protected val physicalDevice; get() = core.physicalDevice
 
-    protected val deviceUtil = VulkanDeviceUtil(core.device, bufferFactory)
+    protected val deviceUtil = VulkanDeviceUtil(core.device, bufferFactory, imageFactory)
 
 
     fun initVulkanCore(extensions: List<DeviceExtension> = emptyList()): VulkanRendererBase {

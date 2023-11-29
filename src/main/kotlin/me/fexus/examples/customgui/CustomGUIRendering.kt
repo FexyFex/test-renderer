@@ -1,14 +1,18 @@
-package me.fexus.examples.parallaxmapping
+package me.fexus.examples.customgui
 
-import me.fexus.camera.CameraPerspective
-import me.fexus.math.mat.Mat4
-import me.fexus.math.vec.Vec3
+import me.fexus.examples.customgui.component.SpatialComponent
+import me.fexus.examples.customgui.component.TextureRect
+import me.fexus.examples.customgui.component.TexturedComponent
+import me.fexus.examples.customgui.component.alignment.ComponentAlignment
+import me.fexus.math.vec.IVec2
+import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
-import me.fexus.model.ParallaxMappingQuadModel
+import me.fexus.model.QuadModel
 import me.fexus.texture.TextureLoader
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
+import me.fexus.vulkan.accessmask.AccessMask
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPool
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolPlan
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolSize
@@ -42,23 +46,24 @@ import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
-import me.fexus.window.input.Key
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
+import java.awt.event.ComponentEvent
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class ParallaxMapping: VulkanRendererBase(createWindow()) {
+class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            ParallaxMapping().start()
+            CustomGUIRendering().start()
         }
 
-        private fun createWindow() = Window("Parallax Mapping") {
+        private fun createWindow() = Window("Custom GUI Rendering") {
             windowVisible()
             enableResizable()
             setInitialWindowSize(1067,600)
@@ -70,33 +75,52 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         private fun Boolean.toInt(): Int = if (this) 1 else 0
     }
 
-    private val camera = CameraPerspective(window.aspect)
+    private val inputHandler = InputHandler(window)
+
+    private val gui = GUI()
+    private val images = mutableMapOf<Int, VulkanImage>()
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer
-    private lateinit var cameraBuffer: VulkanBuffer
-    private lateinit var imageArray: VulkanImage
+    private lateinit var indexBuffer: VulkanBuffer
+    private lateinit var screenInfoBuffer: VulkanBuffer
     private lateinit var sampler: VulkanSampler
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
 
-    private val planePosition = Vec3(0f, 0f, 0f)
-    private val modelMatrix = Mat4(1f).translate(planePosition)
-
-    private val inputHandler = InputHandler(window)
-
-    private var heightScale: Float = 0.5f
-
 
     fun start() {
         initVulkanCore()
         initObjects()
+        createGUIObjects()
+        createDescriptorSet()
         startRenderLoop(window, this)
     }
 
+
     private fun initObjects() {
+        createAttachmentImages()
+        createMeshBuffers()
+
+        // -- SCREEN INFO BUFFER --
+        val cameraBufferConfig = VulkanBufferConfiguration(
+            64L,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.UNIFORM_BUFFER
+        )
+        this.screenInfoBuffer = deviceUtil.createBuffer(cameraBufferConfig)
+        writeScreenInfoBuffer(window.extent2D)
+        // -- SCREEN INFO BUFFER --
+
+        // -- DEFAULT SAMPLER --
+        val samplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.NEAREST)
+        this.sampler = deviceUtil.createSampler(samplerConfig)
+        // -- DEFAULT SAMPLER --
+    }
+
+    private fun createAttachmentImages() {
         val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(swapchain.imageExtent, 1),
@@ -106,160 +130,116 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             MemoryProperty.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
+    }
 
-        // -- VERTEX BUFFER --
-        val vertexBufferData = ByteBuffer.allocate(ParallaxMappingQuadModel.SIZE_BYTES)
-        vertexBufferData.order(ByteOrder.LITTLE_ENDIAN)
-        ParallaxMappingQuadModel.vertices.forEachIndexed { index, fl ->
-            val offset = index * Float.SIZE_BYTES
-            vertexBufferData.putFloat(offset, fl)
+    private fun createMeshBuffers() {
+        // VERETX BUFFER
+        val vertexBufferSize = QuadModel.Vertex.SIZE_BYTES * QuadModel.vertices.size
+        val vertexBufferConfig = VulkanBufferConfiguration(
+            vertexBufferSize.toLong(),
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+        )
+        this.vertexBuffer = deviceUtil.createBuffer(vertexBufferConfig)
+
+        val vertexByteBuffer = ByteBuffer.allocate(vertexBufferSize)
+        vertexByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        QuadModel.vertices.forEachIndexed { index, vertex ->
+            val offset = index * QuadModel.Vertex.SIZE_BYTES
+            vertex.writeToByteBuffer(vertexByteBuffer, offset)
         }
-        val vertexBufferLayout = VulkanBufferConfiguration(
-            ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
-        )
-        this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
-        // Staging
-        val stagingVertexBufferLayout = VulkanBufferConfiguration(
-            ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
-            BufferUsage.TRANSFER_SRC
-        )
-        val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
-        stagingVertexBuffer.put(0, vertexBufferData, 0)
-        // Copy from Staging to Vertex Buffer
-        runMemorySafe {
-            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
 
-            val copyRegion = calloc(VkBufferCopy::calloc, 1)
-            copyRegion[0]
-                .srcOffset(0)
-                .dstOffset(0)
-                .size(ParallaxMappingQuadModel.SIZE_BYTES.toLong())
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, vertexBuffer.vkBufferHandle, copyRegion)
+        deviceUtil.stagingCopy(vertexByteBuffer, vertexBuffer, 0L, 0L, vertexBufferSize.toLong())
+        // VERETX BUFFER
 
-            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+        // INDEX BUFFER
+        val indexBufferSize = QuadModel.indices.size * Int.SIZE_BYTES
+        val indexBufferConfig = VulkanBufferConfiguration(
+            indexBufferSize.toLong(),
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST
+        )
+        this.indexBuffer = deviceUtil.createBuffer(indexBufferConfig)
+
+        val indexByteBuffer = ByteBuffer.allocate(indexBufferSize)
+        indexByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        QuadModel.indices.forEachIndexed { index, cubeIndex ->
+            val offset = index * Int.SIZE_BYTES
+            indexByteBuffer.putInt(offset, cubeIndex)
         }
-        stagingVertexBuffer.destroy()
-        // -- VERTEX BUFFER --
 
-        // -- CAMERA BUFFER --
-        val cameraBufferLayout = VulkanBufferConfiguration(
-            128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
-        )
-        this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
-        // -- CAMERA BUFFER --
+        deviceUtil.stagingCopy(indexByteBuffer, indexBuffer, 0L, 0L, indexBufferSize.toLong())
+        // INDEX BUFFER
+    }
 
-        // -- IMAGES --
-        val diffTexture = TextureLoader("textures/parallaxmapping/diffuse.jpg")
-        val dispTexture = TextureLoader("textures/parallaxmapping/displacement.png")
-        val normTexture = TextureLoader("textures/parallaxmapping/normal.jpg")
-        val imageArrayLayout = VulkanImageConfiguration(
-            ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(diffTexture.width, diffTexture.height, 1),
-            1, 1, 3, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
+
+    private fun createGUIObjects() {
+        val texture0 = TextureLoader("textures/customgui/texture0.jpg")
+        val image0Config = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(texture0.width, texture0.height, 1),
+            1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
         )
-        this.imageArray = imageFactory.createImage(imageArrayLayout)
-
-        val stagingImageBufferLayout = VulkanBufferConfiguration(
-            diffTexture.imageSize * 3,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+        val image0 = deviceUtil.createImage(image0Config)
+        this.images[0] = image0
+        val stagingBufConfig = VulkanBufferConfiguration(
+            texture0.imageSize,
+            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
             BufferUsage.TRANSFER_SRC
         )
-        val imgStagingBuf = bufferFactory.createBuffer(stagingImageBufferLayout)
-        imgStagingBuf.put(0, diffTexture.pixels)
-        imgStagingBuf.put(diffTexture.imageSize.toInt(), dispTexture.pixels)
-        imgStagingBuf.put(dispTexture.imageSize.toInt() * 2, normTexture.pixels)
+        val stagingBuf = deviceUtil.createBuffer(stagingBufConfig)
+
+        stagingBuf.copy(MemoryUtil.memAddress(texture0.pixels), 0, texture0.imageSize)
+
         runMemorySafe {
-            val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
+            deviceUtil.runSingleTimeCommands { cmdBuf ->
+                deviceUtil.cmdTransitionImageLayout(
+                    cmdBuf, image0,
+                    AccessMask.NONE, AccessMask.TRANSFER_WRITE,
+                    ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
+                    PipelineStage.BOTTOM_OF_PIPE, PipelineStage.TRANSFER
+                )
 
-            val subResourceRange = calloc(VkImageSubresourceRange::calloc) {
-                aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                baseMipLevel(0)
-                levelCount(1)
-                baseArrayLayer(0)
-                layerCount(3)
+                val subResource = calloc(VkImageSubresourceLayers::calloc) {
+                    set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+                }
+                val offset3D = calloc(VkOffset3D::calloc) { set(0, 0, 0) }
+                val extent3D = calloc(VkExtent3D::calloc) { set(texture0.width, texture0.height, 1) }
+                val copyRegion = calloc(VkBufferImageCopy::calloc, 1)
+                copyRegion[0].set(0L, 0, 0, subResource, offset3D, extent3D)
+
+                vkCmdCopyBufferToImage(
+                    cmdBuf.vkHandle,
+                    stagingBuf.vkBufferHandle, image0.vkImageHandle,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegion
+                )
+
+                deviceUtil.cmdTransitionImageLayout(
+                    cmdBuf, image0,
+                    AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
+                    ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                    PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+                )
             }
-            val imageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-            imageBarrier[0]
-                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                .pNext(0)
-                .image(this@ParallaxMapping.imageArray.vkImageHandle)
-                .srcAccessMask(0)
-                .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                .oldLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-                .newLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-                .subresourceRange(subResourceRange)
-
-            vkCmdPipelineBarrier(
-                cmdBuf.vkHandle, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-                null, null, imageBarrier
-            )
-
-            val copyRegions = calloc(VkBufferImageCopy::calloc, 3)
-            copyRegions[0].bufferOffset(0L)
-            copyRegions[0].imageExtent().width(diffTexture.width).height(diffTexture.height).depth(1)
-            copyRegions[0].imageOffset().x(0).y(0).z(0)
-            copyRegions[0].imageSubresource()
-                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .mipLevel(0)
-                .baseArrayLayer(0)
-                .layerCount(1)
-
-            copyRegions[1].bufferOffset(diffTexture.imageSize)
-            copyRegions[1].imageExtent().width(diffTexture.width).height(diffTexture.height).depth(1)
-            copyRegions[1].imageOffset().x(0).y(0).z(0)
-            copyRegions[1].imageSubresource()
-                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .mipLevel(0)
-                .baseArrayLayer(1)
-                .layerCount(1)
-
-            copyRegions[2].bufferOffset(diffTexture.imageSize)
-            copyRegions[2].imageExtent().width(diffTexture.width).height(diffTexture.height).depth(1)
-            copyRegions[2].imageOffset().x(0).y(0).z(0)
-            copyRegions[2].imageSubresource()
-                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .mipLevel(0)
-                .baseArrayLayer(2)
-                .layerCount(1)
-
-            vkCmdCopyBufferToImage(
-                cmdBuf.vkHandle,
-                imgStagingBuf.vkBufferHandle, this@ParallaxMapping.imageArray.vkImageHandle,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copyRegions
-            )
-
-            imageBarrier[0]
-                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-
-            vkCmdPipelineBarrier(cmdBuf.vkHandle,
-                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-                null, null, imageBarrier
-            )
-
-            deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
-        imgStagingBuf.destroy()
-        // -- IMAGES --
 
-        // -- SAMPLER --
-        val samplerLayout = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.LINEAR)
-        this.sampler = imageFactory.createSampler(samplerLayout)
-        // -- SAMPLER --
+        stagingBuf.destroy()
 
+        val rect = TextureRect(
+            IVec3(0, 0, 1), IVec2(128, 32), 0,
+            ComponentAlignment.TOP + ComponentAlignment.RIGHT
+        )
+        gui.addComponent(rect)
+    }
+
+
+    private fun createDescriptorSet() {
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
             FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 1),
-                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 1),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 1),
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16),
                 DescriptorPoolSize(DescriptorType.SAMPLER, 1)
             )
         )
@@ -268,9 +248,24 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
-                DescriptorSetLayoutBinding(0, 1, DescriptorType.UNIFORM_BUFFER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
-                DescriptorSetLayoutBinding(1, 1, DescriptorType.SAMPLED_IMAGE, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE),
-                DescriptorSetLayoutBinding(2, 1, DescriptorType.SAMPLER, ShaderStage.BOTH, DescriptorSetLayoutBindingFlag.NONE)
+                DescriptorSetLayoutBinding(
+                    0, 1,
+                    DescriptorType.UNIFORM_BUFFER,
+                    ShaderStage.VERTEX,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    1, 16,
+                    DescriptorType.SAMPLED_IMAGE,
+                    ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                ),
+                DescriptorSetLayoutBinding(
+                    2, 1,
+                    DescriptorType.SAMPLER,
+                    ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.NONE
+                )
             )
         )
         this.descriptorSetLayout.create(device, setLayoutPlan)
@@ -281,47 +276,39 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             listOf(
                 VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
                 VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
-                VertexAttribute(2, VertexAttributeFormat.VEC4, 32),
-                VertexAttribute(3, VertexAttributeFormat.VEC4, 48),
-                VertexAttribute(4, VertexAttributeFormat.VEC4, 64)
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/parallaxmapping/vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/parallaxmapping/frag.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/customgui/standard_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/customgui/standard_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true
+            blendEnable = true, cullMode = CullMode.NONE
         )
         this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
 
-        // Update Descrfiptor Set
+        // Update Descriptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(
             0, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            listOf(DescriptorBufferInfo(screenInfoBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
         val descWriteTextures = DescriptorImageWrite(
-            1, DescriptorType.SAMPLED_IMAGE, 1, this.descriptorSet, 0,
-            listOf(
-                DescriptorImageInfo(0L, imageArray.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
-            )
+            1, DescriptorType.SAMPLED_IMAGE, images.size, this.descriptorSet, 0,
+            images.map { DescriptorImageInfo(0L, it.value.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL) }
         )
         val descWriteSampler = DescriptorImageWrite(
             2, DescriptorType.SAMPLER, 1, this.descriptorSet, 0,
-            listOf(DescriptorImageInfo(this.sampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL))
+            listOf(DescriptorImageInfo(sampler.vkHandle, 0L , ImageLayout.SHADER_READ_ONLY_OPTIMAL))
         )
 
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteTextures, descWriteSampler)
     }
 
-    override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
-        handleInput()
 
-        val view = camera.calculateView()
-        val proj = camera.calculateReverseZProjection()
-        val data = ByteBuffer.allocate(128)
-        data.order(ByteOrder.LITTLE_ENDIAN)
-        view.toByteBufferColumnMajor(data, 0)
-        proj.toByteBufferColumnMajor(data, 64)
-        cameraBuffer.put(0, data)
+    private fun frameUpdate(delta: Float) {
+        handleInput(delta)
+    }
+
+    override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
+        frameUpdate(delta)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -339,9 +326,9 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         val clearValueColor = calloc(VkClearValue::calloc) {
             color()
-                .float32(0, 0.5f)
+                .float32(0, 0.2f)
                 .float32(1, 0.2f)
-                .float32(2, 0.6f)
+                .float32(2, 0.2f)
                 .float32(3, 1.0f)
         }
 
@@ -440,20 +427,28 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            modelMatrix.toByteBufferColumnMajor(pPushConstants, 0)
-            Vec3(5f, 1.0f, 1f).toByteBuffer(pPushConstants, 64)
-            (-camera.position).toByteBuffer(pPushConstants, 80)
-            pPushConstants.putFloat(96, heightScale)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+            val indexCount = QuadModel.indices.size
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
             vkCmdBindDescriptorSets(commandBuffer.vkHandle, bindPoint, pipeline.vkLayoutHandle, 0, pDescriptorSets, null)
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, pipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-            vkCmdPushConstants(commandBuffer.vkHandle, pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
-            vkCmdDraw(commandBuffer.vkHandle, 6, 1, 0, 0)
+            vkCmdBindIndexBuffer(commandBuffer.vkHandle, indexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
+
+            gui.getAllComponents().filterIsInstance<SpatialComponent>().forEach {
+                it.position.toByteBuffer(pPushConstants, 0)
+                it.extent.toByteBuffer(pPushConstants, 8)
+                pPushConstants.putInt(16, it.position.z)
+                pPushConstants.putInt(20, it.alignment.bits)
+                if (it is TexturedComponent) {
+                    pPushConstants.putInt(24, it.textureIndex)
+                }
+                vkCmdPushConstants(commandBuffer.vkHandle, pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
+                vkCmdDrawIndexed(commandBuffer.vkHandle, indexCount, 1, 0, 0, 0)
+            }
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
@@ -488,22 +483,16 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         return@runMemorySafe FrameSubmitData(preparation.acquireSuccessful, preparation.imageIndex)
     }
 
-    private fun handleInput() {
-        val rotY = inputHandler.isKeyDown(Key.ARROW_RIGHT).toInt() - inputHandler.isKeyDown(Key.ARROW_LEFT).toInt()
-        val rotX = inputHandler.isKeyDown(Key.ARROW_DOWN).toInt() - inputHandler.isKeyDown(Key.ARROW_UP).toInt()
-        camera.rotation.x += rotX.toFloat() * 1.2f
-        camera.rotation.y += rotY.toFloat() * 1.2f
+    private fun handleInput(delta: Float) {
+    }
 
-        val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val yMove = inputHandler.isKeyDown(Key.LSHIFT).toInt() - inputHandler.isKeyDown(Key.SPACE).toInt()
-        val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
+    private fun writeScreenInfoBuffer(extent: IVec2) {
+        val buf = ByteBuffer.allocate(64)
+        buf.order(ByteOrder.LITTLE_ENDIAN)
+        buf.putInt(0, extent.x)
+        buf.putInt(Int.SIZE_BYTES, extent.y)
 
-        camera.position.x += xMove * 0.1f
-        camera.position.y += yMove * 0.1f
-        camera.position.z += zMove * 0.1f
-
-        val heightScaleChange = inputHandler.isKeyDown(Key.O).toInt() - inputHandler.isKeyDown(Key.P).toInt()
-        this.heightScale += heightScaleChange * 0.05f
+        screenInfoBuffer.put(0, buf)
     }
 
     override fun onResizeDestroy() {
@@ -511,24 +500,18 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
     }
 
     override fun onResizeRecreate(newExtent2D: ImageExtent2D) {
-        val depthAttachmentImageLayout = VulkanImageConfiguration(
-            ImageType.TYPE_2D, ImageViewType.TYPE_2D,
-            ImageExtent3D(newExtent2D, 1),
-            1, 1, 1,
-            ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
-            ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
-        )
-        depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
+        createAttachmentImages()
+        writeScreenInfoBuffer(IVec2(newExtent2D.width, newExtent2D.height))
     }
 
     override fun destroy() {
         device.waitIdle()
-        sampler.destroy(device)
-        imageArray.destroy()
         vertexBuffer.destroy()
-        cameraBuffer.destroy()
+        indexBuffer.destroy()
+        screenInfoBuffer.destroy()
         depthAttachment.destroy()
+        images.forEach { it.value.destroy() }
+        sampler.destroy(device)
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)
         pipeline.destroy(device)

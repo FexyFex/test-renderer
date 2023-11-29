@@ -41,7 +41,7 @@ import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
-import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.extension.*
 import me.fexus.vulkan.raytracing.*
 import me.fexus.vulkan.raytracing.RaytracingShaderGroup.Companion.UNUSED
@@ -264,7 +264,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- STORAGE IMAGE --
 
         // -- SAMPLER --
-        val samplerLayout = VulkanSamplerLayout(AddressMode.REPEAT, 1, Filtering.NEAREST)
+        val samplerLayout = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.sampler = imageFactory.createSampler(samplerLayout)
         deviceUtil.assignName(this.sampler.vkHandle, VK_OBJECT_TYPE_SAMPLER, "soompler")
         // -- SAMPLER --

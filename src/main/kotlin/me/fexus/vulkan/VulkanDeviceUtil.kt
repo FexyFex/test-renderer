@@ -12,7 +12,10 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.ImageLayout
 import me.fexus.vulkan.descriptors.image.VulkanImage
+import me.fexus.vulkan.descriptors.image.VulkanImageConfiguration
+import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
@@ -24,7 +27,11 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 
-class VulkanDeviceUtil(private val device: Device, private val bufferFactory: VulkanBufferFactory) {
+class VulkanDeviceUtil(
+    private val device: Device,
+    private val bufferFactory: VulkanBufferFactory,
+    private val imageFactory: VulkanImageFactory
+) {
     private val commandPool = CommandPool()
     private val firstQueue = Queue()
 
@@ -181,6 +188,8 @@ class VulkanDeviceUtil(private val device: Device, private val bufferFactory: Vu
     }
 
     fun createBuffer(bufferConfiguration: VulkanBufferConfiguration) = bufferFactory.createBuffer(bufferConfiguration)
+    fun createImage(imageConfiguration: VulkanImageConfiguration) = imageFactory.createImage(imageConfiguration)
+    fun createSampler(samplerConfiguration: VulkanSamplerConfiguration) = imageFactory.createSampler(samplerConfiguration)
 
     fun assignName(objHandle: Long, objType: Int, name: String) = runMemorySafe {
         val debugNameInfo = calloc(VkDebugUtilsObjectNameInfoEXT::calloc) {

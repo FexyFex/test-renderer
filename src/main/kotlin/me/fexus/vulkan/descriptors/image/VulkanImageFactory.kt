@@ -5,7 +5,7 @@ import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
-import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.exception.catchVK
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
@@ -27,24 +27,24 @@ class VulkanImageFactory: DescriptorFactory {
      * the function returns a VulkanImage with an altered VulkanImageLayout to indicate
      * the changes that were made during creation.
      */
-    fun createImage(preferredLayout: VulkanImageConfiguration): VulkanImage {
+    fun createImage(preferredConfig: VulkanImageConfiguration): VulkanImage {
         val image = runMemorySafe {
             val imageInfo = calloc(VkImageCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
                 pNext(0)
-                imageType(preferredLayout.imageType.vkValue)
-                mipLevels(preferredLayout.mipLevels)
-                arrayLayers(preferredLayout.arrayLayerCount)
-                format(preferredLayout.colorFormat.vkValue)
-                tiling(preferredLayout.imageTiling.vkValue)
+                imageType(preferredConfig.imageType.vkValue)
+                mipLevels(preferredConfig.mipLevels)
+                arrayLayers(preferredConfig.arrayLayerCount)
+                format(preferredConfig.colorFormat.vkValue)
+                tiling(preferredConfig.imageTiling.vkValue)
                 initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-                usage(preferredLayout.imageUsage.vkBits)
-                samples(preferredLayout.sampleCount)
-                sharingMode(preferredLayout.sharingMode)
+                usage(preferredConfig.imageUsage.vkBits)
+                samples(preferredConfig.sampleCount)
+                sharingMode(preferredConfig.sharingMode)
                 extent()
-                    .width(preferredLayout.extent.width)
-                    .height(preferredLayout.extent.height)
-                    .depth(preferredLayout.extent.depth)
+                    .width(preferredConfig.extent.width)
+                    .height(preferredConfig.extent.height)
+                    .depth(preferredConfig.extent.depth)
             }
 
             val pImageHandle = allocateLong(1)
@@ -53,7 +53,7 @@ class VulkanImageFactory: DescriptorFactory {
 
             val memRequirements = calloc(VkMemoryRequirements::calloc)
             vkGetImageMemoryRequirements(device.vkHandle, imageHandle, memRequirements)
-            val memoryTypeIndex = findMemoryTypeIndex(memRequirements.memoryTypeBits(), preferredLayout.memoryProperties)
+            val memoryTypeIndex = findMemoryTypeIndex(memRequirements.memoryTypeBits(), preferredConfig.memoryProperties)
 
             val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
@@ -72,50 +72,50 @@ class VulkanImageFactory: DescriptorFactory {
                 sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 pNext(0)
                 image(imageHandle)
-                viewType(preferredLayout.imageViewType.vkValue)
-                format(preferredLayout.colorFormat.vkValue)
+                viewType(preferredConfig.imageViewType.vkValue)
+                format(preferredConfig.colorFormat.vkValue)
                 subresourceRange()
-                    .aspectMask(preferredLayout.imageAspect.vkBits)
+                    .aspectMask(preferredConfig.imageAspect.vkBits)
                     .baseMipLevel(0)
-                    .levelCount(preferredLayout.mipLevels)
+                    .levelCount(preferredConfig.mipLevels)
                     .baseArrayLayer(0)
-                    .layerCount(preferredLayout.arrayLayerCount)
+                    .layerCount(preferredConfig.arrayLayerCount)
             }
 
             val pImageViewHandle = allocateLong(1)
             vkCreateImageView(device.vkHandle, viewInfo, null, pImageViewHandle).catchVK()
             val imageViewHandle = pImageViewHandle[0]
 
-            val actualLayout = VulkanImageConfiguration(
-                preferredLayout.imageType,
-                preferredLayout.imageViewType,
-                preferredLayout.extent,
-                preferredLayout.mipLevels,
-                preferredLayout.sampleCount,
-                preferredLayout.arrayLayerCount,
-                preferredLayout.colorFormat,
-                preferredLayout.imageTiling,
-                preferredLayout.imageAspect,
-                preferredLayout.imageUsage,
-                preferredLayout.memoryProperties,
-                preferredLayout.sharingMode,
+            val actualConfig = VulkanImageConfiguration(
+                preferredConfig.imageType,
+                preferredConfig.imageViewType,
+                preferredConfig.extent,
+                preferredConfig.mipLevels,
+                preferredConfig.sampleCount,
+                preferredConfig.arrayLayerCount,
+                preferredConfig.colorFormat,
+                preferredConfig.imageTiling,
+                preferredConfig.imageAspect,
+                preferredConfig.imageUsage,
+                preferredConfig.memoryProperties,
+                preferredConfig.sharingMode,
             )
 
-            return@runMemorySafe VulkanImage(device, imageHandle, imageMemoryHandle, imageViewHandle, actualLayout)
+            return@runMemorySafe VulkanImage(device, imageHandle, imageMemoryHandle, imageViewHandle, actualConfig)
         }
         return image
     }
 
-    fun createSampler(layout: VulkanSamplerLayout): VulkanSampler = runMemorySafe{
+    fun createSampler(samplerConfig: VulkanSamplerConfiguration): VulkanSampler = runMemorySafe{
         val createInfo = calloc(VkSamplerCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             pNext(0)
             flags(0)
-            minFilter(layout.filtering.vkValue)
-            magFilter(layout.filtering.vkValue)
-            addressModeU(layout.addressMode.vkValue)
-            addressModeV(layout.addressMode.vkValue)
-            addressModeW(layout.addressMode.vkValue)
+            minFilter(samplerConfig.filtering.vkValue)
+            magFilter(samplerConfig.filtering.vkValue)
+            addressModeU(samplerConfig.addressMode.vkValue)
+            addressModeV(samplerConfig.addressMode.vkValue)
+            addressModeW(samplerConfig.addressMode.vkValue)
             anisotropyEnable(false)
             maxAnisotropy(0f)
             borderColor(VK_BORDER_COLOR_INT_OPAQUE_BLACK)
@@ -124,13 +124,13 @@ class VulkanImageFactory: DescriptorFactory {
             compareOp(VK_COMPARE_OP_ALWAYS)
             mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
             minLod(0f)
-            maxLod(layout.mipLevels.toFloat())
+            maxLod(samplerConfig.mipLevels.toFloat())
             mipLodBias(0f)
         }
 
         val pSamplerHandle = allocateLong(1)
         vkCreateSampler(device.vkHandle, createInfo, null, pSamplerHandle)
 
-        return@runMemorySafe VulkanSampler(pSamplerHandle[0], layout)
+        return@runMemorySafe VulkanSampler(pSamplerHandle[0], samplerConfig)
     }
 }
