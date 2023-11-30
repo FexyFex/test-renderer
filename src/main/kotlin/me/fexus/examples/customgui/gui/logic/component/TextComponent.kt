@@ -1,4 +1,4 @@
-package me.fexus.examples.customgui.component
+package me.fexus.examples.customgui.gui.logic.component
 
 abstract class TextComponent(initialText: String): TexturedComponent() {
     var text: String = initialText

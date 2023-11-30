@@ -1,7 +1,9 @@
 package me.fexus.examples.customgui
 
-import me.fexus.examples.customgui.component.*
-import me.fexus.examples.customgui.component.alignment.ComponentAlignment
+import me.fexus.examples.customgui.gui.logic.LogicalGUI
+import me.fexus.examples.customgui.gui.logic.component.alignment.ComponentAlignment
+import me.fexus.examples.customgui.gui.graphic.GlyphAtlas
+import me.fexus.examples.customgui.gui.logic.component.*
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
@@ -44,6 +46,9 @@ import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
+import me.fexus.window.input.InputHandler
+import me.fexus.window.input.Key
+import me.fexus.window.input.event.InputEventSubscriber
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
@@ -51,9 +56,10 @@ import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_K
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.min
 
 
-class CustomGUIRendering: VulkanRendererBase(createWindow()) {
+class CustomGUIRendering: VulkanRendererBase(createWindow()), InputEventSubscriber {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -70,10 +76,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         }
     }
 
-    //private val inputHandler = InputHandler(window)
-
-    private val glyphAtlas = GlyphAtlas()
-    private val gui = GUI()
+    private val inputHandler = InputHandler(window)
 
     private val images = mutableMapOf<Int, VulkanImage>()
     private lateinit var glyphImage: VulkanImage
@@ -87,6 +90,9 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     private val descriptorSet = DescriptorSet()
     private val pipeline = GraphicsPipeline()
 
+    private val glyphAtlas = GlyphAtlas()
+    private val gui = LogicalGUI()
+
 
     fun start() {
         initVulkanCore()
@@ -94,6 +100,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         createGUIDescriptors()
         createGUI()
         createDescriptorSet()
+        subscribe(inputHandler)
         startRenderLoop(window, this)
     }
 
@@ -225,7 +232,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
 
         val textImageConfig = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
-            ImageExtent3D(glyphAtlas.glyphWidth * 12, glyphAtlas.glyphHeight, 1),
+            ImageExtent3D(12 * glyphAtlas.glyphWidth, glyphAtlas.glyphHeight, 1),
             1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.TRANSFER_DST + ImageUsage.SAMPLED, MemoryProperty.DEVICE_LOCAL
         )
@@ -294,16 +301,8 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
 
 
     private fun createGUI() {
-        val textScale = 5
-        val textRect = TextRect(
-            IVec3(0, 0, 1),
-            IVec2(glyphAtlas.glyphWidth * 12 * textScale, glyphAtlas.glyphHeight * textScale),
-            1, ComponentAlignment.CENTERED, "hello world!"
-        )
         gui.addComponent(textRect)
-
-        val dummyRect = TextureRect(IVec3(0, 64, 2), IVec2(64, 16) * 5, 0, ComponentAlignment.CENTERED)
-        gui.addComponent(dummyRect)
+        gui.addComponent(textureRect)
     }
 
 
@@ -516,9 +515,9 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, indexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
 
             guiComponents.forEach {
-                it.position.toByteBuffer(pPushConstants, 0)
+                it.localPosition.toByteBuffer(pPushConstants, 0)
                 it.extent.toByteBuffer(pPushConstants, 8)
-                pPushConstants.putInt(16, it.position.z)
+                pPushConstants.putInt(16, it.localPosition.z)
                 pPushConstants.putInt(20, it.alignment.bits)
                 if (it is TexturedComponent) {
                     pPushConstants.putInt(24, it.textureIndex)
@@ -571,7 +570,27 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
                 PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
             )
 
-            blitCharacters(cmdBuf, it.text, targetImage)
+            runMemorySafe {
+                val pClearColor = calloc(VkClearColorValue::calloc) {
+                    this.float32(0, 0f)
+                    this.float32(1, 0f)
+                    this.float32(2, 0f)
+                    this.float32(3, 0f)
+                }
+
+                val pRange = calloc(VkImageSubresourceRange::calloc) {
+                    set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+                }
+
+                vkCmdClearColorImage(
+                    cmdBuf.vkHandle, targetImage.vkImageHandle,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    pClearColor, pRange
+                )
+            }
+
+            if (it.text.isNotEmpty())
+                blitCharacters(cmdBuf, it.text, targetImage)
 
             deviceUtil.cmdTransitionImageLayout(
                 cmdBuf, targetImage,
@@ -588,12 +607,13 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         val glyphHeight = dstImage.config.extent.height
         val glyphWidth = (glyphHeight / glyphAtlas.glyphHeight) * glyphAtlas.glyphWidth
         val pRegions = calloc(VkImageBlit::calloc, text.length)
+        val maxX = dstImage.config.extent.width
 
         repeat(text.length) { i ->
             val glyphBounds = glyphAtlas.getGlyphBounds(text[i])
 
-            val dstMin = IVec2(i * glyphWidth, 0)
-            val dstMax = IVec2(i * glyphWidth + glyphWidth, glyphHeight)
+            val dstMin = IVec2(min(i * glyphWidth, maxX), 0)
+            val dstMax = IVec2(min(i * glyphWidth + glyphWidth, maxX), glyphHeight)
 
             pRegions[i].srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
             pRegions[i].dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
@@ -611,7 +631,16 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         )
     }
 
-    private fun handleInput() {
+    private fun handleInput() {}
+
+    override fun onCharTyped(char: Char) {
+        println(char)
+        textRect.text += char
+    }
+
+    override fun onKeyPressed(key: Key) {
+        if (key == Key.BACKSPACE)
+            textRect.text = if (textRect.text.isBlank()) "" else textRect.text.substring(0, textRect.text.length - 1)
     }
 
     private fun writeScreenInfoBuffer(extent: IVec2) {

@@ -1,4 +1,4 @@
-package me.fexus.examples.customgui.component.alignment
+package me.fexus.examples.customgui.gui.logic.component.alignment
 
 enum class ComponentAlignment(override val bits: Int): ComponentAlignments {
     LEFT(1),

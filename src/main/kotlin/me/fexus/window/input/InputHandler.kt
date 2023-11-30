@@ -2,12 +2,14 @@ package me.fexus.window.input
 
 import me.fexus.math.vec.Vec2
 import me.fexus.window.Window
+import me.fexus.window.input.event.InputEventPoster
 import org.lwjgl.glfw.GLFW
+import org.lwjgl.glfw.GLFWCharCallbackI
 import org.lwjgl.glfw.GLFWKeyCallbackI
 import org.lwjgl.glfw.GLFWMouseButtonCallbackI
 
 
-class InputHandler(private val window: Window) {
+class InputHandler(private val window: Window): InputEventPoster() {
     private val downKeys = mutableListOf<Key>()
     private val downMouseButtons = mutableListOf<MouseButton>()
 
@@ -17,6 +19,7 @@ class InputHandler(private val window: Window) {
                 val pressedKey = Key.getKeyByValue(key)
                 if (pressedKey != null) {
                     downKeys.add(pressedKey)
+                    postKeyPressed(pressedKey)
                 }
             }
 
@@ -24,6 +27,7 @@ class InputHandler(private val window: Window) {
                 val releasedKey = Key.getKeyByValue(key)
                 if (releasedKey != null) {
                     downKeys.remove(releasedKey)
+                    postKeyReleased(releasedKey)
                 }
             }
         }
@@ -34,6 +38,7 @@ class InputHandler(private val window: Window) {
                 val pressedButton = MouseButton.getButtonByValue(button)
                 if (pressedButton != null) {
                     downMouseButtons.add(pressedButton)
+                    postMouseButtonPressed(pressedButton)
                 }
             }
 
@@ -41,10 +46,16 @@ class InputHandler(private val window: Window) {
                 val releasedButton = MouseButton.getButtonByValue(button)
                 if (releasedButton != null) {
                     downMouseButtons.remove(releasedButton)
+                    postMouseButtonReleased(releasedButton)
                 }
             }
         }
         GLFW.glfwSetMouseButtonCallback(window.handle, mouseCallback)
+
+        val charCallback = GLFWCharCallbackI { _, charCode ->
+            postCharTyped(charCode.toChar())
+        }
+        GLFW.glfwSetCharCallback(window.handle, charCallback)
     }
 
     fun isKeyDown(key: Key): Boolean = key in downKeys

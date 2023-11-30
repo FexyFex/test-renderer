@@ -5,6 +5,9 @@ import java.nio.ByteBuffer
 data class IVec3(override var x: Int, override var y: Int, override var z: Int): TVec3<Int>() {
     constructor(s: Int): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toInt(), y.toInt(), z.toInt())
+    constructor(v2: IVec2, z: Int): this(v2.x, v2.y, z)
+
+    val xy: IVec2; get() = IVec2(x, y)
 
     override operator fun plus(other: TVec3<Int>): IVec3 = IVec3(this.x + other.x, this.y + other.y, this.z + other.z)
     override operator fun minus(other: TVec3<Int>): IVec3 = IVec3(this.x - other.x, this.y - other.y, this.z - other.z)
