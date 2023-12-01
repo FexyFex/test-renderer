@@ -23,6 +23,25 @@ int getOctantIndexOfGlobalPositionInMipLevel(vec3 globalPos, int mipLevel) {
     return x | (y << 1) | (z << 2);
 }
 
+OctantData traverseSVO() {
+    vec3 entryPoint = entryPointOfRayIntoChunk; //TODO: determine
+    vec3 rayDirection = gl_WorldRayDirectionEXT;
+    int octantIndex = rootNodeIndex; //TODO: 0 or something else?
+    while (true){
+        if (isOpaque(octantIndex)) {
+            return getData(octantIndex);
+        }
+        else if (hasChildren(octantIndex)) {
+            octantIndex = child.that.contains.entryPoint; //TODO: determine correct child node
+        }
+        else {
+            vec3 exitPoint = entryPoint + t * rayDirection; //TODO: determine t
+            octantIndex = octantIndex.behind.exitPoint; //TODO: determine correct sibling node
+            entryPoint = exitPoint;
+        }
+    }
+}
+
 void main() {
     vec3 rayOrigin = gl_WorldRayOriginEXT;
     vec3 rayDirection = gl_WorldRayDirectionEXT;
