@@ -1,11 +1,9 @@
 package me.fexus.examples.customgui
 
 import me.fexus.examples.customgui.gui.logic.LogicalGUI
-import me.fexus.examples.customgui.gui.logic.component.alignment.ComponentAlignment
 import me.fexus.examples.customgui.gui.graphic.GlyphAtlas
 import me.fexus.examples.customgui.gui.logic.component.*
 import me.fexus.math.vec.IVec2
-import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModel
 import me.fexus.texture.TextureLoader
