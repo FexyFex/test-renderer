@@ -196,7 +196,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
 
-            gui.recordGUIRenderCommands(commandBuffer, currentFrame, currentFrameInFlight)
+            gui.recordGUIRenderCommands(commandBuffer, currentFrame)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 

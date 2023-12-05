@@ -229,11 +229,7 @@ class FexVulkanGUI private constructor(
     }
 
 
-    fun recordGUIRenderCommands(
-        cmdBuf: CommandBuffer,
-        frameIndex: Int,
-        frameInFlightIndex: Int
-    ) = beginGUICommandBufferContext(cmdBuf) {
+    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandBufferContext(cmdBuf) {
         writeScreenInfoBuffer(frameIndex)
 
         assembledComponents
