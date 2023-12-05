@@ -1,4 +1,4 @@
-package me.fexus.examples.customgui.gui.logic.component.alignment
+package me.fexus.fexgui.logic.component.alignment
 
 interface ComponentAlignments {
     val bits: Int

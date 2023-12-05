@@ -28,7 +28,7 @@ import kotlin.contracts.contract
 
 
 class VulkanDeviceUtil(
-    private val device: Device,
+    val device: Device,
     private val bufferFactory: VulkanBufferFactory,
     private val imageFactory: VulkanImageFactory
 ) {

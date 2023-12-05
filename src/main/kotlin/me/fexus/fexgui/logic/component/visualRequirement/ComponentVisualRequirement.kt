@@ -1,0 +1,3 @@
+package me.fexus.fexgui.logic.component.visualRequirement
+
+sealed interface ComponentVisualRequirement

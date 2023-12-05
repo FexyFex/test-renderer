@@ -1,3 +1,3 @@
-package me.fexus.examples.customgui.gui.logic.component.alignment
+package me.fexus.fexgui.logic.component.alignment
 
 data class CombinedComponentAlignment(override val bits: Int): ComponentAlignments

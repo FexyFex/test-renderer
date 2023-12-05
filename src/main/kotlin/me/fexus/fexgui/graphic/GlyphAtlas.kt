@@ -1,4 +1,4 @@
-package me.fexus.examples.customgui.gui.graphic
+package me.fexus.fexgui.graphic
 
 import me.fexus.math.vec.IVec2
 import me.fexus.texture.TextureLoader
