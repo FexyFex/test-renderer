@@ -224,7 +224,7 @@ class FexVulkanGUI private constructor(
     }
 
 
-    fun tick() {
+    fun updateEvents() {
 
     }
 

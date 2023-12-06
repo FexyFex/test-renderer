@@ -1,11 +1,11 @@
 package me.fexus.fexgui.logic.component
 
-import me.fexus.fexgui.logic.component.visualRequirement.ComponentVisualRequirement
+import me.fexus.fexgui.logic.component.visual.VisualLayout
 import me.fexus.math.vec.IVec3
 
 
 abstract class SpatialComponent(var spatialData: ComponentSpatialData): LogicalUIComponent {
-    abstract val visualRequirements: ComponentVisualRequirement
+    abstract val visualLayout: VisualLayout
     override val children = mutableListOf<LogicalUIComponent>()
     override var destroyed: Boolean = false
 

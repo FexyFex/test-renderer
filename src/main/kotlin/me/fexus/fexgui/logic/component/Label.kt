@@ -1,6 +1,9 @@
 package me.fexus.fexgui.logic.component
 
-import me.fexus.fexgui.logic.component.visualRequirement.VisualRequirementOneEmptyTexture
+import me.fexus.fexgui.logic.component.visual.SubComponent
+import me.fexus.fexgui.logic.component.visual.SubComponentConfiguration
+import me.fexus.fexgui.logic.component.visual.VisualLayout
+
 
 class Label(
     override val parent: LogicalUIComponent?,
@@ -14,5 +17,9 @@ class Label(
         }
     override var textRequiresUpdate: Boolean = true
 
-    override val visualRequirements = VisualRequirementOneEmptyTexture
+    override val visualLayout: VisualLayout = VisualLayout(
+        listOf(
+            SubComponent { SubComponentConfiguration(this.spatialData, null, 2, 0) }
+        )
+    )
 }
