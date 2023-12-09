@@ -6,7 +6,6 @@ import me.fexus.fexgui.graphic.GraphicalUIVulkan
 import me.fexus.fexgui.graphic.vulkan.IndexedVulkanImage
 import me.fexus.fexgui.logic.LogicalUI
 import me.fexus.fexgui.logic.component.*
-import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.accessmask.AccessMask
@@ -66,7 +65,7 @@ class FexVulkanGUI private constructor(
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSets = Array(Globals.bufferStrategy) { DescriptorSet() }
     override val pipeline = GraphicsPipeline()
-    private val assembledComponents = mutableListOf<AssembledComponent>()
+    private val componentRenderers = mutableListOf<ComponentRenderer>()
 
 
     fun init() {
@@ -83,7 +82,7 @@ class FexVulkanGUI private constructor(
         this.glyphAtlasImage = deviceUtil.createImage(glyphAtlasImageConfig)
 
         val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
-        beginGUICommandBufferContext(cmdBuf) {
+        beginGUICommandRecordContext(cmdBuf) {
             transitionImageLayout(
                 glyphAtlasImage,
                 AccessMask.NONE, AccessMask.TRANSFER_READ,
@@ -229,28 +228,21 @@ class FexVulkanGUI private constructor(
     }
 
 
-    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandBufferContext(cmdBuf) {
+    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
         writeScreenInfoBuffer(frameIndex)
-
-        assembledComponents
-            .filter { it.logicComponent is TextComponent && it.logicComponent.textRequiresUpdate }
-            .forEach { updateTextComponent(it) }
 
         bindPipeline()
         bindVertexBuffer(vertexBuffer)
         bindIndexBuffer(indexBuffer)
 
-        runMemorySafe {
-            val pushConsts = allocate(128)
-            assembledComponents.forEach {
-                it.writePushConstantsBuffer(pushConsts)
-                pushConstants(pushConsts)
-                drawIndexed()
-            }
-        }
+        componentRenderers
+            .filter { it.logicComponent is TextComponent && it.logicComponent.textRequiresUpdate }
+            .forEach { updateTextComponent(it) }
+
+        componentRenderers.forEach { it.render(this) }
     }
 
-    private fun updateTextComponent(component: AssembledComponent) {
+    private fun updateTextComponent(component: ComponentRenderer) {
 
     }
 

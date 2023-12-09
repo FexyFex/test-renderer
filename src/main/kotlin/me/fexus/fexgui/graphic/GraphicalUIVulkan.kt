@@ -26,7 +26,7 @@ interface GraphicalUIVulkan {
     val indexBuffer: VulkanBuffer
 
 
-    fun beginGUICommandBufferContext(cmdBuf: CommandBuffer, recordBlock: CommandBufferContext.() -> Unit) {
+    fun beginGUICommandRecordContext(cmdBuf: CommandBuffer, recordBlock: CommandBufferContext.() -> Unit) {
         val context = CommandBufferContext(cmdBuf, pipeline)
         context.recordBlock()
     }
