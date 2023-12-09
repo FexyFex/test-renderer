@@ -1,6 +1,5 @@
 package me.fexus.fexgui
 
-import me.fexus.fexgui.graphic.component.GraphicalUIComponent
 import me.fexus.fexgui.logic.component.SpatialComponent
 import me.fexus.fexgui.util.put
 import java.nio.ByteBuffer

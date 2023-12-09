@@ -11,7 +11,7 @@ class GlyphAtlas {
         const val COLUMNS: Int = 5
     }
 
-    val texture = TextureLoader("textures/customgui/glyphs.png")
+    val texture = TextureLoader("fexgui/textures/glyphs.png")
     val glyphWidth = texture.width / COLUMNS
     val glyphHeight = texture.height / ROWS
 
