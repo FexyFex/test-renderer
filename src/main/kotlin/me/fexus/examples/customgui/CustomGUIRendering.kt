@@ -275,34 +275,6 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         }
     }
 
-    private fun blitCharacters(cmdBuf: CommandBuffer, text: String, dstImage: VulkanImage) = runMemorySafe {
-        val glyphHeight = dstImage.config.extent.height
-        val glyphWidth = (glyphHeight / glyphAtlas.glyphHeight) * glyphAtlas.glyphWidth
-        val pRegions = calloc(VkImageBlit::calloc, text.length)
-        val maxX = dstImage.config.extent.width
-
-        repeat(text.length) { i ->
-            val glyphBounds = glyphAtlas.getGlyphBounds(text[i])
-
-            val dstMin = IVec2(min(i * glyphWidth, maxX), 0)
-            val dstMax = IVec2(min(i * glyphWidth + glyphWidth, maxX), glyphHeight)
-
-            pRegions[i].srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
-            pRegions[i].dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
-            pRegions[i].srcOffsets(0).x(glyphBounds.min.x).y(glyphBounds.min.y).z(0)
-            pRegions[i].srcOffsets(1).x(glyphBounds.max.x).y(glyphBounds.max.y).z(1)
-            pRegions[i].dstOffsets(0).x(dstMin.x).y(dstMin.y).z(0)
-            pRegions[i].dstOffsets(1).x(dstMax.x).y(dstMax.y).z(1)
-        }
-
-        vkCmdBlitImage(
-            cmdBuf.vkHandle,
-            glyphImage.vkImageHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            dstImage.vkImageHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            pRegions, VK_FILTER_NEAREST
-        )
-    }
-
     private fun handleInput() {}
 
     override fun onResizeDestroy() {

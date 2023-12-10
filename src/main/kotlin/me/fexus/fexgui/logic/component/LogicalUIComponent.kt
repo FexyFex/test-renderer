@@ -16,6 +16,9 @@ interface LogicalUIComponent {
     fun append(createBlock: ComponentCreationContext.() -> Unit): LogicalUIComponent {
         val context = ComponentCreationContext(this)
         context.createBlock()
+        context.addedComponents
+            .filterIsInstance<SpatialComponent>()
+            .forEach { signalComponentAdded(it) }
         return this
     }
 
@@ -37,16 +40,22 @@ interface LogicalUIComponent {
         this.destroyed = true
     }
 
+    fun signalComponentAdded(component: SpatialComponent) {
+        parent!!.signalComponentAdded(component)
+    }
+
 
     class ComponentCreationContext(private val parent: LogicalUIComponent) {
+        val addedComponents = mutableListOf<LogicalUIComponent>()
+
         fun textField(
-            spatialData: ComponentSpatialData,
-            text: String, appendBlock:
-            ComponentCreationContext.() -> Unit = {},
+            spatialData: ComponentSpatialData, text: String,
+            appendBlock: ComponentCreationContext.() -> Unit = {},
         ): Label {
             val component = Label(parent, spatialData, text)
             parent.addComponent(component)
             component.append(appendBlock)
+            addedComponents.add(component)
             return component
         }
 
@@ -54,6 +63,7 @@ interface LogicalUIComponent {
             val component = PhantomComponent(parent)
             parent.addComponent(component)
             component.append(appendBlock)
+            addedComponents.add(component)
             return component
         }
     }

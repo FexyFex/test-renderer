@@ -6,12 +6,14 @@ import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.accessmask.IAccessMask
 import me.fexus.vulkan.component.CommandBuffer
+import me.fexus.vulkan.component.descriptor.set.DescriptorSet
 import me.fexus.vulkan.component.pipeline.GraphicsPipeline
 import me.fexus.vulkan.component.pipeline.pipelinestage.IPipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.image.ImageLayout
 import me.fexus.vulkan.descriptors.image.VulkanImage
+import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkImageBlit
 import org.lwjgl.vulkan.VkImageMemoryBarrier
@@ -33,6 +35,14 @@ interface GraphicalUIVulkan {
 
 
     class CommandBufferContext(private val commandBuffer: CommandBuffer, private val pipeline: GraphicsPipeline) {
+        fun bindDescriptorSet(set: DescriptorSet) = runMemorySafe {
+            val pSets = allocateLongValues(set.vkHandle)
+            vkCmdBindDescriptorSets(
+                commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.vkLayoutHandle,
+                0, pSets, null
+            )
+        }
+
         fun bindPipeline() {
             vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.vkHandle)
         }

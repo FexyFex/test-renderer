@@ -4,8 +4,11 @@ import me.fexus.examples.Globals
 import me.fexus.fexgui.graphic.GlyphAtlas
 import me.fexus.fexgui.graphic.GraphicalUIVulkan
 import me.fexus.fexgui.graphic.vulkan.IndexedVulkanImage
+import me.fexus.fexgui.graphic.vulkan.util.ImageBlit
+import me.fexus.fexgui.graphic.vulkan.util.ImageRegion
 import me.fexus.fexgui.logic.LogicalUI
 import me.fexus.fexgui.logic.component.*
+import me.fexus.math.vec.IVec2
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.accessmask.AccessMask
@@ -40,12 +43,16 @@ import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.util.ImageExtent3D
+import me.fexus.vulkan.util.Offset3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.event.InputEventSubscriber
+import org.lwjgl.vulkan.VK10.VK_WHOLE_SIZE
 import org.lwjgl.vulkan.VK12
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.channels.Pipe
+import kotlin.math.min
 
 
 class FexVulkanGUI private constructor(
@@ -106,13 +113,15 @@ class FexVulkanGUI private constructor(
                 VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
             ),
             PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/fexgui/standard_vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/fexgui/standard_frag.spv").readBytes(),
+            ClassLoader.getSystemResource("fexgui/shaders/standard_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("fexgui/shaders/standard_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, cullMode = CullMode.NONE
         )
         this.pipeline.create(deviceUtil.device, descriptorSetLayout, pipelineConfig)
         // PIPELINE
+
+        createDescriptorSets()
     }
 
     private fun createMeshBuffers() {
@@ -164,13 +173,13 @@ class FexVulkanGUI private constructor(
         screenSizeBuffers[frameIndex].put(0, buf)
     }
 
-    private fun createDescriptorSet() {
+    private fun createDescriptorSets() {
         // Descriptor Sets
         val poolPlan = DescriptorPoolPlan(
             Globals.bufferStrategy, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16),
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.bufferStrategy),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, Globals.bufferStrategy * MAX_IMAGE_COUNT),
                 DescriptorPoolSize(DescriptorType.SAMPLER, 1)
             )
         )
@@ -186,7 +195,7 @@ class FexVulkanGUI private constructor(
                     DescriptorSetLayoutBindingFlag.NONE
                 ),
                 DescriptorSetLayoutBinding(
-                    1, 16,
+                    1, MAX_IMAGE_COUNT,
                     DescriptorType.SAMPLED_IMAGE,
                     ShaderStage.FRAGMENT,
                     DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
@@ -207,7 +216,7 @@ class FexVulkanGUI private constructor(
             // Update Descriptor Set
             val descWriteCameraBuf = DescriptorBufferWrite(
                 0, DescriptorType.UNIFORM_BUFFER, 1, descriptorSet, 0,
-                listOf(DescriptorBufferInfo(screenSizeBuffers[index].vkBufferHandle, 0L, VK12.VK_WHOLE_SIZE))
+                listOf(DescriptorBufferInfo(screenSizeBuffers[index].vkBufferHandle, 0L, VK_WHOLE_SIZE))
             )
             val descWriteTextures = DescriptorImageWrite(
                 1, DescriptorType.SAMPLED_IMAGE, images.size, descriptorSet, 0,
@@ -223,14 +232,19 @@ class FexVulkanGUI private constructor(
     }
 
 
-    fun updateEvents() {
+    override fun signalComponentAdded(component: SpatialComponent) = assembleComponent(component)
 
+    private fun assembleComponent(component: SpatialComponent) {
+        val renderer = ComponentRenderer(component)
+        componentRenderers.add(renderer)
     }
 
 
+    // Assumes a RenderPass has been started already
     fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
         writeScreenInfoBuffer(frameIndex)
 
+        bindDescriptorSet(descriptorSets[frameIndex])
         bindPipeline()
         bindVertexBuffer(vertexBuffer)
         bindIndexBuffer(indexBuffer)
@@ -242,22 +256,59 @@ class FexVulkanGUI private constructor(
         componentRenderers.forEach { it.render(this) }
     }
 
-    private fun updateTextComponent(component: ComponentRenderer) {
-
+    private fun updateTextComponent(cmdContext: GraphicalUIVulkan.CommandBufferContext, component: ComponentRenderer) {
+        component.logicComponent as TextComponent
+        if (component.logicComponent.textRequiresUpdate) {
+            blitCharacters(cmdContext, component.logicComponent.text, )
+            component.logicComponent.textRequiresUpdate = false
+        }
     }
 
+    private fun blitCharacters(cmdContext: GraphicalUIVulkan.CommandBufferContext, text: String, dstImage: VulkanImage) {
+        val glyphHeight = dstImage.config.extent.height
+        val glyphWidth = (glyphHeight / glyphAtlas.glyphHeight) * glyphAtlas.glyphWidth
+        val blitRegions = mutableListOf<ImageBlit>()
+        val maxX = dstImage.config.extent.width
 
-    fun assembleComponent(component: LogicalUIComponent) {
+        repeat(text.length) { i ->
+            val glyphBounds = glyphAtlas.getGlyphBounds(text[i])
 
-    }
+            val dstMin = IVec2(min(i * glyphWidth, maxX), 0)
+            val dstMax = IVec2(min(i * glyphWidth + glyphWidth, maxX), glyphHeight)
 
+            val region = ImageBlit(
+                ImageRegion(
+                    Offset3D(glyphBounds.min.x, glyphBounds.min.y, 0),
+                    Offset3D(glyphBounds.max.x, glyphBounds.max.y, 1)
+                ),
+                ImageRegion(
+                    Offset3D(dstMin.x, dstMin.y, 0),
+                    Offset3D(dstMax.x, dstMax.y, 0)
+                )
+            )
+            blitRegions.add(region)
+        }
 
-    fun disassembleDeadComponents() {
+        cmdContext.transitionImageLayout(
+            dstImage,
+            AccessMask.SHADER_READ, AccessMask.TRANSFER_WRITE,
+            ImageLayout.SHADER_READ_ONLY_OPTIMAL, ImageLayout.TRANSFER_DST_OPTIMAL,
+            PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
+        )
 
+        cmdContext.blitImage(glyphAtlasImage, dstImage, blitRegions)
+
+        cmdContext.transitionImageLayout(
+            dstImage,
+            AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
+            ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+            PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+        )
     }
 
 
     companion object {
+        private const val MAX_IMAGE_COUNT = 64
         fun create(window: Window, inputHandler: InputHandler, deviceUtil: VulkanDeviceUtil) =
             FexVulkanGUI(window, inputHandler, deviceUtil, PhantomComponent(null))
     }
