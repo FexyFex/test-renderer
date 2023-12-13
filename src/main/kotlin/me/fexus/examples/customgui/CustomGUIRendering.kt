@@ -1,16 +1,10 @@
 package me.fexus.examples.customgui
 
 import me.fexus.fexgui.FexVulkanGUI
-import me.fexus.fexgui.logic.component.SpatialComponent
-import me.fexus.fexgui.logic.component.Label
-import me.fexus.math.vec.IVec2
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
-import me.fexus.vulkan.accessmask.AccessMask
-import me.fexus.vulkan.component.CommandBuffer
-import me.fexus.vulkan.component.pipeline.*
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
@@ -24,7 +18,6 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
-import kotlin.math.min
 
 
 class CustomGUIRendering: VulkanRendererBase(createWindow()) {
@@ -181,9 +174,6 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             0, null, null, swapToRenderingBarrier
         )
 
-        val guiComponents = gui.getAllChildren().filterIsInstance<SpatialComponent>()
-        updateGUIText(commandBuffer, guiComponents.filterIsInstance<Label>())
-
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
@@ -229,50 +219,6 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         vkEndCommandBuffer(commandBuffer.vkHandle)
 
         return@runMemorySafe FrameSubmitData(preparation.acquireSuccessful, preparation.imageIndex)
-    }
-
-    private fun updateGUIText(cmdBuf: CommandBuffer, textComponents: List<Label>) {
-        textComponents.filter { it.textRequiresUpdate }.forEach {
-            // Transition the component's texture to TRANSFER_DST first
-            val targetImage = images[it.textureIndex]!!
-            deviceUtil.cmdTransitionImageLayout(
-                cmdBuf, targetImage,
-                AccessMask.SHADER_READ, AccessMask.TRANSFER_WRITE,
-                ImageLayout.SHADER_READ_ONLY_OPTIMAL, ImageLayout.TRANSFER_DST_OPTIMAL,
-                PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
-            )
-
-            runMemorySafe {
-                val pClearColor = calloc(VkClearColorValue::calloc) {
-                    this.float32(0, 0f)
-                    this.float32(1, 0f)
-                    this.float32(2, 0f)
-                    this.float32(3, 0f)
-                }
-
-                val pRange = calloc(VkImageSubresourceRange::calloc) {
-                    set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
-                }
-
-                vkCmdClearColorImage(
-                    cmdBuf.vkHandle, targetImage.vkImageHandle,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    pClearColor, pRange
-                )
-            }
-
-            if (it.text.isNotEmpty())
-                blitCharacters(cmdBuf, it.text, targetImage)
-
-            deviceUtil.cmdTransitionImageLayout(
-                cmdBuf, targetImage,
-                AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
-                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
-                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
-            )
-
-            it.textRequiresUpdate = false
-        }
     }
 
     private fun handleInput() {}

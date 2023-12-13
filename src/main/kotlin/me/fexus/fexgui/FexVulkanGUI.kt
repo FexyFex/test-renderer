@@ -1,6 +1,7 @@
 package me.fexus.fexgui
 
 import me.fexus.examples.Globals
+import me.fexus.fexgui.graphic.ComponentRenderer
 import me.fexus.fexgui.graphic.GlyphAtlas
 import me.fexus.fexgui.graphic.GraphicalUIVulkan
 import me.fexus.fexgui.graphic.vulkan.IndexedVulkanImage
@@ -8,7 +9,11 @@ import me.fexus.fexgui.graphic.vulkan.util.ImageBlit
 import me.fexus.fexgui.graphic.vulkan.util.ImageRegion
 import me.fexus.fexgui.logic.LogicalUI
 import me.fexus.fexgui.logic.component.*
+import me.fexus.fexgui.logic.component.visual.flag.VisualFlag
+import me.fexus.fexgui.textureresource.GUIFilledTextureResource
+import me.fexus.fexgui.textureresource.GUITextureResource
 import me.fexus.math.vec.IVec2
+import me.fexus.math.vec.Vec4
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.accessmask.AccessMask
@@ -47,11 +52,10 @@ import me.fexus.vulkan.util.Offset3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.event.InputEventSubscriber
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.VK10.VK_WHOLE_SIZE
-import org.lwjgl.vulkan.VK12
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.channels.Pipe
 import kotlin.math.min
 
 
@@ -66,11 +70,13 @@ class FexVulkanGUI private constructor(
     override lateinit var vertexBuffer: VulkanBuffer
     override lateinit var indexBuffer: VulkanBuffer
     private lateinit var sampler: VulkanSampler
-    override val images = mutableListOf<IndexedVulkanImage>()
+    private val imageResources = mutableMapOf<GUITextureResource, IndexedVulkanImage>()
+    private val imageIndices = mutableMapOf<Int, IndexedVulkanImage>()
+    private val images = mutableListOf<IndexedVulkanImage>()
     private val screenSizeBuffers = mutableListOf<VulkanBuffer>()
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
-    private val descriptorSets = Array(Globals.bufferStrategy) { DescriptorSet() }
+    private val descriptorSets = Array(Globals.framesTotal) { DescriptorSet() }
     override val pipeline = GraphicsPipeline()
     private val componentRenderers = mutableListOf<ComponentRenderer>()
 
@@ -101,6 +107,8 @@ class FexVulkanGUI private constructor(
 
         createMeshBuffers()
 
+        createDescriptorSets()
+
         // -- DEFAULT SAMPLER --
         val samplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.NEAREST)
         this.sampler = deviceUtil.createSampler(samplerConfig)
@@ -120,8 +128,6 @@ class FexVulkanGUI private constructor(
         )
         this.pipeline.create(deviceUtil.device, descriptorSetLayout, pipelineConfig)
         // PIPELINE
-
-        createDescriptorSets()
     }
 
     private fun createMeshBuffers() {
@@ -176,10 +182,10 @@ class FexVulkanGUI private constructor(
     private fun createDescriptorSets() {
         // Descriptor Sets
         val poolPlan = DescriptorPoolPlan(
-            Globals.bufferStrategy, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.bufferStrategy),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, Globals.bufferStrategy * MAX_IMAGE_COUNT),
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.framesTotal),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, Globals.framesTotal * MAX_IMAGE_COUNT),
                 DescriptorPoolSize(DescriptorType.SAMPLER, 1)
             )
         )
@@ -235,8 +241,90 @@ class FexVulkanGUI private constructor(
     override fun signalComponentAdded(component: SpatialComponent) = assembleComponent(component)
 
     private fun assembleComponent(component: SpatialComponent) {
-        val renderer = ComponentRenderer(component)
+        val images: List<IndexedVulkanImage?> = component.visualLayout.subComponents.map {
+            return@map when {
+                VisualFlag.TEXT_IMAGE in it.visualFlags -> {
+                    val res = it.textureResource!!
+                    val image = createImage(res.width, res.height)
+                    val imageIndex = findNextImageIndex()
+                    IndexedVulkanImage(imageIndex, image)
+                }
+                VisualFlag.TEXTURED in it.visualFlags -> {
+                    val res = it.textureResource as GUIFilledTextureResource
+                    val image = createImage(res.width, res.height)
+                    val imageIndex = findNextImageIndex()
+                    setImageTexture(image, res.pixelBuffer)
+                    IndexedVulkanImage(imageIndex, image)
+                }
+                else -> null
+            }
+        }
+
+        val renderer = ComponentRenderer(component, images)
         componentRenderers.add(renderer)
+    }
+
+    private fun findNextImageIndex(): Int {
+        repeat(MAX_IMAGE_COUNT) {
+            if (imageIndices[it] == null) return it
+        }
+        throw Exception("No more GUI images available")
+    }
+
+    private fun createImage(width: Int, height: Int): VulkanImage {
+        val imageConfig = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(width, height, 1),
+            1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
+            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
+        )
+        val newImage = deviceUtil.createImage(imageConfig)
+
+        val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
+        beginGUICommandRecordContext(cmdBuf) {
+            transitionImageLayout(
+                newImage,
+                AccessMask.NONE, AccessMask.SHADER_READ,
+                ImageLayout.UNDEFINED, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                PipelineStage.BOTTOM_OF_PIPE, PipelineStage.FRAGMENT_SHADER
+            )
+        }
+        deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+
+        return newImage
+    }
+
+    private fun setImageTexture(image: VulkanImage, pixelBuffer: ByteBuffer) {
+        val bufferSize = pixelBuffer.capacity().toLong()
+        val stagingBufConfig = VulkanBufferConfiguration(
+            bufferSize,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.TRANSFER_SRC
+        )
+        val stagingBuffer = deviceUtil.createBuffer(stagingBufConfig)
+
+        stagingBuffer.copy(MemoryUtil.memAddress(pixelBuffer), 0L, bufferSize)
+
+        val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
+        beginGUICommandRecordContext(cmdBuf) {
+            transitionImageLayout(
+                image,
+                AccessMask.SHADER_READ, AccessMask.TRANSFER_WRITE,
+                ImageLayout.SHADER_READ_ONLY_OPTIMAL, ImageLayout.TRANSFER_DST_OPTIMAL,
+                PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
+            )
+
+            copyBufferToImage(stagingBuffer, image)
+
+            transitionImageLayout(
+                image,
+                AccessMask.TRANSFER_WRITE, AccessMask.SHADER_READ,
+                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                PipelineStage.TRANSFER, PipelineStage.FRAGMENT_SHADER
+            )
+        }
+        deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+
+        stagingBuffer.destroy()
     }
 
 
@@ -251,7 +339,7 @@ class FexVulkanGUI private constructor(
 
         componentRenderers
             .filter { it.logicComponent is TextComponent && it.logicComponent.textRequiresUpdate }
-            .forEach { updateTextComponent(it) }
+            .forEach { updateTextComponent(this, it) }
 
         componentRenderers.forEach { it.render(this) }
     }
@@ -259,7 +347,7 @@ class FexVulkanGUI private constructor(
     private fun updateTextComponent(cmdContext: GraphicalUIVulkan.CommandBufferContext, component: ComponentRenderer) {
         component.logicComponent as TextComponent
         if (component.logicComponent.textRequiresUpdate) {
-            blitCharacters(cmdContext, component.logicComponent.text, )
+            blitCharacters(cmdContext, component.logicComponent.text, component.images[0]!!.image)
             component.logicComponent.textRequiresUpdate = false
         }
     }
@@ -283,7 +371,7 @@ class FexVulkanGUI private constructor(
                 ),
                 ImageRegion(
                     Offset3D(dstMin.x, dstMin.y, 0),
-                    Offset3D(dstMax.x, dstMax.y, 0)
+                    Offset3D(dstMax.x, dstMax.y, 1)
                 )
             )
             blitRegions.add(region)
@@ -295,6 +383,8 @@ class FexVulkanGUI private constructor(
             ImageLayout.SHADER_READ_ONLY_OPTIMAL, ImageLayout.TRANSFER_DST_OPTIMAL,
             PipelineStage.FRAGMENT_SHADER, PipelineStage.TRANSFER
         )
+
+        cmdContext.clearColorImage(dstImage, Vec4(0f))
 
         cmdContext.blitImage(glyphAtlasImage, dstImage, blitRegions)
 

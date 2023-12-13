@@ -1,3 +1,14 @@
 package me.fexus.fexgui.logic.component.visual
 
-class SubComponent(val createConfig: () -> SubComponentConfiguration)
+import me.fexus.fexgui.logic.component.ComponentSpatialData
+import me.fexus.fexgui.logic.component.visual.flag.VisualFlags
+import me.fexus.fexgui.textureresource.GUIFilledTextureResource
+import me.fexus.fexgui.util.Color
+
+
+class SubComponent(
+    val baseColor: Color,
+    val textureResource: GUIFilledTextureResource?,
+    val visualFlags: VisualFlags,
+    val getSpatialData: () -> ComponentSpatialData,
+)

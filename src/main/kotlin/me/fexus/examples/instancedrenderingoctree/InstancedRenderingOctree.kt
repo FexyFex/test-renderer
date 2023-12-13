@@ -1,6 +1,7 @@
 package me.fexus.examples.instancedrenderingoctree
 
 import me.fexus.camera.CameraPerspective
+import me.fexus.examples.Globals
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
@@ -124,7 +125,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
-            FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 4)

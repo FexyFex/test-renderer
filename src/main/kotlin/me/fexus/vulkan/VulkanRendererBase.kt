@@ -66,7 +66,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         presentQueue.create(device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
 
         val extent = window.extent2D
-        swapchain.create(surface, core.physicalDevice, device, Globals.bufferStrategy, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
+        swapchain.create(surface, core.physicalDevice, device, Globals.framesTotal, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
 
         commandPool.create(device, graphicsCapableQueueFamily)
         commandBuffers.forEach { it.create(device, commandPool) }
@@ -181,7 +181,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
                 resizeSwapchain()
             } else if (presentResult != VK_SUCCESS) presentResult.catchVK()
 
-            currentFrame = (currentFrame + 1) % Globals.bufferStrategy
+            currentFrame = (currentFrame + 1) % Globals.framesTotal
             currentFrameInFlight = (currentFrameInFlight + 1) % Globals.framesInFlight
         }
     }
@@ -247,7 +247,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             surface,
             core.physicalDevice,
             device,
-            Globals.bufferStrategy,
+            Globals.framesTotal,
             newExtent,
             uniqueQueueFamilies
         )

@@ -1,7 +1,7 @@
 package me.fexus.fexgui.graphic
 
-import me.fexus.fexgui.graphic.vulkan.IndexedVulkanImage
 import me.fexus.fexgui.graphic.vulkan.util.ImageBlit
+import me.fexus.math.vec.Vec4
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.accessmask.IAccessMask
@@ -15,14 +15,18 @@ import me.fexus.vulkan.descriptors.image.ImageLayout
 import me.fexus.vulkan.descriptors.image.VulkanImage
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK12.*
+import org.lwjgl.vulkan.VkBufferImageCopy
+import org.lwjgl.vulkan.VkClearColorValue
+import org.lwjgl.vulkan.VkExtent3D
 import org.lwjgl.vulkan.VkImageBlit
 import org.lwjgl.vulkan.VkImageMemoryBarrier
+import org.lwjgl.vulkan.VkImageSubresourceLayers
 import org.lwjgl.vulkan.VkImageSubresourceRange
+import org.lwjgl.vulkan.VkOffset3D
 import java.nio.ByteBuffer
 
 
 interface GraphicalUIVulkan {
-    val images: MutableList<IndexedVulkanImage>
     val pipeline: GraphicsPipeline
     val vertexBuffer: VulkanBuffer
     val indexBuffer: VulkanBuffer
@@ -64,6 +68,50 @@ interface GraphicalUIVulkan {
 
         fun pushConstants(buffer: ByteBuffer) {
             vkCmdPushConstants(commandBuffer.vkHandle, pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, buffer)
+        }
+
+        fun copyBufferToImage(srcBuf: VulkanBuffer, dstImage: VulkanImage) = runMemorySafe {
+            val imageSubResource = calloc(VkImageSubresourceLayers::calloc) {
+                set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1)
+            }
+            val imageOffset = calloc(VkOffset3D::calloc) {
+                set(0, 0, 0)
+            }
+            val imageExtent = calloc(VkExtent3D::calloc) {
+                set(dstImage.config.extent.width, dstImage.config.extent.height, 1)
+            }
+            val copy = calloc(VkBufferImageCopy::calloc, 1)
+            copy[0].bufferOffset(0L)
+            copy[0].bufferRowLength(0)
+            copy[0].bufferImageHeight(0)
+            copy[0].imageSubresource(imageSubResource)
+            copy[0].imageOffset(imageOffset)
+            copy[0].imageExtent(imageExtent)
+
+            vkCmdCopyBufferToImage(
+                commandBuffer.vkHandle,
+                srcBuf.vkBufferHandle, dstImage.vkImageHandle,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, copy
+            )
+        }
+
+        fun clearColorImage(image: VulkanImage, clearColor: Vec4) = runMemorySafe {
+            val pClearColor = calloc(VkClearColorValue::calloc) {
+                float32(0, clearColor.x)
+                float32(1, clearColor.y)
+                float32(2, clearColor.z)
+                float32(3, clearColor.w)
+            }
+
+            val pRange = calloc(VkImageSubresourceRange::calloc) {
+                set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+            }
+
+            vkCmdClearColorImage(
+                commandBuffer.vkHandle,
+                image.vkImageHandle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                pClearColor, pRange
+            )
         }
 
         fun blitImage(srcImage: VulkanImage, dstImage: VulkanImage, blits: List<ImageBlit>) = runMemorySafe {
