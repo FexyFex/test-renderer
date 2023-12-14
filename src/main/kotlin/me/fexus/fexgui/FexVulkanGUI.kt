@@ -102,16 +102,34 @@ class FexVulkanGUI (
         )
         this.glyphAtlasImage = deviceUtil.createImage(glyphAtlasImageConfig)
 
+        val glyphAtlasImageStagingBufferConfig = VulkanBufferConfiguration(
+            glyphAtlas.texture.imageSize,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.TRANSFER_SRC
+        )
+        val glyphsStagingBuffer = deviceUtil.createBuffer(glyphAtlasImageStagingBufferConfig)
+        glyphsStagingBuffer.copy(MemoryUtil.memAddress(glyphAtlas.texture.pixels), 0L, glyphAtlas.texture.imageSize)
+
         val cmdBuf = deviceUtil.beginSingleTimeCommandBuffer()
         beginGUICommandRecordContext(cmdBuf) {
             transitionImageLayout(
                 glyphAtlasImage,
-                AccessMask.NONE, AccessMask.TRANSFER_READ,
-                ImageLayout.UNDEFINED, ImageLayout.TRANSFER_SRC_OPTIMAL,
+                AccessMask.NONE, AccessMask.TRANSFER_WRITE,
+                ImageLayout.UNDEFINED, ImageLayout.TRANSFER_DST_OPTIMAL,
                 PipelineStage.BOTTOM_OF_PIPE, PipelineStage.TRANSFER
+            )
+
+            copyBufferToImage(glyphsStagingBuffer, glyphAtlasImage)
+
+            transitionImageLayout(
+                glyphAtlasImage,
+                AccessMask.TRANSFER_WRITE, AccessMask.TRANSFER_READ,
+                ImageLayout.TRANSFER_DST_OPTIMAL, ImageLayout.TRANSFER_SRC_OPTIMAL,
+                PipelineStage.TRANSFER, PipelineStage.TRANSFER
             )
         }
         deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
+        glyphsStagingBuffer.destroy()
 
         // -- SCREEN SIZE BUFFERS --
         val buffers = mutableListOf<VulkanBuffer>()
@@ -286,8 +304,12 @@ class FexVulkanGUI (
                     val res = it.textureResource!!
                     val image = createImage(res.width, res.height)
                     val imageIndex = findNextImageIndex()
+                    val lIndexedImage = IndexedVulkanImage(imageIndex, image)
+                    images.add(lIndexedImage)
+                    imageResources[res] = lIndexedImage
+                    imageIndices[imageIndex] = lIndexedImage
                     updateImageDescriptorSet()
-                    IndexedVulkanImage(imageIndex, image)
+                    lIndexedImage
                 }
                 VisualFlag.TEXTURED in it.visualFlags -> {
                     val res = it.textureResource as GUIFilledTextureResource
@@ -379,14 +401,14 @@ class FexVulkanGUI (
 
 
     // Must be called outside any RenderPass
-    fun recordGUICommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
+    fun recordOffRenderPassCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
         componentRenderers
             .filter { it.logicComponent is TextComponent && it.logicComponent.textRequiresUpdate }
             .forEach { updateTextComponent(this, it) }
     }
 
     // Must be called within any RenderPass
-    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
+    fun recordRenderPassCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
         writeScreenInfoBuffer(frameIndex)
 
         bindPipeline()

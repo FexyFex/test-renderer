@@ -22,7 +22,12 @@ class Label(
     override val visualLayout: VisualLayout = VisualLayout(
         listOf(
             // TODO: create a fitting texture resource
-            SubComponent(Color.INVISIBLE, GUIEmptyTextureResource("label", 100, 9), VisualFlag.TEXT_IMAGE, this::spatialData)
+            SubComponent(
+                Color.INVISIBLE,
+                GUIEmptyTextureResource("label", spatialData.dimensions.x, spatialData.dimensions.y),
+                VisualFlag.TEXT_IMAGE,
+                this::spatialData
+            )
         )
     )
 }

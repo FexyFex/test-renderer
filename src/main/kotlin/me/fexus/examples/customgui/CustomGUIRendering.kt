@@ -4,7 +4,6 @@ import me.fexus.fexgui.FexVulkanGUI
 import me.fexus.fexgui.logic.component.ComponentSpatialData
 import me.fexus.fexgui.logic.component.alignment.ComponentAlignment
 import me.fexus.fexgui.textureresource.GUIFilledTextureResource
-import me.fexus.fexgui.util.Color
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
@@ -56,22 +55,22 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
         val defaultResource = GUIFilledTextureResource("default", "fexgui/textures/default_frame.jpg")
         gui.append {
             textureRect(
-                ComponentSpatialData(IVec3(0, 0, 1), IVec2(100, 100), ComponentAlignment.CENTERED),
+                ComponentSpatialData(IVec3(0, 0, 1), IVec2(400, 100), ComponentAlignment.CENTERED),
                 defaultResource
             )
             textureRect(
                 ComponentSpatialData(
                     IVec3(0,0,1),
-                    IVec2(100, 20),
+                    IVec2(100, 25),
                     ComponentAlignment.LEFT + ComponentAlignment.TOP
                 ), defaultResource
             )
-            colorRect(
+            label(
                 ComponentSpatialData(
                     IVec3(0,0,1),
-                    IVec2(100, 40),
+                    IVec2(540, 70),
                     ComponentAlignment.TOP + ComponentAlignment.RIGHT
-                ), Color.BLUE
+                ), "hello gui"
             )
         }
         startRenderLoop(window, this)
@@ -201,7 +200,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             0, null, null, swapToRenderingBarrier
         )
 
-        gui.recordGUICommands(commandBuffer, currentFrame)
+        gui.recordOffRenderPassCommands(commandBuffer, currentFrame)
 
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
@@ -215,7 +214,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
 
-            gui.recordGUIRenderCommands(commandBuffer, currentFrame)
+            gui.recordRenderPassCommands(commandBuffer, currentFrame)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
