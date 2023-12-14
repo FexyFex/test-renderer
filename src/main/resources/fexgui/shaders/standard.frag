@@ -11,6 +11,10 @@ layout (location = 0) out vec4 outColor;
 
 
 void main() {
-
+    if (inTexIndex < 0) {
+        outColor = inBaseColor;
+        return;
+    }
     outColor = texture(sampler2D(textures[inTexIndex], sampleroni), inTexCoords.xy, 1.0);
+    if (outColor.w == 0.0) outColor = inBaseColor;
 }

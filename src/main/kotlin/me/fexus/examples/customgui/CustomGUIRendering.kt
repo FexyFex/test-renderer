@@ -4,6 +4,7 @@ import me.fexus.fexgui.FexVulkanGUI
 import me.fexus.fexgui.logic.component.ComponentSpatialData
 import me.fexus.fexgui.logic.component.alignment.ComponentAlignment
 import me.fexus.fexgui.textureresource.GUIFilledTextureResource
+import me.fexus.fexgui.util.Color
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
@@ -64,6 +65,13 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
                     IVec2(100, 20),
                     ComponentAlignment.LEFT + ComponentAlignment.TOP
                 ), defaultResource
+            )
+            colorRect(
+                ComponentSpatialData(
+                    IVec3(0,0,1),
+                    IVec2(100, 40),
+                    ComponentAlignment.TOP + ComponentAlignment.RIGHT
+                ), Color.BLUE
             )
         }
         startRenderLoop(window, this)

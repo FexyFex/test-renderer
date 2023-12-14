@@ -1,6 +1,7 @@
 package me.fexus.fexgui.logic.component
 
 import me.fexus.fexgui.textureresource.GUIFilledTextureResource
+import me.fexus.fexgui.util.Color
 import me.fexus.math.vec.IVec2
 
 
@@ -44,6 +45,19 @@ interface LogicalUIComponent {
 
     class ComponentCreationContext(private val parent: LogicalUIComponent) {
         val addedComponents = mutableListOf<LogicalUIComponent>()
+
+
+        fun colorRect(
+            spatialData: ComponentSpatialData,
+            color: Color,
+            appendBlock: ComponentCreationContext.() -> Unit = {}
+        ): ColorRect {
+            val component = ColorRect(parent, spatialData, color)
+            parent.children.add(component)
+            component.append(appendBlock)
+            addedComponents.add(component)
+            return component
+        }
 
         fun textureRect(
             spatialData: ComponentSpatialData,

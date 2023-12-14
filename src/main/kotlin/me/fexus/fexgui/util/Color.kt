@@ -13,7 +13,7 @@ class Color(val r: Float, val g: Float, val b: Float, val a: Float) {
     }
 
 
-    enum class Format(val rPos: Int, val bPos: Int, val gPos: Int, val aPos: Int) {
+    enum class Format(val rPos: Int, val gPos: Int, val bPos: Int, val aPos: Int) {
         RGBA8(0, 8, 16, 24),
         BGRA8(16, 8, 0, 24)
     }
@@ -22,5 +22,8 @@ class Color(val r: Float, val g: Float, val b: Float, val a: Float) {
         val INVISIBLE = Color(0f, 0f, 0f, 0f)
         val BLACK = Color(0f, 0f, 0f, 1f)
         val WHITE = Color(1f, 1f, 1f, 1f)
+        val RED = Color(1f, 0f, 0f, 1f)
+        val GREEN = Color(0f, 1f, 0f, 1f)
+        val BLUE = Color(0f, 0f, 1f, 1f)
     }
 }

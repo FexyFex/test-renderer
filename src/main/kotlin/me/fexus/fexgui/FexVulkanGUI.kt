@@ -286,6 +286,7 @@ class FexVulkanGUI (
                     val res = it.textureResource!!
                     val image = createImage(res.width, res.height)
                     val imageIndex = findNextImageIndex()
+                    updateImageDescriptorSet()
                     IndexedVulkanImage(imageIndex, image)
                 }
                 VisualFlag.TEXTURED in it.visualFlags -> {
@@ -299,6 +300,7 @@ class FexVulkanGUI (
                         images.add(lIndexedImage)
                         imageResources[res] = lIndexedImage
                         imageIndices[imageIndex] = lIndexedImage
+                        updateImageDescriptorSet()
                         lIndexedImage
                     } else {
                         existingImage
@@ -310,7 +312,6 @@ class FexVulkanGUI (
 
         val renderer = ComponentRenderer(component, images)
         componentRenderers.add(renderer)
-        updateImageDescriptorSet()
     }
 
     private fun findNextImageIndex(): Int {
