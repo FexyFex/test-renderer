@@ -86,6 +86,8 @@ class Device {
                     descriptorBindingVariableDescriptorCount(true)
                     shaderStorageBufferArrayNonUniformIndexing(true)
                     shaderSampledImageArrayNonUniformIndexing(true)
+                    descriptorBindingSampledImageUpdateAfterBind(true)
+                    descriptorBindingStorageBufferUpdateAfterBind(true)
                 }
             }
 

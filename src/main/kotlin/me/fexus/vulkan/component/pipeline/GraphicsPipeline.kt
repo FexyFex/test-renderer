@@ -18,7 +18,7 @@ class GraphicsPipeline: IPipeline {
     override var vkHandle: Long = 0L; private set
 
 
-    fun create(device: Device, setLayout: DescriptorSetLayout, config: GraphicsPipelineConfiguration) = runMemorySafe {
+    fun create(device: Device, setLayouts: List<DescriptorSetLayout>, config: GraphicsPipelineConfiguration) = runMemorySafe {
         this@GraphicsPipeline.vkVertShaderModuleHandle = createShaderModule(device, config.vertShaderCode)
         this@GraphicsPipeline.vkFragShaderModuleHandle = createShaderModule(device, config.fragShaderCode)
 
@@ -28,8 +28,10 @@ class GraphicsPipeline: IPipeline {
             .offset(config.pushConstantsLayout.offset)
             .stageFlags(config.pushConstantsLayout.shaderStages.vkBits)
 
-        val pSetLayout = allocateLong(1)
-        pSetLayout.put(0, setLayout.vkHandle) // TODO: descriptor set layout
+        val pSetLayout = allocateLong(setLayouts.size)
+        setLayouts.forEachIndexed { index, descSetLayout ->
+            pSetLayout.put(index, descSetLayout.vkHandle)
+        }
 
         val pipelineLayoutInfo = calloc(VkPipelineLayoutCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)

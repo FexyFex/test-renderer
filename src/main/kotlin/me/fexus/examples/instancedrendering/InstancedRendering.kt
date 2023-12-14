@@ -159,7 +159,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = false, cullMode = CullMode.BACKFACE
         )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
 
         val wireframePipelineConfig = GraphicsPipelineConfiguration(
             listOf(
@@ -171,7 +171,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = false, primitive = Primitive.LINES
         )
-        this.wireframePipeline.create(device, descriptorSetLayout, wireframePipelineConfig)
+        this.wireframePipeline.create(device, listOf(descriptorSetLayout), wireframePipelineConfig)
 
         // Update Descrfiptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(

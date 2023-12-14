@@ -278,7 +278,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
         )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
         // Wireframe Pipeline
 
         // Update Descrfiptor Set

@@ -23,10 +23,22 @@ layout(push_constant) uniform PushConstants{
     int zLayer;
     int alignmentFlags;
     int textureIndex;
+    uint baseColor;
 };
 
 layout (location = 0) out vec2 outTexCoords;
 layout (location = 1) flat out int outTexIndex;
+layout (location = 2) flat out vec4 outBaseColor;
+
+
+vec4 colorIntToVec4(uint color) {
+    return vec4(
+        (color & 255),
+        ((color >> 8) & 255),
+        ((color >> 16) & 255),
+        ((color >> 24) & 255)
+    );
+}
 
 
 void main() {
@@ -57,4 +69,5 @@ void main() {
     gl_Position = vec4(actualPosition, actualZlayer, 1.0);
     outTexCoords = inTexCoords.xy;
     outTexIndex = textureIndex;
+    outBaseColor = colorIntToVec4(baseColor);
 }

@@ -28,10 +28,7 @@ import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutBindin
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutPlan
 import me.fexus.vulkan.component.descriptor.set.layout.bindingflags.DescriptorSetLayoutBindingFlag
 import me.fexus.vulkan.component.descriptor.set.layout.createflags.DescriptorSetLayoutCreateFlag
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
+import me.fexus.vulkan.component.descriptor.write.*
 import me.fexus.vulkan.component.pipeline.*
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
@@ -53,18 +50,26 @@ import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.event.InputEventSubscriber
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.VK10.VK_WHOLE_SIZE
+import org.lwjgl.vulkan.VK12.VK_WHOLE_SIZE
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.min
 
 
-class FexVulkanGUI private constructor(
+class FexVulkanGUI (
     private val window: Window,
     private val inputHandler: InputHandler,
     private val deviceUtil: VulkanDeviceUtil,
-    override val root: LogicalUIComponent,
-): LogicalUI, GraphicalUIVulkan, LogicalUIComponent by root, InputEventSubscriber {
+): LogicalUI, GraphicalUIVulkan, LogicalUIComponent, InputEventSubscriber {
+    // LogicalUI overrides
+    override val root: LogicalUIComponent = PhantomComponent(null)
+    // LogicalUIComponent overrides
+    override val parent: LogicalUIComponent? = null
+    override val children: MutableList<LogicalUIComponent>; get() = root.children
+    override var destroyed: Boolean; get() = root.destroyed; set(value) { root.destroyed = value }
+
+    // Graphical stuff
+    private val device = deviceUtil.device
     private val glyphAtlas = GlyphAtlas()
     private lateinit var glyphAtlasImage: VulkanImage
     override lateinit var vertexBuffer: VulkanBuffer
@@ -73,12 +78,15 @@ class FexVulkanGUI private constructor(
     private val imageResources = mutableMapOf<GUITextureResource, IndexedVulkanImage>()
     private val imageIndices = mutableMapOf<Int, IndexedVulkanImage>()
     private val images = mutableListOf<IndexedVulkanImage>()
-    private val screenSizeBuffers = mutableListOf<VulkanBuffer>()
+    private lateinit var screenSizeBuffers: List<VulkanBuffer>
+    override val pipeline = GraphicsPipeline()
+    private val componentRenderers = mutableListOf<ComponentRenderer>()
+    // Descriptor Set stuff
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSets = Array(Globals.framesTotal) { DescriptorSet() }
-    override val pipeline = GraphicsPipeline()
-    private val componentRenderers = mutableListOf<ComponentRenderer>()
+    private val imagesDescriptorSetLayout = DescriptorSetLayout()
+    private val imagesDescriptorSet = DescriptorSet() // Images get their own descriptor set (UPDATE_AFTER_BIND)
 
 
     fun init() {
@@ -105,14 +113,28 @@ class FexVulkanGUI private constructor(
         }
         deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
 
-        createMeshBuffers()
-
-        createDescriptorSets()
+        // -- SCREEN SIZE BUFFERS --
+        val buffers = mutableListOf<VulkanBuffer>()
+        val screenSizeBufferConfig = VulkanBufferConfiguration(
+            64L,
+            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            BufferUsage.UNIFORM_BUFFER
+        )
+        repeat(Globals.framesTotal) {
+            val buf = deviceUtil.createBuffer(screenSizeBufferConfig)
+            buffers.add(buf)
+        }
+        this.screenSizeBuffers = buffers
+        // -- SCREEN SIZE BUFFERS --
 
         // -- DEFAULT SAMPLER --
         val samplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.NEAREST)
         this.sampler = deviceUtil.createSampler(samplerConfig)
         // -- DEFAULT SAMPLER --
+
+        createMeshBuffers()
+
+        createDescriptorSets()
 
         // PIPELINE
         val pipelineConfig = GraphicsPipelineConfiguration(
@@ -126,7 +148,7 @@ class FexVulkanGUI private constructor(
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, cullMode = CullMode.NONE
         )
-        this.pipeline.create(deviceUtil.device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout, imagesDescriptorSetLayout), pipelineConfig)
         // PIPELINE
     }
 
@@ -182,14 +204,15 @@ class FexVulkanGUI private constructor(
     private fun createDescriptorSets() {
         // Descriptor Sets
         val poolPlan = DescriptorPoolPlan(
-            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            16,
+            DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET + DescriptorPoolCreateFlag.UPDATE_AFTER_BIND,
             listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.framesTotal),
-                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, Globals.framesTotal * MAX_IMAGE_COUNT),
-                DescriptorPoolSize(DescriptorType.SAMPLER, 1)
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 16),
+                DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, MAX_IMAGE_COUNT),
+                DescriptorPoolSize(DescriptorType.SAMPLER, 16)
             )
         )
-        this.descriptorPool.create(deviceUtil.device, poolPlan)
+        this.descriptorPool.create(device, poolPlan)
 
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
@@ -201,40 +224,56 @@ class FexVulkanGUI private constructor(
                     DescriptorSetLayoutBindingFlag.NONE
                 ),
                 DescriptorSetLayoutBinding(
-                    1, MAX_IMAGE_COUNT,
-                    DescriptorType.SAMPLED_IMAGE,
-                    ShaderStage.FRAGMENT,
-                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
-                ),
-                DescriptorSetLayoutBinding(
-                    2, 1,
+                    1, 1,
                     DescriptorType.SAMPLER,
                     ShaderStage.FRAGMENT,
                     DescriptorSetLayoutBindingFlag.NONE
                 )
             )
         )
-        this.descriptorSetLayout.create(deviceUtil.device, setLayoutPlan)
+        this.descriptorSetLayout.create(device, setLayoutPlan)
 
         this.descriptorSets.forEachIndexed { index, descriptorSet ->
-            descriptorSet.create(deviceUtil.device, descriptorPool, descriptorSetLayout)
+            descriptorSet.create(device, descriptorPool, descriptorSetLayout)
 
             // Update Descriptor Set
             val descWriteCameraBuf = DescriptorBufferWrite(
                 0, DescriptorType.UNIFORM_BUFFER, 1, descriptorSet, 0,
                 listOf(DescriptorBufferInfo(screenSizeBuffers[index].vkBufferHandle, 0L, VK_WHOLE_SIZE))
             )
-            val descWriteTextures = DescriptorImageWrite(
-                1, DescriptorType.SAMPLED_IMAGE, images.size, descriptorSet, 0,
-                images.map { DescriptorImageInfo(0L, it.image.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL) }
-            )
             val descWriteSampler = DescriptorImageWrite(
-                2, DescriptorType.SAMPLER, 1, descriptorSet, 0,
+                1, DescriptorType.SAMPLER, 1, descriptorSet, 0,
                 listOf(DescriptorImageInfo(sampler.vkHandle, 0L , ImageLayout.SHADER_READ_ONLY_OPTIMAL))
             )
 
-            descriptorSet.update(deviceUtil.device, descWriteCameraBuf, descWriteTextures, descWriteSampler)
+            descriptorSet.update(device, descWriteCameraBuf, descWriteSampler)
         }
+
+        val imagesSetLayoutPlan = DescriptorSetLayoutPlan(
+            DescriptorSetLayoutCreateFlag.UPDATE_AFTER_BIND,
+            listOf(
+                DescriptorSetLayoutBinding(
+                    0, MAX_IMAGE_COUNT,
+                    DescriptorType.SAMPLED_IMAGE,
+                    ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND + DescriptorSetLayoutBindingFlag.UPDATE_AFTER_BIND
+                ),
+            )
+        )
+        this.imagesDescriptorSetLayout.create(device, imagesSetLayoutPlan)
+
+        this.imagesDescriptorSet.create(device, descriptorPool, imagesDescriptorSetLayout)
+        updateImageDescriptorSet()
+    }
+
+    private fun updateImageDescriptorSet() {
+        val writes = images.map {
+            DescriptorImageWrite(
+                0, DescriptorType.SAMPLED_IMAGE, 1, imagesDescriptorSet, it.index,
+                listOf(DescriptorImageInfo(0L, it.image.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL))
+            )
+        }
+        imagesDescriptorSet.update(device, writes)
     }
 
 
@@ -251,10 +290,19 @@ class FexVulkanGUI private constructor(
                 }
                 VisualFlag.TEXTURED in it.visualFlags -> {
                     val res = it.textureResource as GUIFilledTextureResource
-                    val image = createImage(res.width, res.height)
-                    val imageIndex = findNextImageIndex()
-                    setImageTexture(image, res.pixelBuffer)
-                    IndexedVulkanImage(imageIndex, image)
+                    val existingImage = imageResources[res]
+                    if (existingImage == null) {
+                        val image = createImage(res.width, res.height)
+                        val imageIndex = findNextImageIndex()
+                        setImageTexture(image, res.pixelBuffer)
+                        val lIndexedImage = IndexedVulkanImage(imageIndex, image)
+                        images.add(lIndexedImage)
+                        imageResources[res] = lIndexedImage
+                        imageIndices[imageIndex] = lIndexedImage
+                        lIndexedImage
+                    } else {
+                        existingImage
+                    }
                 }
                 else -> null
             }
@@ -262,6 +310,7 @@ class FexVulkanGUI private constructor(
 
         val renderer = ComponentRenderer(component, images)
         componentRenderers.add(renderer)
+        updateImageDescriptorSet()
     }
 
     private fun findNextImageIndex(): Int {
@@ -328,18 +377,21 @@ class FexVulkanGUI private constructor(
     }
 
 
-    // Assumes a RenderPass has been started already
-    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
-        writeScreenInfoBuffer(frameIndex)
-
-        bindDescriptorSet(descriptorSets[frameIndex])
-        bindPipeline()
-        bindVertexBuffer(vertexBuffer)
-        bindIndexBuffer(indexBuffer)
-
+    // Must be called outside any RenderPass
+    fun recordGUICommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
         componentRenderers
             .filter { it.logicComponent is TextComponent && it.logicComponent.textRequiresUpdate }
             .forEach { updateTextComponent(this, it) }
+    }
+
+    // Must be called within any RenderPass
+    fun recordGUIRenderCommands(cmdBuf: CommandBuffer, frameIndex: Int) = beginGUICommandRecordContext(cmdBuf) {
+        writeScreenInfoBuffer(frameIndex)
+
+        bindPipeline()
+        bindDescriptorSets(descriptorSets[frameIndex], imagesDescriptorSet)
+        bindVertexBuffer(vertexBuffer)
+        bindIndexBuffer(indexBuffer)
 
         componentRenderers.forEach { it.render(this) }
     }
@@ -397,9 +449,23 @@ class FexVulkanGUI private constructor(
     }
 
 
+    override fun destroy() {
+        super.destroy()
+        images.forEach { it.image.destroy() }
+        screenSizeBuffers.forEach { it.destroy() }
+        glyphAtlasImage.destroy()
+        vertexBuffer.destroy()
+        indexBuffer.destroy()
+        sampler.destroy(device)
+        descriptorPool.destroy(device)
+        descriptorSetLayout.destroy(device)
+        imagesDescriptorSetLayout.destroy(device)
+        pipeline.destroy(device)
+        componentRenderers.clear()
+    }
+
+
     companion object {
         private const val MAX_IMAGE_COUNT = 64
-        fun create(window: Window, inputHandler: InputHandler, deviceUtil: VulkanDeviceUtil) =
-            FexVulkanGUI(window, inputHandler, deviceUtil, PhantomComponent(null))
     }
 }

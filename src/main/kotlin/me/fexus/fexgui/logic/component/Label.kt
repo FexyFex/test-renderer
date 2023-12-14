@@ -3,6 +3,7 @@ package me.fexus.fexgui.logic.component
 import me.fexus.fexgui.logic.component.visual.SubComponent
 import me.fexus.fexgui.logic.component.visual.VisualLayout
 import me.fexus.fexgui.logic.component.visual.flag.VisualFlag
+import me.fexus.fexgui.textureresource.GUIEmptyTextureResource
 import me.fexus.fexgui.util.Color
 
 
@@ -20,7 +21,8 @@ class Label(
 
     override val visualLayout: VisualLayout = VisualLayout(
         listOf(
-            SubComponent(Color.INVISIBLE, null, VisualFlag.TEXT_IMAGE, this::spatialData)
+            // TODO: create a fitting texture resource
+            SubComponent(Color.INVISIBLE, GUIEmptyTextureResource("label", 100, 9), VisualFlag.TEXT_IMAGE, this::spatialData)
         )
     )
 }

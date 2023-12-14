@@ -1,5 +1,6 @@
 package me.fexus.fexgui.logic.component
 
+import me.fexus.fexgui.textureresource.GUIFilledTextureResource
 import me.fexus.math.vec.IVec2
 
 
@@ -8,10 +9,6 @@ interface LogicalUIComponent {
     val children: MutableList<LogicalUIComponent>
     var destroyed: Boolean
 
-
-    fun addComponent(component: LogicalUIComponent) {
-        children.add(component)
-    }
 
     fun append(createBlock: ComponentCreationContext.() -> Unit): LogicalUIComponent {
         val context = ComponentCreationContext(this)
@@ -36,24 +33,36 @@ interface LogicalUIComponent {
 
     fun destroy() {
         children.forEach(LogicalUIComponent::destroy)
-        parent?.children?.remove(this)
+        children.clear()
         this.destroyed = true
     }
 
     fun signalComponentAdded(component: SpatialComponent) {
-        parent!!.signalComponentAdded(component)
+        parent?.signalComponentAdded(component)
     }
 
 
     class ComponentCreationContext(private val parent: LogicalUIComponent) {
         val addedComponents = mutableListOf<LogicalUIComponent>()
 
-        fun textField(
+        fun textureRect(
+            spatialData: ComponentSpatialData,
+            textureResource: GUIFilledTextureResource,
+            appendBlock: ComponentCreationContext.() -> Unit = {},
+        ): TextureRect {
+            val component = TextureRect(parent, spatialData, textureResource)
+            parent.children.add(component)
+            component.append(appendBlock)
+            addedComponents.add(component)
+            return component
+        }
+
+        fun label(
             spatialData: ComponentSpatialData, text: String,
             appendBlock: ComponentCreationContext.() -> Unit = {},
         ): Label {
             val component = Label(parent, spatialData, text)
-            parent.addComponent(component)
+            parent.children.add(component)
             component.append(appendBlock)
             addedComponents.add(component)
             return component
@@ -61,7 +70,7 @@ interface LogicalUIComponent {
 
         fun phantom(appendBlock: ComponentCreationContext.() -> Unit = {}): PhantomComponent {
             val component = PhantomComponent(parent)
-            parent.addComponent(component)
+            parent.children.add(component)
             component.append(appendBlock)
             addedComponents.add(component)
             return component

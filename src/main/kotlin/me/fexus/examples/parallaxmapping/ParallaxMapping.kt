@@ -292,7 +292,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true
         )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
 
         // Update Descrfiptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(

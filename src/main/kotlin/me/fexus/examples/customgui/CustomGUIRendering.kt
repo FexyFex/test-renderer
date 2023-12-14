@@ -1,6 +1,11 @@
 package me.fexus.examples.customgui
 
 import me.fexus.fexgui.FexVulkanGUI
+import me.fexus.fexgui.logic.component.ComponentSpatialData
+import me.fexus.fexgui.logic.component.alignment.ComponentAlignment
+import me.fexus.fexgui.textureresource.GUIFilledTextureResource
+import me.fexus.math.vec.IVec2
+import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -40,13 +45,27 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     private lateinit var depthAttachment: VulkanImage
 
     private val inputHandler = InputHandler(window)
-    private val gui = FexVulkanGUI.create(window, inputHandler, deviceUtil)
+    private val gui = FexVulkanGUI(window, inputHandler, deviceUtil)
 
 
     fun start() {
         initVulkanCore()
         initObjects()
         gui.init()
+        val defaultResource = GUIFilledTextureResource("default", "fexgui/textures/default_frame.jpg")
+        gui.append {
+            textureRect(
+                ComponentSpatialData(IVec3(0, 0, 1), IVec2(100, 100), ComponentAlignment.CENTERED),
+                defaultResource
+            )
+            textureRect(
+                ComponentSpatialData(
+                    IVec3(0,0,1),
+                    IVec2(100, 20),
+                    ComponentAlignment.LEFT + ComponentAlignment.TOP
+                ), defaultResource
+            )
+        }
         startRenderLoop(window, this)
     }
 
@@ -174,6 +193,8 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
             0, null, null, swapToRenderingBarrier
         )
 
+        gui.recordGUICommands(commandBuffer, currentFrame)
+
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
@@ -234,6 +255,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     override fun destroy() {
         device.waitIdle()
         depthAttachment.destroy()
+        gui.destroy()
         super.destroy()
     }
 }
