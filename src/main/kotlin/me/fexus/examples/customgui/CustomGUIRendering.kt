@@ -19,13 +19,23 @@ import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
+import me.fexus.window.input.Key
+import me.fexus.window.input.event.InputEventSubscriber
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 
 
-class CustomGUIRendering: VulkanRendererBase(createWindow()) {
+/**
+ * JUST A QUICK WARNING:
+ * Making a GUI from scratch is an extremely masochistic and mostly unrewarding task!
+ * I can only recommend this as a learning experience, not as a full-fledged project.
+ * This example uses FexGUI, which is a very barebones GUI I threw together over the course of a few weeks.
+ * It isn't an optimal GUI system by any means and should not be used as a reference for serious projects.
+ * It doesn't even work properly so there's that too...
+ * */
+class CustomGUIRendering: VulkanRendererBase(createWindow()), InputEventSubscriber {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -73,6 +83,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
                 ), "hello gui"
             )
         }
+        subscribe(inputHandler)
         startRenderLoop(window, this)
     }
 
@@ -94,12 +105,12 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()) {
     }
 
 
-    private fun frameUpdate() {
+    private fun frameUpdate(delta: Float) {
         handleInput()
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
-        frameUpdate()
+        frameUpdate(delta)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
