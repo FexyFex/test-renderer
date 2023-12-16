@@ -1,6 +1,7 @@
 package me.fexus.examples.parallaxmapping
 
 import me.fexus.camera.CameraPerspective
+import me.fexus.examples.Globals
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
@@ -37,7 +38,7 @@ import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
-import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -249,13 +250,13 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         // -- IMAGES --
 
         // -- SAMPLER --
-        val samplerLayout = VulkanSamplerLayout(AddressMode.REPEAT, 1, Filtering.LINEAR)
+        val samplerLayout = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.LINEAR)
         this.sampler = imageFactory.createSampler(samplerLayout)
         // -- SAMPLER --
 
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
-            FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 1),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 1),
@@ -291,7 +292,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true
         )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
 
         // Update Descrfiptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(

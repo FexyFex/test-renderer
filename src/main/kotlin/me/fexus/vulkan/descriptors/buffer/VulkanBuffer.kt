@@ -33,10 +33,10 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     // This function only works with off-heap data
-    fun copy(srcAddress: Long, dstAddress: Long, size: Long) {
+    fun copy(srcAddress: Long, dstOffset: Long, size: Long) {
         if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
             // Copy can be done without staging
-            MemoryUtil.memCopy(srcAddress, dstAddress, size)
+            MemoryUtil.memCopy(srcAddress, getMemoryMappingHandle() + dstOffset, size)
         } else {
             throw Exception("Device local buffers require staging")
         }

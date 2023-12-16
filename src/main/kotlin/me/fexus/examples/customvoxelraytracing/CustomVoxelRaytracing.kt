@@ -40,7 +40,7 @@ import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
-import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerLayout
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -247,7 +247,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
         stagingBufImg.destroy()
         // -- TEXTURES --
 
-        val samplerLayout = VulkanSamplerLayout(AddressMode.REPEAT, 1, Filtering.NEAREST)
+        val samplerLayout = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.sampler = imageFactory.createSampler(samplerLayout)
 
         // Descriptor Sets and Pipeline
@@ -278,7 +278,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
             listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
             blendEnable = true, primitive = Primitive.TRIANGLES, cullMode = CullMode.FRONTFACE
         )
-        this.pipeline.create(device, descriptorSetLayout, pipelineConfig)
+        this.pipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
         // Wireframe Pipeline
 
         // Update Descrfiptor Set

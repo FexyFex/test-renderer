@@ -56,7 +56,7 @@ class Device {
             // Always use dynamic rendering and descriptor indexing (bye bye, mobile)
             val dynamicRenderingFeatures = calloc(VkPhysicalDeviceDynamicRenderingFeatures::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES)
-                pNext(0)
+                pNext(0L)
                 dynamicRendering(true)
             }
 
@@ -84,6 +84,10 @@ class Device {
                     descriptorIndexing(true)
                     descriptorBindingPartiallyBound(true)
                     descriptorBindingVariableDescriptorCount(true)
+                    shaderStorageBufferArrayNonUniformIndexing(true)
+                    shaderSampledImageArrayNonUniformIndexing(true)
+                    descriptorBindingSampledImageUpdateAfterBind(true)
+                    descriptorBindingStorageBufferUpdateAfterBind(true)
                 }
             }
 
