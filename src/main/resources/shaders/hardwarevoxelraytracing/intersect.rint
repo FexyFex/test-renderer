@@ -5,6 +5,8 @@
 #include "./raycommon.glsl"
 #include "./intersection_lib.glsl"
 
+layout (constant_id = 0) const int EXTENT = 16;
+
 
 layout(set = 0, binding = 3) buffer DebugBuffer { float arr[]; } debugBuffer;
 layout(set = 0, binding = 4) buffer AABBs { AABB arr[]; } aabbs;
@@ -14,7 +16,7 @@ hitAttributeEXT vec3 hitPosition;
 
 
 int getOctantIndexOfGlobalPositionInMipLevel(vec3 globalPos, int mipLevel) {
-    int mipExtent = extent >> mipLevel;
+    int mipExtent = EXTENT >> mipLevel;
     vec3 rel = floor(globalPos / mipExtent);
     vec3 mid = (rel * mipExtent) + (mipExtent / 2.0);
     int x = int(globalPos.x >= mid.x);
@@ -23,6 +25,7 @@ int getOctantIndexOfGlobalPositionInMipLevel(vec3 globalPos, int mipLevel) {
     return x | (y << 1) | (z << 2);
 }
 
+/*
 OctantData traverseSVO() {
     vec3 entryPoint = entryPointOfRayIntoChunk; //TODO: determine
     vec3 rayDirection = gl_WorldRayDirectionEXT;
@@ -41,6 +44,7 @@ OctantData traverseSVO() {
         }
     }
 }
+*/
 
 void main() {
     vec3 rayOrigin = gl_WorldRayOriginEXT;
