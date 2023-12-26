@@ -1,4 +1,4 @@
-package me.fexus.examples.hardwarevoxelraytracing.accelerationstructure
+package me.fexus.examples.hardwarevoxelraytracing
 
 import me.fexus.math.vec.Vec3
 import java.nio.ByteBuffer

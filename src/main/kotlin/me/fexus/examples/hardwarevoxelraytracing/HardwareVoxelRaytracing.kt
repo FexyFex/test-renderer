@@ -558,7 +558,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             listOf(DescriptorBufferInfo(octreeBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
 
-        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite, aabbsBufWrite)
+        this.descriptorSet.update(device, descWriteAccStruct, storageImageWrite, uniformBufWrite, debugBufWrite, aabbsBufWrite, octreeBufferWrite)
         // -- DESCRIPTOR SET --
     }
 

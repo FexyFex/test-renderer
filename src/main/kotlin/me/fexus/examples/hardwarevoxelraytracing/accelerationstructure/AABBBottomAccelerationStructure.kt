@@ -1,5 +1,6 @@
 package me.fexus.examples.hardwarevoxelraytracing.accelerationstructure
 
+import me.fexus.examples.hardwarevoxelraytracing.AABB
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.Device

@@ -2,7 +2,6 @@
 #extension GL_EXT_ray_tracing : require
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_GOOGLE_include_directive : enable
-#include "./raycommon.glsl"
 #include "./intersection_lib.glsl"
 
 layout (constant_id = 0) const int EXTENT = 16;
@@ -15,7 +14,7 @@ layout(set = 0, binding = 5) buffer OctreeBuffer { int arr[]; } octreeBuffer;
 hitAttributeEXT vec3 hitPosition;
 
 
-int getOctantIndexOfGlobalPositionInMipLevel(vec3 globalPos, int mipLevel) {
+int getOctantIndexOfPositionFromMipLevel(vec3 globalPos, int mipLevel) {
     int mipExtent = EXTENT >> mipLevel;
     vec3 rel = floor(globalPos / mipExtent);
     vec3 mid = (rel * mipExtent) + (mipExtent / 2.0);
@@ -30,14 +29,12 @@ OctantData traverseSVO() {
     vec3 entryPoint = entryPointOfRayIntoChunk; //TODO: determine
     vec3 rayDirection = gl_WorldRayDirectionEXT;
     int octantIndex = rootNodeIndex; //TODO: 0 or something else?
-    while (true){
+    while (true) {
         if (isOpaque(octantIndex)) {
             return getData(octantIndex);
-        }
-        else if (hasChildren(octantIndex)) {
+        } else if (hasChildren(octantIndex)) {
             octantIndex = child.that.contains.entryPoint; //TODO: determine correct child node
-        }
-        else {
+        } else {
             vec3 exitPoint = entryPoint + t * rayDirection; //TODO: determine t
             octantIndex = octantIndex.behind.exitPoint; //TODO: determine correct sibling node
             entryPoint = exitPoint;
@@ -46,24 +43,22 @@ OctantData traverseSVO() {
 }
 */
 
+float minComponent(vec3 target) {
+    return min(min(target.x, target.y), target.z);
+}
+
 void main() {
-    vec3 rayOrigin = gl_WorldRayOriginEXT;
-    vec3 rayDirection = gl_WorldRayDirectionEXT;
+    Ray ray;
+    ray.origin.xyz = gl_WorldRayOriginEXT;
+    ray.dir.xyz = gl_WorldRayDirectionEXT;
 
     AABB aabb = aabbs.arr[gl_PrimitiveID];
 
-    vec2 t;
-    int hitKind;
-    if (mod(gl_PrimitiveID, 2) != 0) {
-        t = intersectSphere(rayOrigin, rayDirection, aabb);
-        hitKind = HIT_KIND_SPHERE;
-    } else {
-        t = intersectAABB(rayOrigin, rayDirection, aabb);
-        hitKind = HIT_KIND_AABB;
-    }
+    IntersectResult result = getIntersectionRayToAABB(ray, aabb);
 
-    hitPosition = mod(rayOrigin + t.x * rayDirection, 1.0);
-    reportIntersectionEXT(t.x, hitKind);
-    hitPosition = mod(rayOrigin + t.y * rayDirection, 1.0);
-    reportIntersectionEXT(t.y, hitKind);
+    if (result.hit == TRUE) {
+        hitPosition = result.coord;
+        reportIntersectionEXT(minComponent(hitPosition), 0);
+    }
 }
+
