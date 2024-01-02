@@ -58,7 +58,12 @@ void main() {
 
     if (result.hit == TRUE) {
         hitPosition = result.coord;
-        reportIntersectionEXT(minComponent(hitPosition), 0);
+        vec2 i = intersectAABB(ray.origin.xyz, ray.dir.xyz, aabb);
+        reportIntersectionEXT(i.x, 1);
+        reportIntersectionEXT(i.y, 1);
     }
+    //hitPosition = vec3(1.0);
+
+
 }
 

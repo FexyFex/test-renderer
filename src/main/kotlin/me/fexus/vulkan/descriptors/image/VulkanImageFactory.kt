@@ -22,9 +22,9 @@ class VulkanImageFactory: DescriptorFactory {
 
 
     /**
-     * Attempts to create a VulkanImage according to the given preferred VulkanImageLayout.
-     * If it is impossible to create the VulkanImage with the given VulkanImageLayout,
-     * the function returns a VulkanImage with an altered VulkanImageLayout to indicate
+     * Attempts to create a VulkanImage according to the given preferred VulkanImageConfiguration.
+     * If it is impossible to create the VulkanImage with the given VulkanImageConfiguration,
+     * the function returns a VulkanImage with an altered VulkanImageConfiguration to indicate
      * the changes that were made during creation.
      */
     fun createImage(preferredConfig: VulkanImageConfiguration): VulkanImage {
