@@ -62,8 +62,5 @@ void main() {
         reportIntersectionEXT(i.x, 1);
         reportIntersectionEXT(i.y, 1);
     }
-    //hitPosition = vec3(1.0);
-
-
 }
 
