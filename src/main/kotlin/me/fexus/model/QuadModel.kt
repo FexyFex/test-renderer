@@ -20,8 +20,7 @@ object QuadModel {
     val indices = arrayOf(0, 1, 2, 2, 3, 0)
 
     data class Vertex(val pos: Vec3, val uv: Vec2) {
-        fun toFloatArray() =
-             floatArrayOf(pos.x, pos.y, pos.z, 1.0f, uv.x, uv.y, 0.0f, 0.0f)
+        fun toFloatArray() = floatArrayOf(pos.x, pos.y, pos.z, 1.0f, uv.x, uv.y, 0.0f, 0.0f)
 
         fun writeToByteBuffer(buffer: ByteBuffer, offset: Int) {
             pos.toByteBuffer(buffer, offset)
