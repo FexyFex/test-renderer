@@ -32,6 +32,7 @@ import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
+import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
@@ -49,7 +50,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class Compute: VulkanRendererBase(createWindow()) {
+class Compute : VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -59,21 +60,26 @@ class Compute: VulkanRendererBase(createWindow()) {
         private fun createWindow() = Window("Mass GPU computing") {
             windowVisible()
             enableResizable()
-            setInitialWindowSize(1067,600)
+            setInitialWindowSize(1067, 600)
             enableDecoration()
             setInitialWindowPosition(400, 300)
             enableAutoIconify()
         }
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
+
+        private const val MAX_PARTICLE_COUNT = 1 shl 14
+        private const val STORAGE_BUFFER_ARRAY_SIZE = 8
+        private const val WORKGROUP_SIZE_X = 16
     }
 
+    private var tickCounter: Long = 0L
     private val camera = Camera2D(Vec2(0f), Vec2(16f, 9f))
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var spriteVertexBuffer: VulkanBuffer
     private lateinit var spriteIndexBuffer: VulkanBuffer
-    private lateinit var cameraBuffer: VulkanBuffer
+    private lateinit var generalInfoBuffer: VulkanBuffer
     private lateinit var sampler: VulkanSampler
     private val descriptorPool = DescriptorPool()
     private val graphicsSetLayout = DescriptorSetLayout()
@@ -83,6 +89,9 @@ class Compute: VulkanRendererBase(createWindow()) {
     private val computeSetLayout = DescriptorSetLayout()
     private val computeDescriptorSet = DescriptorSet()
     private val computePipeline = ComputePipeline()
+
+    private lateinit var particleInitialDataBuffer: VulkanBuffer
+    private lateinit var particlePositionBuffer: VulkanBuffer
 
     private val inputHandler = InputHandler(window)
 
@@ -134,7 +143,12 @@ class Compute: VulkanRendererBase(createWindow()) {
                 .srcOffset(0)
                 .dstOffset(0)
                 .size(vertexBufferSize.toLong())
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingVertexBuffer.vkBufferHandle, spriteVertexBuffer.vkBufferHandle, copyRegion)
+            vkCmdCopyBuffer(
+                cmdBuf.vkHandle,
+                stagingVertexBuffer.vkBufferHandle,
+                spriteVertexBuffer.vkBufferHandle,
+                copyRegion
+            )
 
             deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
@@ -171,7 +185,12 @@ class Compute: VulkanRendererBase(createWindow()) {
                 .srcOffset(0)
                 .dstOffset(0)
                 .size(indexBufferSize.toLong())
-            vkCmdCopyBuffer(cmdBuf.vkHandle, stagingIndexBuffer.vkBufferHandle, spriteIndexBuffer.vkBufferHandle, copyRegion)
+            vkCmdCopyBuffer(
+                cmdBuf.vkHandle,
+                stagingIndexBuffer.vkBufferHandle,
+                spriteIndexBuffer.vkBufferHandle,
+                copyRegion
+            )
 
             deviceUtil.endSingleTimeCommandBuffer(cmdBuf)
         }
@@ -182,7 +201,7 @@ class Compute: VulkanRendererBase(createWindow()) {
         val cameraBufferLayout = VulkanBufferConfiguration(
             128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
-        this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
+        this.generalInfoBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
@@ -202,10 +221,21 @@ class Compute: VulkanRendererBase(createWindow()) {
         )
         this.descriptorPool.create(device, poolPlan)
 
+        createGraphicsComponents()
+        createComputeComponents()
+    }
+
+    private fun createGraphicsComponents() {
         val graphicsSetLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
-                DescriptorSetLayoutBinding(0, 1, DescriptorType.UNIFORM_BUFFER, ShaderStage.VERTEX, DescriptorSetLayoutBindingFlag.NONE)
+                DescriptorSetLayoutBinding(
+                    0,
+                    1,
+                    DescriptorType.UNIFORM_BUFFER,
+                    ShaderStage.VERTEX,
+                    DescriptorSetLayoutBindingFlag.NONE
+                )
             )
         )
         this.graphicsSetLayout.create(device, graphicsSetLayoutPlan)
@@ -224,27 +254,58 @@ class Compute: VulkanRendererBase(createWindow()) {
         )
         this.graphicsPipeline.create(device, listOf(graphicsSetLayout), pipelineConfig)
 
+        // Update Descrfiptor Set
+        val descWriteCameraBuf = DescriptorBufferWrite(
+            0, DescriptorType.UNIFORM_BUFFER, 1, this.graphicsDescriptorSet, 0,
+            listOf(DescriptorBufferInfo(generalInfoBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+
+        this.graphicsDescriptorSet.update(device, descWriteCameraBuf)
+    }
+
+    private fun createComputeComponents() {
         val computeSetLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
-                DescriptorSetLayoutBinding(0, 1, DescriptorType.STORAGE_BUFFER, ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.NONE)
+                DescriptorSetLayoutBinding(
+                    0, 1,
+                    DescriptorType.UNIFORM_BUFFER,
+                    ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.NONE
+                ),
+                DescriptorSetLayoutBinding(
+                    1, STORAGE_BUFFER_ARRAY_SIZE,
+                    DescriptorType.STORAGE_BUFFER,
+                    ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                )
             )
         )
         this.computeSetLayout.create(device, computeSetLayoutPlan)
         this.computeDescriptorSet.create(device, descriptorPool, computeSetLayout)
 
         val computePipelineConfig = ComputePipelineConfiguration(
-            ClassLoader.getSystemResource("shaders/compute/linear_path.spv").readBytes()
+            ClassLoader.getSystemResource("shaders/compute/particle_compute.spv").readBytes(),
+            specializationConstants = listOf(
+                SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE),
+                SpecializationConstantInt(1, WORKGROUP_SIZE_X)
+            )
         )
         this.computePipeline.create(device, computeSetLayout, computePipelineConfig)
 
-        // Update Descrfiptor Set
-        val descWriteCameraBuf = DescriptorBufferWrite(
-            0, DescriptorType.UNIFORM_BUFFER, 1, this.graphicsDescriptorSet, 0,
-            listOf(DescriptorBufferInfo(cameraBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        val initialDataBufferConfig = VulkanBufferConfiguration(
+            4096L,
+            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST + BufferUsage.TRANSFER_SRC
         )
+        this.particleInitialDataBuffer = bufferFactory.createBuffer(initialDataBufferConfig)
 
-        this.graphicsDescriptorSet.update(device, descWriteCameraBuf)
+        val positionBufferConfig = VulkanBufferConfiguration(
+            32L * MAX_PARTICLE_COUNT,
+            MemoryProperty.DEVICE_LOCAL,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
+        )
+        this.particlePositionBuffer = bufferFactory.createBuffer(positionBufferConfig)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -254,7 +315,8 @@ class Compute: VulkanRendererBase(createWindow()) {
         data.order(ByteOrder.LITTLE_ENDIAN)
         camera.position.toByteBuffer(data, 0)
         camera.extent.toByteBuffer(data, 8)
-        cameraBuffer.put(0, data)
+        data.putInt(16, tickCounter.toInt())
+        generalInfoBuffer.put(0, data)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -380,12 +442,27 @@ class Compute: VulkanRendererBase(createWindow()) {
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
-            vkCmdBindDescriptorSets(commandBuffer.vkHandle, bindPoint, graphicsPipeline.vkLayoutHandle, 0, pDescriptorSets, null)
+            vkCmdBindDescriptorSets(
+                commandBuffer.vkHandle,
+                bindPoint,
+                graphicsPipeline.vkLayoutHandle,
+                0,
+                pDescriptorSets,
+                null
+            )
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, graphicsPipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, spriteIndexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
-            vkCmdPushConstants(commandBuffer.vkHandle, graphicsPipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
+            vkCmdPushConstants(
+                commandBuffer.vkHandle,
+                graphicsPipeline.vkLayoutHandle,
+                ShaderStage.BOTH.vkBits,
+                0,
+                pPushConstants
+            )
             vkCmdDrawIndexed(commandBuffer.vkHandle, 6, 1, 0, 0, 0)
+
+            tickCounter++
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
@@ -449,13 +526,15 @@ class Compute: VulkanRendererBase(createWindow()) {
         sampler.destroy(device)
         spriteVertexBuffer.destroy()
         spriteIndexBuffer.destroy()
-        cameraBuffer.destroy()
+        generalInfoBuffer.destroy()
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         graphicsSetLayout.destroy(device)
         graphicsPipeline.destroy(device)
         computeSetLayout.destroy(device)
         computePipeline.destroy(device)
+        particlePositionBuffer.destroy()
+        particleInitialDataBuffer.destroy()
         super.destroy()
     }
 }

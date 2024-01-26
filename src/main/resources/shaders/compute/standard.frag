@@ -2,7 +2,16 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
+struct GeneralInfo {
+    vec2 cameraPosition;
+    vec2 cameraExtent;
+    uint tickCounter;
+};
+
+
 layout (location = 0) in vec2 inFragCoords;
+
+layout (set = 0, binding = 0) uniform UBO { GeneralInfo data; } generalInfoBuffer;
 
 layout(push_constant) uniform PushConstants{
     vec2 pos;
