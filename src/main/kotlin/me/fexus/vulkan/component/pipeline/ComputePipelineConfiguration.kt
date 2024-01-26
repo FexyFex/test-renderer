@@ -5,5 +5,6 @@ import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationC
 
 class ComputePipelineConfiguration (
     val shaderCode: ByteArray,
+    val pushConstantsLayout: PushConstantsLayout? = null,
     val specializationConstants: List<SpecializationConstant<*>> = emptyList()
 )

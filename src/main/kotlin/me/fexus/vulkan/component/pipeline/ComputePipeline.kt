@@ -15,8 +15,16 @@ class ComputePipeline : IPipeline {
     override var vkLayoutHandle: Long = 0L; private set
 
     fun create(device: Device, setLayout: DescriptorSetLayout, config: ComputePipelineConfiguration) = runMemorySafe {
-        val pushConstantRange = calloc(VkPushConstantRange::calloc, 1)
-        pushConstantRange[0].set(VK_SHADER_STAGE_COMPUTE_BIT, 0, 128)
+
+        val pPushConstantRange: VkPushConstantRange.Buffer?
+        if (config.pushConstantsLayout != null) {
+            pPushConstantRange = calloc(VkPushConstantRange::calloc, 1)
+            pPushConstantRange[0].set(
+                config.pushConstantsLayout.shaderStages.vkBits,
+                config.pushConstantsLayout.offset,
+                config.pushConstantsLayout.size
+            )
+        } else pPushConstantRange = null
 
         val pSetLayouts = allocateLong(1)
         pSetLayouts.put(0, setLayout.vkHandle)
@@ -26,7 +34,7 @@ class ComputePipeline : IPipeline {
             flags(0)
             setLayoutCount(1)
             pSetLayouts(pSetLayouts)
-            pPushConstantRanges(pushConstantRange)
+            pPushConstantRanges(pPushConstantRange)
         }
 
         val pPipelineLayoutHandle = allocateLong(1)

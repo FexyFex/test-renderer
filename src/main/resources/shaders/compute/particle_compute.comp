@@ -4,6 +4,8 @@
 
 #include "./routines/routine_gravity.glsl"
 #include "./routines/routine_attraction.glsl"
+#include "./routines/routine_linear.glsl"
+
 
 struct ParticleInitialData {
     vec2 spawnPosition;

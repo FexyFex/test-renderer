@@ -68,7 +68,7 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
 
-        private const val MAX_PARTICLE_COUNT = 1 shl 14
+        private const val MAX_PARTICLE_COUNT = 1 shl 12
         private const val STORAGE_BUFFER_ARRAY_SIZE = 8
         private const val WORKGROUP_SIZE_X = 16
     }
@@ -82,12 +82,10 @@ class Compute : VulkanRendererBase(createWindow()) {
     private lateinit var generalInfoBuffer: VulkanBuffer
     private lateinit var sampler: VulkanSampler
     private val descriptorPool = DescriptorPool()
-    private val graphicsSetLayout = DescriptorSetLayout()
-    private val graphicsDescriptorSet = DescriptorSet()
+    private val descriptorSetLayout = DescriptorSetLayout()
+    private val descriptorSet = DescriptorSet()
     private val graphicsPipeline = GraphicsPipeline()
 
-    private val computeSetLayout = DescriptorSetLayout()
-    private val computeDescriptorSet = DescriptorSet()
     private val computePipeline = ComputePipeline()
 
     private lateinit var particleInitialDataBuffer: VulkanBuffer
@@ -221,50 +219,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         )
         this.descriptorPool.create(device, poolPlan)
 
-        createGraphicsComponents()
-        createComputeComponents()
-    }
-
-    private fun createGraphicsComponents() {
-        val graphicsSetLayoutPlan = DescriptorSetLayoutPlan(
-            DescriptorSetLayoutCreateFlag.NONE,
-            listOf(
-                DescriptorSetLayoutBinding(
-                    0,
-                    1,
-                    DescriptorType.UNIFORM_BUFFER,
-                    ShaderStage.VERTEX,
-                    DescriptorSetLayoutBindingFlag.NONE
-                )
-            )
-        )
-        this.graphicsSetLayout.create(device, graphicsSetLayoutPlan)
-        this.graphicsDescriptorSet.create(device, descriptorPool, graphicsSetLayout)
-
-        val pipelineConfig = GraphicsPipelineConfiguration(
-            listOf(
-                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
-                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
-            ),
-            PushConstantsLayout(128),
-            ClassLoader.getSystemResource("shaders/compute/standard_vert.spv").readBytes(),
-            ClassLoader.getSystemResource("shaders/compute/standard_frag.spv").readBytes(),
-            dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true
-        )
-        this.graphicsPipeline.create(device, listOf(graphicsSetLayout), pipelineConfig)
-
-        // Update Descrfiptor Set
-        val descWriteCameraBuf = DescriptorBufferWrite(
-            0, DescriptorType.UNIFORM_BUFFER, 1, this.graphicsDescriptorSet, 0,
-            listOf(DescriptorBufferInfo(generalInfoBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
-        )
-
-        this.graphicsDescriptorSet.update(device, descWriteCameraBuf)
-    }
-
-    private fun createComputeComponents() {
-        val computeSetLayoutPlan = DescriptorSetLayoutPlan(
+        val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
                 DescriptorSetLayoutBinding(
@@ -281,17 +236,52 @@ class Compute : VulkanRendererBase(createWindow()) {
                 )
             )
         )
-        this.computeSetLayout.create(device, computeSetLayoutPlan)
-        this.computeDescriptorSet.create(device, descriptorPool, computeSetLayout)
+        this.descriptorSetLayout.create(device, setLayoutPlan)
+        this.descriptorSet.create(device, descriptorPool, descriptorSetLayout)
 
+        createGraphicsComponents()
+        createComputeComponents()
+
+        // Update Descriptor Set
+        val descWriteCameraBuf = DescriptorBufferWrite(
+            0, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
+            listOf(DescriptorBufferInfo(generalInfoBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+        )
+        val descWriteBufferArr = DescriptorBufferWrite(
+            1, DescriptorType.STORAGE_BUFFER, 2, this.descriptorSet, 0,
+            listOf(
+                DescriptorBufferInfo(particleInitialDataBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE),
+                DescriptorBufferInfo(particlePositionBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE)
+            )
+        )
+        this.descriptorSet.update(device, descWriteCameraBuf, descWriteBufferArr)
+    }
+
+    private fun createGraphicsComponents() {
+        val pipelineConfig = GraphicsPipelineConfiguration(
+            listOf(
+                VertexAttribute(0, VertexAttributeFormat.VEC4, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC4, 16),
+            ),
+            PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.BOTH),
+            ClassLoader.getSystemResource("shaders/compute/standard_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/compute/standard_frag.spv").readBytes(),
+            dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
+            blendEnable = true
+        )
+        this.graphicsPipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
+    }
+
+    private fun createComputeComponents() {
         val computePipelineConfig = ComputePipelineConfiguration(
             ClassLoader.getSystemResource("shaders/compute/particle_compute.spv").readBytes(),
+            pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.BOTH),
             specializationConstants = listOf(
                 SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE),
                 SpecializationConstantInt(1, WORKGROUP_SIZE_X)
             )
         )
-        this.computePipeline.create(device, computeSetLayout, computePipelineConfig)
+        this.computePipeline.create(device, descriptorSetLayout, computePipelineConfig)
 
         val initialDataBufferConfig = VulkanBufferConfiguration(
             4096L,
@@ -392,6 +382,79 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
+        // COMPUTE
+        // synchronize the read and write ops
+        val computeBarrier = calloc(VkBufferMemoryBarrier::calloc, 2)
+        with(computeBarrier[0]) {
+            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            pNext(0L)
+            buffer(particlePositionBuffer.vkBufferHandle)
+            srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            offset(0L)
+            size(VK_WHOLE_SIZE)
+        }
+        with(computeBarrier[1]) {
+            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            pNext(0L)
+            buffer(particleInitialDataBuffer.vkBufferHandle)
+            srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            offset(0L)
+            size(VK_WHOLE_SIZE)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            0, null, computeBarrier, null
+        )
+
+        // actual compute here
+        val pDescriptorSets = allocateLong(1)
+        pDescriptorSets.put(0, descriptorSet.vkHandle)
+
+        val pPushConstants = allocate(128)
+        Vec4(0f, 0f, 1f, 1f).toByteBuffer(pPushConstants, 0)
+        pPushConstants.putFloat(16, 0.2f)
+
+        vkCmdBindDescriptorSets(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            computePipeline.vkLayoutHandle,
+            0,
+            pDescriptorSets,
+            null
+        )
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline.vkHandle)
+        vkCmdPushConstants(
+            commandBuffer.vkHandle,
+            computePipeline.vkLayoutHandle,
+            VK_SHADER_STAGE_COMPUTE_BIT or VK_SHADER_STAGE_FRAGMENT_BIT or VK_SHADER_STAGE_VERTEX_BIT,
+            0,
+            pPushConstants
+        )
+        vkCmdDispatch(commandBuffer.vkHandle, MAX_PARTICLE_COUNT / MAX_PARTICLE_COUNT, 1, 1)
+
+        with(computeBarrier[0]) {
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        }
+        with(computeBarrier[1]) {
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+            0, null, computeBarrier, null
+        )
+        // COMPUTE
+
+        // Continue with graphics
         val swapToRenderingBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToRenderingBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
@@ -426,17 +489,10 @@ class Compute : VulkanRendererBase(createWindow()) {
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
 
-            val pDescriptorSets = allocateLong(1)
-            pDescriptorSets.put(0, graphicsDescriptorSet.vkHandle)
-
             val pVertexBuffers = allocateLong(1)
             pVertexBuffers.put(0, spriteVertexBuffer.vkBufferHandle)
             val pOffsets = allocateLong(1)
             pOffsets.put(0, 0L)
-
-            val pPushConstants = allocate(128)
-            Vec4(0f, 0f, 1f, 1f).toByteBuffer(pPushConstants, 0)
-            pPushConstants.putFloat(16, 0.2f)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
 
@@ -456,11 +512,11 @@ class Compute : VulkanRendererBase(createWindow()) {
             vkCmdPushConstants(
                 commandBuffer.vkHandle,
                 graphicsPipeline.vkLayoutHandle,
-                ShaderStage.BOTH.vkBits,
+                VK_SHADER_STAGE_COMPUTE_BIT or VK_SHADER_STAGE_FRAGMENT_BIT or VK_SHADER_STAGE_VERTEX_BIT,
                 0,
                 pPushConstants
             )
-            vkCmdDrawIndexed(commandBuffer.vkHandle, 6, 1, 0, 0, 0)
+            vkCmdDrawIndexed(commandBuffer.vkHandle, 6, MAX_PARTICLE_COUNT, 0, 0, 0)
 
             tickCounter++
         }
@@ -529,9 +585,8 @@ class Compute : VulkanRendererBase(createWindow()) {
         generalInfoBuffer.destroy()
         depthAttachment.destroy()
         descriptorPool.destroy(device)
-        graphicsSetLayout.destroy(device)
+        descriptorSetLayout.destroy(device)
         graphicsPipeline.destroy(device)
-        computeSetLayout.destroy(device)
         computePipeline.destroy(device)
         particlePositionBuffer.destroy()
         particleInitialDataBuffer.destroy()

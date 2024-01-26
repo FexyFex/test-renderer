@@ -67,7 +67,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             HardwareVoxelRaytracing().start()
         }
 
-        private fun createWindow() = Window("Simple Raytracing") {
+        private fun createWindow() = Window("Simple Raytracing (WIP)") {
             windowVisible()
             enableResizable()
             setInitialWindowSize(1280,720)
