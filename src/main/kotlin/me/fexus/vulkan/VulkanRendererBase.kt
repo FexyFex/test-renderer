@@ -18,6 +18,8 @@ import me.fexus.vulkan.component.Fence
 import me.fexus.vulkan.component.Semaphore
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.extension.DeviceExtension
+import me.fexus.vulkan.memory.MemoryAnalyzer
+import me.fexus.vulkan.memory.budget.HeapBudgetValidator
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
@@ -29,8 +31,7 @@ import org.lwjgl.vulkan.VK12.*
 
 abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
     private val core = VulkanCore()
-    protected val bufferFactory = VulkanBufferFactory()
-    protected val imageFactory = VulkanImageFactory()
+
     protected val surface = Surface()
     protected val uniqueQueueFamilies = mutableListOf<QueueFamily>()
     protected val graphicsQueue = Queue()
@@ -48,6 +49,12 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val device; get() = core.device
     protected val physicalDevice; get() = core.physicalDevice
 
+    protected val memoryAnalyzer = MemoryAnalyzer()
+    protected val heapBudgetValidator = HeapBudgetValidator()
+
+    protected val bufferFactory = VulkanBufferFactory()
+    protected val imageFactory = VulkanImageFactory()
+
     protected val deviceUtil = VulkanDeviceUtil(core.device, bufferFactory, imageFactory)
 
 
@@ -59,7 +66,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         uniqueQueueFamilies.addAll(findUniqueQueueFamilies())
         core.createDevice(uniqueQueueFamilies)
 
-        deviceUtil.init()
+        deviceUtil.create()
 
         val graphicsCapableQueueFamily = getQueueFamilyWithCapabilities(QueueFamilyCapability.GRAPHICS)
         graphicsQueue.create(device, graphicsCapableQueueFamily, 0)
@@ -75,8 +82,11 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         renderFinishedSemaphores.forEach { it.create(device) }
         inFlightFences.forEach { it.create(device) }
 
-        bufferFactory.init(core.physicalDevice, device)
-        imageFactory.init(core.physicalDevice, device)
+        memoryAnalyzer.create(physicalDevice)
+        heapBudgetValidator.create(physicalDevice, memoryAnalyzer)
+
+        bufferFactory.create(core.physicalDevice, device)
+        imageFactory.create(core.physicalDevice, device)
 
         return this
     }

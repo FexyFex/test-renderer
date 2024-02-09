@@ -32,7 +32,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
@@ -104,7 +104,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
@@ -117,13 +117,13 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         }
         val vertexBufferLayout = VulkanBufferConfiguration(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+            MemoryPropertyFlag.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
         val stagingVertexBufferLayout = VulkanBufferConfiguration(
             ParallaxMappingQuadModel.SIZE_BYTES.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
@@ -146,7 +146,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferConfiguration(
-            128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
+            128L, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
@@ -158,13 +158,13 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
         val imageArrayLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(diffTexture.width, diffTexture.height, 1),
             1, 1, 3, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
-            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
+            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.imageArray = imageFactory.createImage(imageArrayLayout)
 
         val stagingImageBufferLayout = VulkanBufferConfiguration(
             diffTexture.imageSize * 3,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val imgStagingBuf = bufferFactory.createBuffer(stagingImageBufferLayout)
@@ -518,7 +518,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }

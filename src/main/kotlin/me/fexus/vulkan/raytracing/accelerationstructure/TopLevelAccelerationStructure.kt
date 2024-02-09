@@ -1,14 +1,13 @@
 package me.fexus.vulkan.raytracing.accelerationstructure
 
 import me.fexus.memory.runMemorySafe
-import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRAccelerationStructure.*
 
@@ -62,7 +61,7 @@ class TopLevelAccelerationStructure {
 
         val asBufferLayout = VulkanBufferConfiguration(
                 buildSizesInfo.accelerationStructureSize(),
-                MemoryProperty.DEVICE_LOCAL,
+                MemoryPropertyFlag.DEVICE_LOCAL,
                 BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         this@TopLevelAccelerationStructure.buffer = bufferFactory.createBuffer(asBufferLayout)
@@ -80,7 +79,7 @@ class TopLevelAccelerationStructure {
 
         val scratchBufferLayout = VulkanBufferConfiguration(
                 buildSizesInfo.buildScratchSize(),
-                MemoryProperty.DEVICE_LOCAL,
+                MemoryPropertyFlag.DEVICE_LOCAL,
                 BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         val scratchBuffer = bufferFactory.createBuffer(scratchBufferLayout)

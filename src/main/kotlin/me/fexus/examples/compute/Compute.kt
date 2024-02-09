@@ -29,7 +29,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
@@ -37,6 +37,8 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
+import me.fexus.vulkan.memory.MemoryAnalyzer
+import me.fexus.vulkan.memory.budget.HeapBudgetValidator
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -107,7 +109,7 @@ class Compute : VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
@@ -121,13 +123,13 @@ class Compute : VulkanRendererBase(createWindow()) {
         }
         val vertexBufferLayout = VulkanBufferConfiguration(
             vertexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+            MemoryPropertyFlag.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.spriteVertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
         val stagingVertexBufferLayout = VulkanBufferConfiguration(
             vertexBufferSize.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
@@ -163,13 +165,13 @@ class Compute : VulkanRendererBase(createWindow()) {
         }
         val indexBufferConfig = VulkanBufferConfiguration(
             indexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.spriteIndexBuffer = bufferFactory.createBuffer(indexBufferConfig)
         val stagingIndexBufferConfig = VulkanBufferConfiguration(
             indexBufferSize.toLong(),
-            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE,
             BufferUsage.TRANSFER_SRC
         )
         val stagingIndexBuffer = bufferFactory.createBuffer(stagingIndexBufferConfig)
@@ -197,7 +199,7 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferConfiguration(
-            128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
+            128L, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.generalInfoBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
@@ -285,14 +287,14 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         val initialDataBufferConfig = VulkanBufferConfiguration(
             4096L,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST + BufferUsage.TRANSFER_SRC
         )
         this.particleInitialDataBuffer = bufferFactory.createBuffer(initialDataBufferConfig)
 
         val positionBufferConfig = VulkanBufferConfiguration(
             32L * MAX_PARTICLE_COUNT,
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.particlePositionBuffer = bufferFactory.createBuffer(positionBufferConfig)
@@ -572,7 +574,7 @@ class Compute : VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }

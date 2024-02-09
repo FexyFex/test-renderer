@@ -1,8 +1,8 @@
-package me.fexus.vulkan.descriptors.memoryproperties
+package me.fexus.vulkan.descriptors.memorypropertyflags
 
 import org.lwjgl.vulkan.VK12.*
 
-enum class MemoryProperty(override val vkBits: Int): MemoryProperties {
+enum class MemoryPropertyFlag(override val vkBits: Int): MemoryPropertyFlags {
     HOST_VISIBLE(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT),
     HOST_COHERENT(VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
     DEVICE_LOCAL(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),

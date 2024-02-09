@@ -3,9 +3,9 @@ package me.fexus.vulkan.descriptors.buffer
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlags
 import me.fexus.vulkan.descriptors.buffer.usage.IBufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkBufferDeviceAddressInfo
@@ -15,12 +15,12 @@ import java.nio.ByteBuffer
 class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkMemoryHandle: Long, val config: VulkanBufferConfiguration) {
     private var mappingHandle: Long = -1L
 
-    fun hasProperty(memProp: MemoryProperties) = memProp in config.memoryProperties
+    fun hasProperty(memProp: MemoryPropertyFlags) = memProp in config.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in config.usage
 
     // This function works with HeapByteBuffers as well
     fun put(dstOffset: Int, data: ByteBuffer, srcOffset: Int = 0, srcSize: Int = data.capacity()) {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Put can be done without staging
             val address = getMemoryMappingHandle() + dstOffset
             repeat(srcSize) {
@@ -34,7 +34,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
 
     // This function only works with off-heap data
     fun copy(srcAddress: Long, dstOffset: Long, size: Long) {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging
             MemoryUtil.memCopy(srcAddress, getMemoryMappingHandle() + dstOffset, size)
         } else {
@@ -43,7 +43,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun putInt(offset: Int, value: Int) {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging
             val address = getMemoryMappingHandle() + offset
             MemoryUtil.memPutInt(address, value)
@@ -53,7 +53,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun set(offset: Int, value: Int, size: Long) {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging
             val address = getMemoryMappingHandle()
             MemoryUtil.memSet(address + offset, value, size)
@@ -63,7 +63,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun getFloat(offset: Int): Float {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging
             val address = getMemoryMappingHandle() + offset
             return MemoryUtil.memGetFloat(address)
@@ -73,7 +73,7 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
     }
 
     fun getInt(offset: Int): Int {
-        if (hasProperty(MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE)) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging
             val address = getMemoryMappingHandle() + offset
             return MemoryUtil.memGetInt(address)

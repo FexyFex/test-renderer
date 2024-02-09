@@ -1,13 +1,13 @@
-package me.fexus.vulkan.descriptors.memoryproperties
+package me.fexus.vulkan.descriptors.memorypropertyflags
 
 
-interface MemoryProperties {
+interface MemoryPropertyFlags {
     val vkBits: Int
 
-    infix fun or(other: MemoryProperties) = this + other
-    operator fun plus(other: MemoryProperties) = CombinedMemoryProperties(this.vkBits or other.vkBits)
+    infix fun or(other: MemoryPropertyFlags) = this + other
+    operator fun plus(other: MemoryPropertyFlags) = CombinedMemoryPropertyFlags(this.vkBits or other.vkBits)
 
-    operator fun contains(property: MemoryProperties): Boolean {
+    operator fun contains(property: MemoryPropertyFlags): Boolean {
         return (this.vkBits and property.vkBits) == property.vkBits
     }
 
@@ -16,7 +16,7 @@ interface MemoryProperties {
     }
 
     fun info(): String {
-        val properties = enumValues<MemoryProperty>()
+        val properties = enumValues<MemoryPropertyFlag>()
 
         val containedUsages = mutableListOf<String>()
 

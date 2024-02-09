@@ -43,7 +43,7 @@ import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.vulkan.util.Offset3D
 import me.fexus.window.Window
@@ -98,13 +98,13 @@ class FexVulkanGUI (
             ImageExtent3D(glyphAtlas.texture.width, glyphAtlas.texture.height, 1),
             1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_SRC + ImageUsage.TRANSFER_DST,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.glyphAtlasImage = deviceUtil.createImage(glyphAtlasImageConfig)
 
         val glyphAtlasImageStagingBufferConfig = VulkanBufferConfiguration(
             glyphAtlas.texture.imageSize,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val glyphsStagingBuffer = deviceUtil.createBuffer(glyphAtlasImageStagingBufferConfig)
@@ -135,7 +135,7 @@ class FexVulkanGUI (
         val buffers = mutableListOf<VulkanBuffer>()
         val screenSizeBufferConfig = VulkanBufferConfiguration(
             64L,
-            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE,
             BufferUsage.UNIFORM_BUFFER
         )
         repeat(Globals.framesTotal) {
@@ -175,7 +175,7 @@ class FexVulkanGUI (
         val vertexBufferSize = QuadModel.Vertex.SIZE_BYTES * QuadModel.vertices.size
         val vertexBufferConfig = VulkanBufferConfiguration(
             vertexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = deviceUtil.createBuffer(vertexBufferConfig)
@@ -193,7 +193,7 @@ class FexVulkanGUI (
         val indexBufferSize = QuadModel.indices.size * Int.SIZE_BYTES
         val indexBufferConfig = VulkanBufferConfiguration(
             indexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.indexBuffer = deviceUtil.createBuffer(indexBufferConfig)
@@ -347,7 +347,7 @@ class FexVulkanGUI (
         val imageConfig = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(width, height, 1),
             1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
-            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
+            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         val newImage = deviceUtil.createImage(imageConfig)
 
@@ -369,7 +369,7 @@ class FexVulkanGUI (
         val bufferSize = pixelBuffer.capacity().toLong()
         val stagingBufConfig = VulkanBufferConfiguration(
             bufferSize,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingBuffer = deviceUtil.createBuffer(stagingBufConfig)

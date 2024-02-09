@@ -13,11 +13,12 @@ import me.fexus.vulkan.component.queuefamily.QueueFamily
 class VulkanCore {
     private val enabledLayers = listOf<VulkanLayer>(ValidationLayer)
     val enabledExtensions = mutableListOf<DeviceExtension>(
-        SwapchainExtension,
-        DynamicRenderingExtension,
-        DepthStencilResolveKHRExtension,
-        Synchronization2Extension,
-        DescriptorIndexingExtension
+        SwapchainKHR,
+        DynamicRenderingKHR,
+        DepthStencilResolveKHR,
+        Synchronization2KHR,
+        DescriptorIndexingEXT,
+        MemoryBudgetEXT
     )
 
     val instance = Instance()

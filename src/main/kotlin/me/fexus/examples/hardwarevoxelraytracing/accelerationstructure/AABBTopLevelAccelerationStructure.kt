@@ -5,7 +5,7 @@ import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRAccelerationStructure.*
 
@@ -66,7 +66,7 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
 
         val tlasBufferConfig = VulkanBufferConfiguration(
             buildSizesInfo.accelerationStructureSize(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         buffer = deviceUtil.createBuffer(tlasBufferConfig)
@@ -85,7 +85,7 @@ class AABBTopLevelAccelerationStructure: IAccelerationStructure {
 
         val scratchBufferConfig = VulkanBufferConfiguration(
             buildSizesInfo.buildScratchSize(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         val scratchBuffer = deviceUtil.createBuffer(scratchBufferConfig)

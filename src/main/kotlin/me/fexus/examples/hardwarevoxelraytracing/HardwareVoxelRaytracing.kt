@@ -35,7 +35,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
@@ -117,10 +117,10 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     fun start() {
         val extraExtensions = listOf(
-            AccelerationStructureKHRExtension,
-            RayTracingPipelineKHRExtension,
-            BufferDeviceAddressKHRExtension,
-            DeferredHostOperationsKHRExtension
+            AccelerationStructureKHR,
+            RayTracingPipelineKHR,
+            BufferDeviceAddressKHR,
+            DeferredHostOperationsKHR
         )
         initVulkanCore(extraExtensions)
         createDescriptors()
@@ -158,7 +158,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
         deviceUtil.assignName(this.depthAttachment.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "depth_image")
@@ -168,7 +168,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val cubeVertexBufSize = CubeModelPositionsOnly.vertices.size * CubeModelPositionsOnly.Vertex.SIZE_BYTES
         val vertexBufferConfig = VulkanBufferConfiguration(
             cubeVertexBufSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST +
                     BufferUsage.SHADER_DEVICE_ADDRESS + BufferUsage.STORAGE_BUFFER +
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
@@ -181,7 +181,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val cubeIndexBufSize = CubeModelPositionsOnly.indices.size * Int.SIZE_BYTES
         val indexBufferConfig = VulkanBufferConfiguration(
             cubeIndexBufSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST +
                     BufferUsage.SHADER_DEVICE_ADDRESS + BufferUsage.STORAGE_BUFFER +
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR
@@ -193,7 +193,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- TRANSFORM DATA BUFFER --
         val transformBufLayout = VulkanBufferConfiguration(
             64L,
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.SHADER_DEVICE_ADDRESS +
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR +
                     BufferUsage.TRANSFER_DST
@@ -205,7 +205,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- INSTANCE DATA BUFFER
         val instanceDataBufLayout = VulkanBufferConfiguration(
             AccelerationStructureInstance.SIZE_BYTES.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.SHADER_DEVICE_ADDRESS +
                     BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR +
                     BufferUsage.TRANSFER_DST
@@ -217,7 +217,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferConfiguration(
             128L,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
@@ -228,7 +228,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val octreeBufferSize = 50000
         val octreeBufferConfig = VulkanBufferConfiguration(
             octreeBufferSize.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
         this.octreeBuffer = deviceUtil.createBuffer(octreeBufferConfig)
@@ -239,7 +239,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val cobbleImageConfig = VulkanImageConfiguration(
                 ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(cobbleTexture.width, cobbleTexture.height, 1),
                 1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
-                ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
+                ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.cobbleImage = imageFactory.createImage(cobbleImageConfig)
         deviceUtil.assignName(this.cobbleImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "cobble_image")
@@ -249,7 +249,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val storageImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(swapchain.imageExtent, 1), 1,
             VK_SAMPLE_COUNT_1_BIT, 1, ImageColorFormat.B8G8R8A8_UNORM, ImageTiling.OPTIMAL, ImageAspect.COLOR,
-            ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
+            ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
         deviceUtil.assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")
@@ -272,7 +272,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- DEBUG BUFFER --
         val debugBufferConfig = VulkanBufferConfiguration(
             256L,
-            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE,
             BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         this.debugBuffer = deviceUtil.createBuffer(debugBufferConfig)
@@ -282,7 +282,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // -- AABBS BUFFER --
         val aabbsBufferConfig = VulkanBufferConfiguration(
                 AABB.SIZE_BYTES * Scene.aabbs.size.toLong(),
-                MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+                MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
                 BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         this.aabbsBuffer = deviceUtil.createBuffer(aabbsBufferConfig)
@@ -386,7 +386,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         // TEXTURE IMAGE
         val stagingImageBufLayout = VulkanBufferConfiguration(
             cobbleTexture.imageSize,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
@@ -518,7 +518,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
         vkGetRayTracingShaderGroupHandlesKHR(device.vkHandle, raytracingPipeline.vkHandle, 0, groupCount, pData)
 
         val bufferUsage = BufferUsage.SHADER_BINDING_TABLE + BufferUsage.SHADER_DEVICE_ADDRESS
-        val memoryProperties = MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT
+        val memoryProperties = MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT
         val bufferConfig = VulkanBufferConfiguration(handleAlignmentSize.toLong(), memoryProperties, bufferUsage)
 
         this@HardwareVoxelRaytracing.raygenShaderBindingTable = bufferFactory.createBuffer(bufferConfig)
@@ -778,14 +778,14 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
         val storageImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(swapchain.imageExtent, 1), 1,
             VK_SAMPLE_COUNT_1_BIT, 1, ImageColorFormat.B8G8R8A8_UNORM, ImageTiling.OPTIMAL, ImageAspect.COLOR,
-            ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryProperty.DEVICE_LOCAL
+            ImageUsage.TRANSFER_SRC + ImageUsage.STORAGE, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.storageImage = imageFactory.createImage(storageImageLayout)
         deviceUtil.assignName(this.storageImage.vkImageHandle, VK_OBJECT_TYPE_IMAGE, "storage_image")

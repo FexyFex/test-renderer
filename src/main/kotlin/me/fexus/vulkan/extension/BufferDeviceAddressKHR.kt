@@ -1,5 +1,5 @@
 package me.fexus.vulkan.extension
 
-object BufferDeviceAddressKHRExtension: DeviceExtension {
+object BufferDeviceAddressKHR: DeviceExtension {
     override val name: String = "VK_KHR_buffer_device_address"
 }

@@ -5,7 +5,7 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferFactory
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import java.nio.ByteBuffer
 
 
@@ -26,7 +26,7 @@ class ChunkDataBufferArray {
         this.bufferFactory = bufferFactory
         val addressBufferLayout = VulkanBufferConfiguration(
             ((renderDistance.x * 2 + 1) * (renderDistance.y * 2 + 1) * (renderDistance.z.toLong() * 2 + 1)) * Int.SIZE_BYTES,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
         this.addressBuffer = bufferFactory.createBuffer(addressBufferLayout)
@@ -72,7 +72,7 @@ class ChunkDataBufferArray {
     private fun createNewBuffer(): ChunkBuffer {
         val bufLayout = VulkanBufferConfiguration(
             BUFFER_SIZE.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
         bufferArrayChanged = true

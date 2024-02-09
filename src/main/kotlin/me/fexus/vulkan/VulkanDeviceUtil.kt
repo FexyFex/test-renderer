@@ -16,12 +16,11 @@ import me.fexus.vulkan.descriptors.image.VulkanImageConfiguration
 import me.fexus.vulkan.descriptors.image.VulkanImageFactory
 import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
-import kotlin.contracts.ContractBuilder
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -38,7 +37,7 @@ class VulkanDeviceUtil(
     val vkDeviceHandle: VkDevice; get() = device.vkHandle
 
 
-    fun init() {
+    fun create() {
         val firstQueueFamily = QueueFamily(0, QueueFamilyCapability.GRAPHICS, false)
         this.firstQueue.create(device, firstQueueFamily, firstQueueFamily.index)
         commandPool.create(device, firstQueueFamily)
@@ -88,7 +87,7 @@ class VulkanDeviceUtil(
     fun stagingCopy(srcData: ByteBuffer, dstBuffer: VulkanBuffer, srcOffset: Long, dstOffset: Long, size: Long) {
         val stagingLayout = VulkanBufferConfiguration(
             size,
-            MemoryProperty.HOST_COHERENT + MemoryProperty.HOST_VISIBLE,
+            MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE,
             BufferUsage.TRANSFER_SRC
         )
 

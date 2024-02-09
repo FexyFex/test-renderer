@@ -5,11 +5,8 @@ import me.fexus.vulkan.layer.VulkanLayer
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.extension.*
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.EXTDescriptorBuffer.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT
 import org.lwjgl.vulkan.KHRAccelerationStructure.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
-import org.lwjgl.vulkan.KHRRayQuery.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR
 import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR
-import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR
 import org.lwjgl.vulkan.VK13.*
 
 
@@ -60,7 +57,7 @@ class Device {
                 dynamicRendering(true)
             }
 
-            if (RayTracingPipelineKHRExtension in extensions) {
+            if (RayTracingPipelineKHR in extensions) {
                 val accelerationStructureFeatures = calloc(VkPhysicalDeviceAccelerationStructureFeaturesKHR::calloc) {
                     sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR)
                     pNext(0L)
@@ -79,8 +76,8 @@ class Device {
             val features2 = calloc(VkPhysicalDeviceVulkan12Features::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
                 pNext(dynamicRenderingFeatures.address())
-                bufferDeviceAddress(BufferDeviceAddressKHRExtension in extensions)
-                if (DescriptorIndexingExtension in extensions) {
+                bufferDeviceAddress(BufferDeviceAddressKHR in extensions)
+                if (DescriptorIndexingEXT in extensions) {
                     descriptorIndexing(true)
                     descriptorBindingPartiallyBound(true)
                     descriptorBindingVariableDescriptorCount(true)

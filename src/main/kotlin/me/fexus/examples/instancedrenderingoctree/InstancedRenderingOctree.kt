@@ -35,7 +35,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.util.ImageExtent2D
@@ -106,7 +106,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         // -- CAMERA BUFFER --
         val cameraBufferConfig = VulkanBufferConfiguration(
             128L,
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferConfig)
@@ -116,7 +116,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         val octreeBufferSize = 50000
         val octreeBufferConfig = VulkanBufferConfiguration(
             octreeBufferSize.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )
         this.octreeBuffer = deviceUtil.createBuffer(octreeBufferConfig)
@@ -189,7 +189,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }
@@ -199,7 +199,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         val vertexBufferSize = CubeModelZeroToOne.Vertex.SIZE_BYTES * CubeModelZeroToOne.vertices.size
         val vertexBufferConfig = VulkanBufferConfiguration(
             vertexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferConfig)
@@ -218,7 +218,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         val indexBufferSize = CubeModelZeroToOne.indices.size * Int.SIZE_BYTES
         val indexBufferConfig = VulkanBufferConfiguration(
             indexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.indexBuffer = bufferFactory.createBuffer(indexBufferConfig)
@@ -237,7 +237,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
         val wireframeIndexBufferSize = CubeModelZeroToOne.wireframeIndices.size * Int.SIZE_BYTES
         val wireframeIndexBufferConfig = VulkanBufferConfiguration(
             wireframeIndexBufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.INDEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.wireframeIndexBuffer = bufferFactory.createBuffer(wireframeIndexBufferConfig)

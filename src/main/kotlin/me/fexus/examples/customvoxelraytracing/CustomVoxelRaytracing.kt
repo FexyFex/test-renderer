@@ -34,7 +34,7 @@ import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.image.sampler.AddressMode
@@ -122,7 +122,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
 
@@ -137,13 +137,13 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
         }
         val vertexBufferLayout = VulkanBufferConfiguration(
             cubeVertexBufSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
+            MemoryPropertyFlag.DEVICE_LOCAL, BufferUsage.VERTEX_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.vertexBuffer = bufferFactory.createBuffer(vertexBufferLayout)
         // Staging
         val stagingVertexBufferLayout = VulkanBufferConfiguration(
             cubeVertexBufSize.toLong(),
-            MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+            MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingVertexBuffer = bufferFactory.createBuffer(stagingVertexBufferLayout)
@@ -165,7 +165,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
         // -- CAMERA BUFFER --
         val cameraBufferLayout = VulkanBufferConfiguration(
-            128L, MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
+            128L, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
         this.cameraBuffer = bufferFactory.createBuffer(cameraBufferLayout)
         // -- CAMERA BUFFER --
@@ -175,13 +175,13 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
         val imageLayout = VulkanImageConfiguration(
                 ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(cobbleTex.width, cobbleTex.height, 1),
                 1, 1, 1, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
-                ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryProperty.DEVICE_LOCAL
+                ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.cobbleImage = imageFactory.createImage(imageLayout)
 
         val stagingImageBufLayout = VulkanBufferConfiguration(
                 cobbleTex.imageSize,
-                MemoryProperty.HOST_VISIBLE + MemoryProperty.HOST_COHERENT,
+                MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
                 BufferUsage.TRANSFER_SRC
         )
         val stagingBufImg = bufferFactory.createBuffer(stagingImageBufLayout)
@@ -543,7 +543,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }

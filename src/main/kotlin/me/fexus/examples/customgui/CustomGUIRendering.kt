@@ -13,13 +13,12 @@ import me.fexus.vulkan.VulkanRendererBase
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
-import me.fexus.window.input.Key
 import me.fexus.window.input.event.InputEventSubscriber
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
@@ -99,7 +98,7 @@ class CustomGUIRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             1, 1, 1,
             ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
             ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT,
-            MemoryProperty.DEVICE_LOCAL
+            MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }

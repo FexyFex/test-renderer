@@ -15,7 +15,7 @@ class VulkanBufferFactory : DescriptorFactory {
     override lateinit var physicalDevice: PhysicalDevice
     override lateinit var device: Device
 
-    fun init(physicalDevice: PhysicalDevice, device: Device) {
+    fun create(physicalDevice: PhysicalDevice, device: Device) {
         this.physicalDevice = physicalDevice
         this.device = device
     }

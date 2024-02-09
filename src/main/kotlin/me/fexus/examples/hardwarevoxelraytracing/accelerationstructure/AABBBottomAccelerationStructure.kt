@@ -7,7 +7,7 @@ import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperty
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.exception.catchVK
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRAccelerationStructure.*
@@ -64,7 +64,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
 
         val blasBufferConfig = VulkanBufferConfiguration(
             buildSizesInfo.accelerationStructureSize(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.ACCELERATION_STRUCTURE_STORAGE_KHR + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         this@AABBBottomAccelerationStructure.buffer = deviceUtil.createBuffer(blasBufferConfig)
@@ -84,7 +84,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
 
         val scratchBufferConfig = VulkanBufferConfiguration(
             buildSizesInfo.buildScratchSize(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.SHADER_DEVICE_ADDRESS
         )
         val scratchBuffer = deviceUtil.createBuffer(scratchBufferConfig)
@@ -126,7 +126,7 @@ class AABBBottomAccelerationStructure: IAccelerationStructure {
         val bufferSize = aabbs.size * AABB.SIZE_BYTES
         val aabbsBufferConfig = VulkanBufferConfiguration(
             bufferSize.toLong(),
-            MemoryProperty.DEVICE_LOCAL,
+            MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_KHR +
                     BufferUsage.SHADER_DEVICE_ADDRESS + BufferUsage.TRANSFER_DST
         )

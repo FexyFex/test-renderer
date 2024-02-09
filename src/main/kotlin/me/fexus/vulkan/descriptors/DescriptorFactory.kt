@@ -3,7 +3,7 @@ package me.fexus.vulkan.descriptors
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
-import me.fexus.vulkan.descriptors.memoryproperties.MemoryProperties
+import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlags
 import org.lwjgl.vulkan.VK12
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties
 
@@ -13,7 +13,7 @@ interface DescriptorFactory {
     var device: Device
 
 
-    fun findMemoryTypeIndex(typeBits: Int, memProps: MemoryProperties): Int {
+    fun findMemoryTypeIndex(typeBits: Int, memProps: MemoryPropertyFlags): Int {
         return runMemorySafe {
             val deviceMemProps = calloc(VkPhysicalDeviceMemoryProperties::calloc)
             VK12.vkGetPhysicalDeviceMemoryProperties(physicalDevice.vkHandle, deviceMemProps)

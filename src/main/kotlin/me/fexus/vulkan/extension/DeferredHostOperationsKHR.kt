@@ -1,5 +1,5 @@
 package me.fexus.vulkan.extension
 
-object DeferredHostOperationsKHRExtension: DeviceExtension {
+object DeferredHostOperationsKHR: DeviceExtension {
     override val name: String = "VK_KHR_deferred_host_operations"
 }
