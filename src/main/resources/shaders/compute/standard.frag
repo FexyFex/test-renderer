@@ -13,11 +13,9 @@ layout (location = 0) in vec2 inFragCoords;
 
 layout (set = 0, binding = 0) uniform UBO { GeneralInfo data; } generalInfoBuffer;
 
-layout(push_constant) uniform PushConstants{
-    vec2 pos;
-    vec2 dim;
-    float zLayer;
-    uint imageIndex;
+layout (push_constant) uniform PushConstants {
+    uint initDataBufferIndex;
+    uint finalDataBufferIndex;
 };
 
 layout (location = 0) out vec4 outColor;

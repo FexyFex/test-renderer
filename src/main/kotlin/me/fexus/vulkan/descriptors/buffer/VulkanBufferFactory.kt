@@ -5,17 +5,24 @@ import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
+import me.fexus.vulkan.descriptors.memorypropertyflags.CombinedMemoryPropertyFlags
 import me.fexus.vulkan.exception.catchVK
+import me.fexus.vulkan.memory.MemoryStatistics
+import me.fexus.vulkan.memory.budget.MemoryHeapTypeFinder
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRBufferDeviceAddress.VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR
 import org.lwjgl.vulkan.VK12.*
 
 
 class VulkanBufferFactory : DescriptorFactory {
+    override lateinit var memoryStatistics: MemoryStatistics
+    override lateinit var memoryFinder: MemoryHeapTypeFinder
     override lateinit var physicalDevice: PhysicalDevice
     override lateinit var device: Device
 
-    fun create(physicalDevice: PhysicalDevice, device: Device) {
+    fun create(memoryStatistics: MemoryStatistics, budgetValidator: MemoryHeapTypeFinder, physicalDevice: PhysicalDevice, device: Device) {
+        this.memoryStatistics = memoryStatistics
+        this.memoryFinder = budgetValidator
         this.physicalDevice = physicalDevice
         this.device = device
     }
@@ -33,6 +40,7 @@ class VulkanBufferFactory : DescriptorFactory {
         val bufferInfo = calloc(VkBufferCreateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
             pNext(0)
+            flags(0)
             size(preferredBufferConfig.size)
             usage(preferredBufferConfig.usage.vkBits)
             sharingMode(preferredBufferConfig.sharingMode)
@@ -45,16 +53,21 @@ class VulkanBufferFactory : DescriptorFactory {
         val memRequirements = calloc(VkMemoryRequirements::calloc)
         vkGetBufferMemoryRequirements(device.vkHandle, bufferHandle, memRequirements)
 
-        val memoryTypeIndex = findMemoryTypeIndex(
-            memRequirements.memoryTypeBits(),
+        val allowedMemoryPropertyFlagBits = memRequirements.memoryTypeBits()
+
+        var searchReport = memoryFinder.findMemoryType(
+            preferredBufferConfig.size,
+            CombinedMemoryPropertyFlags(allowedMemoryPropertyFlagBits),
             preferredBufferConfig.memoryProperties
         )
+        // Keep looking for a heap until we find one with a sufficient memory budget
+        while (!searchReport.heapBudgetSufficient) { searchReport = searchReport.suggestAlternative() }
 
         val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             pNext(0)
             allocationSize(memRequirements.size())
-            memoryTypeIndex(memoryTypeIndex)
+            memoryTypeIndex(searchReport.type.index)
         }
 
         if (BufferUsage.SHADER_DEVICE_ADDRESS in preferredBufferConfig.usage) {
@@ -73,8 +86,8 @@ class VulkanBufferFactory : DescriptorFactory {
         vkBindBufferMemory(device.vkHandle, bufferHandle, bufferMemoryHandle, 0).catchVK()
 
         val actualSize: Long = memRequirements.size()
-        val actualProperties = preferredBufferConfig.memoryProperties
-        val actualUsage = preferredBufferConfig.usage
+        val actualProperties = searchReport.type.memoryPropertyFlags
+        val actualUsage = preferredBufferConfig.usage // Not sure if this would ever even change. Probably not...
         val actualBufferLayout = VulkanBufferConfiguration(actualSize, actualProperties, actualUsage)
 
         return@runMemorySafe VulkanBuffer(device, bufferHandle, bufferMemoryHandle, actualBufferLayout)

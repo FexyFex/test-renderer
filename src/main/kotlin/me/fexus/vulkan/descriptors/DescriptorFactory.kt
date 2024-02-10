@@ -4,11 +4,15 @@ import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.component.Device
 import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlags
+import me.fexus.vulkan.memory.MemoryStatistics
+import me.fexus.vulkan.memory.budget.MemoryHeapTypeFinder
 import org.lwjgl.vulkan.VK12
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties
 
 
 interface DescriptorFactory {
+    var memoryStatistics: MemoryStatistics
+    var memoryFinder: MemoryHeapTypeFinder
     var physicalDevice: PhysicalDevice
     var device: Device
 

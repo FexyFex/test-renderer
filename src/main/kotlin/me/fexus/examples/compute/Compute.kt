@@ -37,8 +37,6 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
-import me.fexus.vulkan.memory.MemoryAnalyzer
-import me.fexus.vulkan.memory.budget.HeapBudgetValidator
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -257,6 +255,8 @@ class Compute : VulkanRendererBase(createWindow()) {
             )
         )
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteBufferArr)
+
+        populateParticleInitDataBuffer()
     }
 
     private fun createGraphicsComponents() {
@@ -298,6 +298,14 @@ class Compute : VulkanRendererBase(createWindow()) {
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.particlePositionBuffer = bufferFactory.createBuffer(positionBufferConfig)
+    }
+
+    private fun populateParticleInitDataBuffer() {
+        repeat(MAX_PARTICLE_COUNT) { index ->
+            val offset = index * ParticleInitialData.SIZE_BYTES
+            val initData = ParticleInitialData(Vec2(0f, 0f), tickCounter, 0, 0)
+            initData.moveIntoVulkanBuffer(particleInitialDataBuffer, offset)
+        }
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {

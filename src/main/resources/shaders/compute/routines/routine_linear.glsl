@@ -1,3 +1,3 @@
-vec2 linear() {
-    return vec2(0.0);
+vec2 linear(vec2 initialPosition, vec2 velocity, uint timeLived) {
+    return initialPosition + (velocity * timeLived);
 }

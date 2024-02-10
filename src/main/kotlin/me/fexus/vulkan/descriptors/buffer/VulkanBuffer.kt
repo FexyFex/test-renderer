@@ -52,6 +52,16 @@ class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkM
         }
     }
 
+    fun putFloat(offset: Int, value: Float) {
+        if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
+            // Copy can be done without staging
+            val address = getMemoryMappingHandle() + offset
+            MemoryUtil.memPutFloat(address, value)
+        } else {
+            throw Exception("Device local buffers require staging")
+        }
+    }
+
     fun set(offset: Int, value: Int, size: Long) {
         if (hasProperty(MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE)) {
             // Copy can be done without staging

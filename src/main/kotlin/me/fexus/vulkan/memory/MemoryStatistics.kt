@@ -7,13 +7,13 @@ import org.lwjgl.vulkan.VK12
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties2
 
 
-class MemoryAnalyzer {
+class MemoryStatistics {
     private lateinit var physicalDevice: PhysicalDevice
 
-    private val mutHeaps = mutableListOf<MemoryHeap>()
-    private val mutTypes = mutableListOf<MemoryType>()
-    val heaps: List<MemoryHeap>; get() = mutHeaps
-    val types: List<MemoryType>; get() = mutTypes
+    private val mutMemoryHeaps = mutableListOf<MemoryHeap>()
+    private val mutMemoryTypes = mutableListOf<MemoryType>()
+    val memoryHeaps: List<MemoryHeap>; get() = mutMemoryHeaps
+    val memoryTypes: List<MemoryType>; get() = mutMemoryTypes
 
 
     fun create(physicalDevice: PhysicalDevice) {
@@ -32,7 +32,11 @@ class MemoryAnalyzer {
                 val memoryTypes = props2.memoryProperties().memoryTypes()
                     .filter { it.heapIndex() == heapIndex }
                     .mapIndexed { typeIndex, vkMemoryType ->
-                        MemoryType(typeIndex, CombinedMemoryPropertyFlags(vkMemoryType.propertyFlags()))
+                        MemoryType(
+                            typeIndex,
+                            vkMemoryType.heapIndex(),
+                            CombinedMemoryPropertyFlags(vkMemoryType.propertyFlags())
+                        )
                     }
 
                 val heap = MemoryHeap(
@@ -42,15 +46,15 @@ class MemoryAnalyzer {
                     memoryTypes
                 )
 
-                this@MemoryAnalyzer.mutHeaps.add(heap)
+                this@MemoryStatistics.mutMemoryHeaps.add(heap)
             }
 
             for (typeIndex in 0 until props2.memoryProperties().memoryTypeCount()) {
                 val vkMemoryType = props2.memoryProperties().memoryTypes(typeIndex)
                 val memoryType = MemoryType(
-                    typeIndex, CombinedMemoryPropertyFlags(vkMemoryType.propertyFlags())
+                    typeIndex, vkMemoryType.heapIndex(), CombinedMemoryPropertyFlags(vkMemoryType.propertyFlags())
                 )
-                this@MemoryAnalyzer.mutTypes.add(memoryType)
+                this@MemoryStatistics.mutMemoryTypes.add(memoryType)
             }
         }
     }

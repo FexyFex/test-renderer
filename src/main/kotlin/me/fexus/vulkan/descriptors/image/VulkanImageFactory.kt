@@ -7,15 +7,21 @@ import me.fexus.vulkan.descriptors.DescriptorFactory
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.exception.catchVK
+import me.fexus.vulkan.memory.MemoryStatistics
+import me.fexus.vulkan.memory.budget.MemoryHeapTypeFinder
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK12.*
 
 
 class VulkanImageFactory: DescriptorFactory {
+    override lateinit var memoryStatistics: MemoryStatistics
+    override lateinit var memoryFinder: MemoryHeapTypeFinder
     override lateinit var physicalDevice: PhysicalDevice
     override lateinit var device: Device
 
-    fun create(physicalDevice: PhysicalDevice, device: Device) {
+    fun create(memoryStatistics: MemoryStatistics, memoryValidator: MemoryHeapTypeFinder, physicalDevice: PhysicalDevice, device: Device) {
+        this.memoryStatistics = memoryStatistics
+        this.memoryFinder = memoryValidator
         this.physicalDevice = physicalDevice
         this.device = device
     }

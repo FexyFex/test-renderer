@@ -18,8 +18,8 @@ import me.fexus.vulkan.component.Fence
 import me.fexus.vulkan.component.Semaphore
 import me.fexus.vulkan.component.queuefamily.capabilities.QueueFamilyCapabilities
 import me.fexus.vulkan.extension.DeviceExtension
-import me.fexus.vulkan.memory.MemoryAnalyzer
-import me.fexus.vulkan.memory.budget.HeapBudgetValidator
+import me.fexus.vulkan.memory.MemoryStatistics
+import me.fexus.vulkan.memory.budget.MemoryHeapTypeFinder
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.util.ImageExtent2D
@@ -49,8 +49,8 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val device; get() = core.device
     protected val physicalDevice; get() = core.physicalDevice
 
-    protected val memoryAnalyzer = MemoryAnalyzer()
-    protected val heapBudgetValidator = HeapBudgetValidator()
+    protected val memoryStatistics = MemoryStatistics()
+    protected val memoryValidator = MemoryHeapTypeFinder()
 
     protected val bufferFactory = VulkanBufferFactory()
     protected val imageFactory = VulkanImageFactory()
@@ -82,11 +82,11 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         renderFinishedSemaphores.forEach { it.create(device) }
         inFlightFences.forEach { it.create(device) }
 
-        memoryAnalyzer.create(physicalDevice)
-        heapBudgetValidator.create(physicalDevice, memoryAnalyzer)
+        memoryStatistics.create(physicalDevice)
+        memoryValidator.create(physicalDevice, memoryStatistics)
 
-        bufferFactory.create(core.physicalDevice, device)
-        imageFactory.create(core.physicalDevice, device)
+        bufferFactory.create(memoryStatistics, memoryValidator, core.physicalDevice, device)
+        imageFactory.create(memoryStatistics, memoryValidator, core.physicalDevice, device)
 
         return this
     }
