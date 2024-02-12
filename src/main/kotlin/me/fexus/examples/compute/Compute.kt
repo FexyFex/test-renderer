@@ -37,6 +37,7 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
+import me.fexus.vulkan.descriptors.memorypropertyflags.CombinedMemoryPropertyFlags
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -106,6 +107,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         val usage = BufferUsage.STORAGE_BUFFER
         val testConfig = VulkanBufferConfiguration(testSize, memPropFlags, usage)
         repeat(10) {
+            //this.memoryTypeFinder.budgetFunction(testSize, CombinedMemoryPropertyFlags(31), memPropFlags)
             val e = bufferFactory.createBuffer(testConfig)
             //println(e.config.memoryProperties)
             Thread.sleep(100)

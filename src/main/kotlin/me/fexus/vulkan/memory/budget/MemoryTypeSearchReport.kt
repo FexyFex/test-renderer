@@ -34,17 +34,17 @@ open class MemoryTypeSearchReport(
         }
         VK12.vkGetPhysicalDeviceMemoryProperties2(physicalDevice.vkHandle, memProps)
 
-        val otherMemorTypes = memoryStatistics.memoryTypes.filter { it.heapIndex != heap.index }
-        val closestMemoryType = otherMemorTypes.firstOrNull { it.memoryPropertyFlags.contains(preferredMemoryPropertyFlags) }
-        val finalMemoryType = closestMemoryType // if no closest type was found, we just take the one with the biggest budget
-            ?: otherMemorTypes.maxBy { type ->
-                val heap = memoryStatistics.memoryHeaps.first {
-                    it.index == type.heapIndex && allowedMemoryPropertyFlags.contains(type.memoryPropertyFlags)
-                }
-                budgetProps.heapBudget(heap.index)
-            }
+        val otherMemorTypes = memoryStatistics.memoryTypes.filter { it.heapIndex !in (disallowedHeaps.map { it.index } + heap.index) }
+        val closestMemoryType = otherMemorTypes.firstOrNull {
+            it.memoryPropertyFlags.contains(preferredMemoryPropertyFlags) &&
+                    budgetProps.heapBudget(it.heapIndex) - budgetProps.heapUsage(it.heapIndex) >= requiredSize
+        }
+        // if no closest type was found, we just take the one with the biggest budget
+        val finalMemoryType = closestMemoryType ?: otherMemorTypes.maxBy { type ->
+            budgetProps.heapBudget(type.heapIndex) - budgetProps.heapUsage(type.heapIndex)
+        }
         val finalMemoryHeap = memoryStatistics.memoryHeaps.first { it.index == finalMemoryType.heapIndex }
-        val budgetSufficient = budgetProps.heapBudget(finalMemoryHeap.index) >= requiredSize
+        val budgetSufficient = (finalMemoryHeap.budget - budgetProps.heapUsage(finalMemoryHeap.index)) >= requiredSize
 
         return@runMemorySafe MemoryTypeSearchReport(
             physicalDevice,

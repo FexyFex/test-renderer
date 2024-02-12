@@ -50,7 +50,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val physicalDevice; get() = core.physicalDevice
 
     protected val memoryStatistics = MemoryStatistics()
-    protected val memoryValidator = MemoryHeapTypeFinder()
+    protected val memoryTypeFinder = MemoryHeapTypeFinder()
 
     protected val bufferFactory = VulkanBufferFactory()
     protected val imageFactory = VulkanImageFactory()
@@ -83,10 +83,10 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         inFlightFences.forEach { it.create(device) }
 
         memoryStatistics.create(physicalDevice)
-        memoryValidator.create(physicalDevice, memoryStatistics)
+        memoryTypeFinder.create(physicalDevice, memoryStatistics)
 
-        bufferFactory.create(memoryStatistics, memoryValidator, core.physicalDevice, device)
-        imageFactory.create(memoryStatistics, memoryValidator, core.physicalDevice, device)
+        bufferFactory.create(memoryStatistics, memoryTypeFinder, core.physicalDevice, device)
+        imageFactory.create(memoryStatistics, memoryTypeFinder, core.physicalDevice, device)
 
         return this
     }
