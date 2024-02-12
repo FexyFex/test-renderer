@@ -101,6 +101,16 @@ class Compute : VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
+        val testSize = 1_000_000_000L
+        val memPropFlags = MemoryPropertyFlag.DEVICE_LOCAL
+        val usage = BufferUsage.STORAGE_BUFFER
+        val testConfig = VulkanBufferConfiguration(testSize, memPropFlags, usage)
+        repeat(10) {
+            val e = bufferFactory.createBuffer(testConfig)
+            //println(e.config.memoryProperties)
+            Thread.sleep(100)
+        }
+
         val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(swapchain.imageExtent, 1),

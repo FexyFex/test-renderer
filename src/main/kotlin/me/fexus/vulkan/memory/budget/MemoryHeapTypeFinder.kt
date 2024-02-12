@@ -8,6 +8,7 @@ import me.fexus.vulkan.memory.MemoryType
 import org.lwjgl.vulkan.EXTMemoryBudget.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT
 import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryBudgetPropertiesEXT
+import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties2
 
 
@@ -38,6 +39,8 @@ class MemoryHeapTypeFinder {
         val firstMemoryType = findMemoryTypeByProperties(allowedMemoryPropertyFlagBits, preferredMemoryProperyFlags)
 
         val budget = budgetProps.heapBudget(firstMemoryType.heapIndex)
+        val usage = budgetProps.heapBudget(firstMemoryType.heapIndex)
+        println("budget: $budget, usage: $usage")
         val heap = memoryStatistic.memoryHeaps[firstMemoryType.heapIndex]
         val budgetSufficient = budget >= size
 
@@ -59,9 +62,9 @@ class MemoryHeapTypeFinder {
         allowedPropertyFlags: MemoryPropertyFlags,
         requestedPropertyFlags: MemoryPropertyFlags
     ): MemoryType {
-        for (type in memoryStatistic.memoryTypes) {
+        for ((index, type) in memoryStatistic.memoryTypes.withIndex()) {
             val containsAllPropertyFlags = type.memoryPropertyFlags.contains(requestedPropertyFlags)
-            val allowedPropertiesSatisfied = allowedPropertyFlags.contains(type.memoryPropertyFlags.vkBits)
+            val allowedPropertiesSatisfied = allowedPropertyFlags.contains(1 shl index)
             if (containsAllPropertyFlags && allowedPropertiesSatisfied) return type
         }
         throw Exception()
