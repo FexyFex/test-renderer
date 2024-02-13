@@ -54,7 +54,8 @@ class MemoryHeapTypeFinder {
             emptyList(),
             heap,
             firstMemoryType,
-            budgetSufficient
+            budgetSufficient,
+            false
         )
     }
 

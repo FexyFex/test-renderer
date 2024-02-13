@@ -46,8 +46,6 @@ class VulkanBufferFactory : DescriptorFactory {
             sharingMode(preferredBufferConfig.sharingMode)
         }
 
-
-
         val pBufferHandle = allocateLong(1)
         vkCreateBuffer(device.vkHandle, bufferInfo, null, pBufferHandle).catchVK()
         val bufferHandle = pBufferHandle[0]
@@ -64,9 +62,14 @@ class VulkanBufferFactory : DescriptorFactory {
         )
 
         // Keep looking for a heap until we find one with a sufficient memory budget
-        while (!searchReport.heapBudgetSufficient) {
+        while (!searchReport.heapBudgetSufficient && !searchReport.noMoreMemoryAvailable) {
             searchReport = searchReport.suggestAlternative()
         }
+
+        // TODO: return null (or some sort of error info object) when allocation fails completely
+        if (searchReport.noMoreMemoryAvailable)
+            println("MEEP")
+            //return@runMemorySafe null
 
         val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
             sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)

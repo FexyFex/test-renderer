@@ -22,6 +22,7 @@ open class MemoryTypeSearchReport(
     val heap: MemoryHeap,
     val type: MemoryType,
     val heapBudgetSufficient: Boolean,
+    val noMoreMemoryAvailable: Boolean
 ) {
 
     fun suggestAlternative(): MemoryTypeSearchReport = runMemorySafe {
@@ -34,7 +35,24 @@ open class MemoryTypeSearchReport(
         }
         VK12.vkGetPhysicalDeviceMemoryProperties2(physicalDevice.vkHandle, memProps)
 
-        val otherMemorTypes = memoryStatistics.memoryTypes.filter { it.heapIndex !in (disallowedHeaps.map { it.index } + heap.index) }
+        val disallowedHeapIndices = (disallowedHeaps.map { it.index } + heap.index)
+        val otherMemorTypes = memoryStatistics.memoryTypes.filter { it.heapIndex !in disallowedHeapIndices }
+
+        // This will happen if all memory heaps are used up. Final destination...
+        if (otherMemorTypes.isEmpty()) {
+            return@runMemorySafe MemoryTypeSearchReport(
+                physicalDevice,
+                memoryStatistics,
+                requiredSize,
+                allowedMemoryPropertyFlags,
+                preferredMemoryPropertyFlags,
+                disallowedHeaps + heap,
+                heap,
+                type,
+                heapBudgetSufficient = false,
+                noMoreMemoryAvailable = true
+            )
+        }
         val closestMemoryType = otherMemorTypes.firstOrNull {
             it.memoryPropertyFlags.contains(preferredMemoryPropertyFlags) &&
                     budgetProps.heapBudget(it.heapIndex) - budgetProps.heapUsage(it.heapIndex) >= requiredSize
@@ -55,7 +73,8 @@ open class MemoryTypeSearchReport(
             disallowedHeaps + finalMemoryHeap,
             finalMemoryHeap,
             finalMemoryType,
-            budgetSufficient
+            budgetSufficient,
+            noMoreMemoryAvailable = false
         )
     }
 }
