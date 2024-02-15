@@ -62,7 +62,9 @@ open class MemoryTypeSearchReport(
             budgetProps.heapBudget(type.heapIndex) - budgetProps.heapUsage(type.heapIndex)
         }
         val finalMemoryHeap = memoryStatistics.memoryHeaps.first { it.index == finalMemoryType.heapIndex }
-        val budgetSufficient = (finalMemoryHeap.budget - budgetProps.heapUsage(finalMemoryHeap.index)) >= requiredSize
+        val budget = budgetProps.heapBudget(finalMemoryHeap.index)
+        val usage = budgetProps.heapUsage(finalMemoryHeap.index)
+        val budgetSufficient = (budget - usage) >= requiredSize
 
         return@runMemorySafe MemoryTypeSearchReport(
             physicalDevice,

@@ -108,9 +108,9 @@ class Compute : VulkanRendererBase(createWindow()) {
         val testConfig = VulkanBufferConfiguration(testSize, memPropFlags, usage)
         repeat(10) {
             //this.memoryTypeFinder.budgetFunction(testSize, CombinedMemoryPropertyFlags(31), memPropFlags)
-            val e = bufferFactory.createBuffer(testConfig)
+            //val e = bufferFactory.createBuffer(testConfig)
             //println(e.config.memoryProperties)
-            Thread.sleep(100)
+            //Thread.sleep(100)
         }
 
         val depthAttachmentImageLayout = VulkanImageConfiguration(

@@ -49,7 +49,6 @@ class MemoryStatistics {
                     heapIndex,
                     CombinedMemoryPropertyFlags(vkHeap.flags()),
                     vkHeap.size(),
-                    budgetProps.heapBudget(heapIndex),
                     memoryTypes
                 )
 

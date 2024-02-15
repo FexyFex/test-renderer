@@ -6,6 +6,7 @@ import me.fexus.vulkan.component.PhysicalDevice
 import me.fexus.vulkan.descriptors.DescriptorFactory
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
+import me.fexus.vulkan.descriptors.memorypropertyflags.CombinedMemoryPropertyFlags
 import me.fexus.vulkan.exception.catchVK
 import me.fexus.vulkan.memory.MemoryStatistics
 import me.fexus.vulkan.memory.budget.MemoryHeapTypeFinder
@@ -59,13 +60,30 @@ class VulkanImageFactory: DescriptorFactory {
 
             val memRequirements = calloc(VkMemoryRequirements::calloc)
             vkGetImageMemoryRequirements(device.vkHandle, imageHandle, memRequirements)
-            val memoryTypeIndex = findMemoryTypeIndex(memRequirements.memoryTypeBits(), preferredConfig.memoryProperties)
+
+            val imageSize = preferredConfig.extent.width * preferredConfig.extent.height * preferredConfig.extent.depth * 4L
+
+            var searchReport = memoryFinder.findMemoryType(
+                imageSize,
+                CombinedMemoryPropertyFlags(memRequirements.memoryTypeBits()),
+                preferredConfig.memoryPropertyFlags
+            )
+
+            // Keep looking for a heap until we find one with a sufficient memory budget
+            while (!searchReport.heapBudgetSufficient && !searchReport.noMoreMemoryAvailable) {
+                searchReport = searchReport.suggestAlternative()
+            }
+
+            // TODO: return null (or some sort of error info object) when allocation fails completely
+            if (searchReport.noMoreMemoryAvailable)
+                println("MEEP")
+            //return@runMemorySafe null
 
             val allocInfo = calloc(VkMemoryAllocateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
                 pNext(0)
                 allocationSize(memRequirements.size())
-                memoryTypeIndex(memoryTypeIndex)
+                memoryTypeIndex(searchReport.type.index)
             }
 
             val pImageMemoryHandle = allocateLong(1)
@@ -103,7 +121,7 @@ class VulkanImageFactory: DescriptorFactory {
                 preferredConfig.imageTiling,
                 preferredConfig.imageAspect,
                 preferredConfig.imageUsage,
-                preferredConfig.memoryProperties,
+                searchReport.type.memoryPropertyFlags,
                 preferredConfig.sharingMode,
             )
 

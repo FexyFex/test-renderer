@@ -18,6 +18,6 @@ data class VulkanImageConfiguration(
     val imageTiling: ImageTiling,
     val imageAspect: IImageAspect,
     val imageUsage: IImageUsage,
-    val memoryProperties: MemoryPropertyFlags,
+    val memoryPropertyFlags: MemoryPropertyFlags,
     val sharingMode: Int = VK_SHARING_MODE_EXCLUSIVE
 )

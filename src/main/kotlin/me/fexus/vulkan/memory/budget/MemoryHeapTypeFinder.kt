@@ -39,11 +39,10 @@ class MemoryHeapTypeFinder {
 
         val firstMemoryType = findMemoryTypeByProperties(allowedMemoryPropertyFlagBits, preferredMemoryProperyFlags)
 
+        val budget = budgetProps.heapBudget(firstMemoryType.heapIndex)
         val usage = budgetProps.heapUsage(firstMemoryType.heapIndex)
         val heap = memoryStatistics.memoryHeaps[firstMemoryType.heapIndex]
-        println("budget: ${heap.budget}, usage: $usage")
-        val budgetSufficient = (heap.budget - usage) >= size
-        println(budgetSufficient)
+        val budgetSufficient = (budget - usage) >= size
 
         return@runMemorySafe MemoryTypeSearchReport(
             physicalDevice,

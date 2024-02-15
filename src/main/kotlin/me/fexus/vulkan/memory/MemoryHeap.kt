@@ -6,6 +6,5 @@ data class MemoryHeap(
     val index: Int,
     val memoryPropertyFlags: MemoryPropertyFlags,
     val totalSize: Long,
-    val budget: Long,
     val memoryTypes: List<MemoryType>
 )
