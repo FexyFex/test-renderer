@@ -15,13 +15,14 @@ struct GeneralInfo {
 struct ParticleInitialData {
     vec2 spawnPosition;
     uint spawnTimeStamp;
+    uint lifetime;
     uint behaviourID;
     uint visualID;
 };
 
-struct FinalData {
+struct FinalParticleData {
     vec2 position;
-    uint timeLived;
+    int timeLived;
     uint visualID;
 };
 
@@ -32,12 +33,12 @@ layout (constant_id = 0) const int BUFFER_COUNT = 512;
 layout (local_size_x_id = 1, local_size_y = 1, local_size_z = 1) in;
 
 layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } generalInfoBuffer;
-layout (set = 0, binding = 1) buffer InitialDataBuffer { ParticleInitialData data[]; } initialDataBuffer[BUFFER_COUNT];
-layout (set = 0, binding = 1) buffer FinalDataBuffer { FinalData data[]; } finalPositionBuffer[BUFFER_COUNT];
+layout (set = 0, binding = 1) readonly buffer InitialDataBuffer { ParticleInitialData data[]; } initialDataBuffer[BUFFER_COUNT];
+layout (set = 0, binding = 1) writeonly buffer FinalDataBuffer { FinalParticleData data[]; } finalPositionBuffer[BUFFER_COUNT];
 
 layout (push_constant) uniform PushConstants {
     uint initDataBufferIndex;
-    uint finalDataBufferIndex;
+    uint finalParticleDataBufferIndex;
 };
 
 void main() {
@@ -56,8 +57,14 @@ void main() {
             break;
     }
 
-    FinalData final;
-    final.position = newPos;
-    final.timeLived = timeLived;
-    final.visualID = initData.visualID;
+    FinalParticleData finalParticleData;
+    finalParticleData.position = newPos;
+    finalParticleData.timeLived = int(timeLived);
+    finalParticleData.visualID = initData.visualID;
+
+    if (timeLived > initData.lifetime) {
+        finalParticleData.timeLived = -10; // any negative value signals a dead bullet
+    }
+
+    finalPositionBuffer[finalParticleDataBufferIndex].data[particleIndex] = finalParticleData;
 }

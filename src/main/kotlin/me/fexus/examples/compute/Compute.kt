@@ -37,7 +37,6 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
-import me.fexus.vulkan.descriptors.memorypropertyflags.CombinedMemoryPropertyFlags
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -69,9 +68,9 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
 
-        private const val MAX_PARTICLE_COUNT = 1 shl 12
+        private const val MAX_PARTICLE_COUNT = 512
         private const val STORAGE_BUFFER_ARRAY_SIZE = 8
-        private const val WORKGROUP_SIZE_X = 16
+        private const val WORKGROUP_SIZE_X = 64
     }
 
     private var tickCounter: Long = 0L
@@ -86,11 +85,10 @@ class Compute : VulkanRendererBase(createWindow()) {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSet = DescriptorSet()
     private val graphicsPipeline = GraphicsPipeline()
-
     private val computePipeline = ComputePipeline()
 
     private lateinit var particleInitialDataBuffer: VulkanBuffer
-    private lateinit var particlePositionBuffer: VulkanBuffer
+    private lateinit var particleFinalPositionBuffer: VulkanBuffer
 
     private val inputHandler = InputHandler(window)
 
@@ -102,17 +100,6 @@ class Compute : VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        val testSize = 1_000_000_000L
-        val memPropFlags = MemoryPropertyFlag.DEVICE_LOCAL
-        val usage = BufferUsage.STORAGE_BUFFER
-        val testConfig = VulkanBufferConfiguration(testSize, memPropFlags, usage)
-        repeat(10) {
-            //this.memoryTypeFinder.budgetFunction(testSize, CombinedMemoryPropertyFlags(31), memPropFlags)
-            //val e = bufferFactory.createBuffer(testConfig)
-            //println(e.config.memoryProperties)
-            //Thread.sleep(100)
-        }
-
         val depthAttachmentImageLayout = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D,
             ImageExtent3D(swapchain.imageExtent, 1),
@@ -263,7 +250,7 @@ class Compute : VulkanRendererBase(createWindow()) {
             1, DescriptorType.STORAGE_BUFFER, 2, this.descriptorSet, 0,
             listOf(
                 DescriptorBufferInfo(particleInitialDataBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE),
-                DescriptorBufferInfo(particlePositionBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE)
+                DescriptorBufferInfo(particleFinalPositionBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE)
             )
         )
         this.descriptorSet.update(device, descWriteCameraBuf, descWriteBufferArr)
@@ -298,7 +285,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         this.computePipeline.create(device, descriptorSetLayout, computePipelineConfig)
 
         val initialDataBufferConfig = VulkanBufferConfiguration(
-            4096L,
+            MAX_PARTICLE_COUNT * 32L,
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST + BufferUsage.TRANSFER_SRC
         )
@@ -309,15 +296,19 @@ class Compute : VulkanRendererBase(createWindow()) {
             MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
-        this.particlePositionBuffer = bufferFactory.createBuffer(positionBufferConfig)
+        this.particleFinalPositionBuffer = bufferFactory.createBuffer(positionBufferConfig)
     }
 
-    private fun populateParticleInitDataBuffer() {
+    private fun populateParticleInitDataBuffer() = runMemorySafe {
+        //val buf = allocate(particleInitialDataBuffer.config.size.toInt())
+        val lifetimeInTicks = 1000L
         repeat(MAX_PARTICLE_COUNT) { index ->
             val offset = index * ParticleInitialData.SIZE_BYTES
-            val initData = ParticleInitialData(Vec2(0f, 0f), tickCounter, 0, 0)
-            initData.moveIntoVulkanBuffer(particleInitialDataBuffer, offset)
+            val initData = ParticleInitialData(Vec2(0f, 0f), tickCounter, lifetimeInTicks, 0, 0)
+            //initData.intoByteBuffer(buf, offset)
+            initData.copyIntoVulkanBuffer(particleInitialDataBuffer, offset)
         }
+        //particleInitialDataBuffer.put(0, buf)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
@@ -410,7 +401,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         with(computeBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
             pNext(0L)
-            buffer(particlePositionBuffer.vkBufferHandle)
+            buffer(particleFinalPositionBuffer.vkBufferHandle)
             srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
             srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -440,8 +431,8 @@ class Compute : VulkanRendererBase(createWindow()) {
         pDescriptorSets.put(0, descriptorSet.vkHandle)
 
         val pPushConstants = allocate(128)
-        Vec4(0f, 0f, 1f, 1f).toByteBuffer(pPushConstants, 0)
-        pPushConstants.putFloat(16, 0.2f)
+        pPushConstants.putInt(0, 0)
+        pPushConstants.putInt(4, 1)
 
         vkCmdBindDescriptorSets(
             commandBuffer.vkHandle,
@@ -459,7 +450,7 @@ class Compute : VulkanRendererBase(createWindow()) {
             0,
             pPushConstants
         )
-        vkCmdDispatch(commandBuffer.vkHandle, MAX_PARTICLE_COUNT / MAX_PARTICLE_COUNT, 1, 1)
+        vkCmdDispatch(commandBuffer.vkHandle, MAX_PARTICLE_COUNT / WORKGROUP_SIZE_X, 1, 1)
 
         with(computeBarrier[0]) {
             srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
@@ -516,19 +507,17 @@ class Compute : VulkanRendererBase(createWindow()) {
             val pOffsets = allocateLong(1)
             pOffsets.put(0, 0L)
 
-            val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
-
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
             vkCmdBindDescriptorSets(
                 commandBuffer.vkHandle,
-                bindPoint,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
                 graphicsPipeline.vkLayoutHandle,
                 0,
                 pDescriptorSets,
                 null
             )
-            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, graphicsPipeline.vkHandle)
+            vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, spriteIndexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
             vkCmdPushConstants(
@@ -610,7 +599,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         descriptorSetLayout.destroy(device)
         graphicsPipeline.destroy(device)
         computePipeline.destroy(device)
-        particlePositionBuffer.destroy()
+        particleFinalPositionBuffer.destroy()
         particleInitialDataBuffer.destroy()
         super.destroy()
     }

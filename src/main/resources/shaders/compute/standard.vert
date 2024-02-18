@@ -9,14 +9,14 @@ struct GeneralInfo {
 
 struct FinalParticleData {
     vec2 position;
-    uint timeLived;
+    int timeLived;
     uint visualID;
 };
 
 layout (constant_id = 0) const int BUFFER_COUNT = 512;
 
 layout (set = 0, binding = 0) uniform UBO { GeneralInfo data; } generalInfoBuffer;
-layout (set = 0, binding = 1) buffer Buf { FinalParticleData data[]; } buffers[BUFFER_COUNT];
+layout (set = 0, binding = 1) readonly buffer Buf { FinalParticleData data[]; } buffers[BUFFER_COUNT];
 
 layout (location = 0) in vec4 inPosition;
 layout (location = 1) in vec4 inUV;
@@ -33,8 +33,15 @@ void main() {
     vec2 cameraPosition = generalInfoBuffer.data.cameraPosition;
     vec2 cameraExtent = generalInfoBuffer.data.cameraExtent;
 
+    uint paritcleID = gl_InstanceIndex;
     vec2 particleExtent = vec2(1.0);
     FinalParticleData particle = buffers[finalDataBufferIndex].data[gl_InstanceIndex];
+
+    if (particle.timeLived < 0.0) {
+        gl_Position = vec4(0.0 / 0.0);
+        outFragCoords = inUV.xy;
+        return;
+    }
 
     vec2 truePos = ((inPosition.xy * particleExtent) + particle.position + cameraPosition) / cameraExtent;
 

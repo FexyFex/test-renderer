@@ -36,6 +36,9 @@ class VulkanImageFactory: DescriptorFactory {
      */
     fun createImage(preferredConfig: VulkanImageConfiguration): VulkanImage {
         val image = runMemorySafe {
+            //val formatPorperties = calloc(VkFormatProperties2::calloc)
+            //vkGetPhysicalDeviceFormatProperties2(physicalDevice.vkHandle, preferredConfig.colorFormat.vkValue, formatPorperties)
+
             val imageInfo = calloc(VkImageCreateInfo::calloc) {
                 sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
                 pNext(0)
@@ -122,6 +125,7 @@ class VulkanImageFactory: DescriptorFactory {
                 preferredConfig.imageAspect,
                 preferredConfig.imageUsage,
                 searchReport.type.memoryPropertyFlags,
+                preferredConfig.formatFeatureFlags,
                 preferredConfig.sharingMode,
             )
 

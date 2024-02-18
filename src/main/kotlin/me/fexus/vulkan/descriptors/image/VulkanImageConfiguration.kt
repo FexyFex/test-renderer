@@ -2,6 +2,8 @@ package me.fexus.vulkan.descriptors.image
 
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.vulkan.descriptors.image.aspect.IImageAspect
+import me.fexus.vulkan.descriptors.image.feature.CombinedFormatFeatureFlags
+import me.fexus.vulkan.descriptors.image.feature.FormatFeatureFlags
 import me.fexus.vulkan.descriptors.image.usage.IImageUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlags
 import org.lwjgl.vulkan.VK10.VK_SHARING_MODE_EXCLUSIVE
@@ -19,5 +21,6 @@ data class VulkanImageConfiguration(
     val imageAspect: IImageAspect,
     val imageUsage: IImageUsage,
     val memoryPropertyFlags: MemoryPropertyFlags,
-    val sharingMode: Int = VK_SHARING_MODE_EXCLUSIVE
+    val formatFeatureFlags: FormatFeatureFlags = CombinedFormatFeatureFlags(0),
+    val sharingMode: Int = VK_SHARING_MODE_EXCLUSIVE,
 )
