@@ -45,7 +45,7 @@ void main() {
         return;
     }
 
-    vec2 truePos = ((inPosition.xy * particleExtent) + particle.position + cameraPosition) / cameraExtent;
+    vec2 truePos = ((inPosition.xy * particleExtent) - particle.position - cameraPosition) / cameraExtent;
 
     gl_Position = vec4(truePos, 0.1, 1.0);
     outFragCoords = inUV.xy;

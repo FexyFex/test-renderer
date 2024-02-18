@@ -29,7 +29,7 @@ import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK12.*
 
 
-abstract class VulkanRendererBase(protected val window: Window): RenderApplication {
+abstract class VulkanRendererBase(protected val window: Window) : RenderApplication {
     private val core = VulkanCore()
 
     protected val surface = Surface()
@@ -73,7 +73,14 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         presentQueue.create(device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
 
         val extent = window.extent2D
-        swapchain.create(surface, core.physicalDevice, device, Globals.FRAMES_TOTAL, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
+        swapchain.create(
+            surface,
+            core.physicalDevice,
+            device,
+            Globals.FRAMES_TOTAL,
+            ImageExtent2D(extent.x, extent.y),
+            uniqueQueueFamilies
+        )
 
         commandPool.create(device, graphicsCapableQueueFamily)
         commandBuffers.forEach { it.create(device, commandPool) }
@@ -92,108 +99,102 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     }
 
 
-    fun prepareFrame(): FramePreparation {
-        return runMemorySafe {
-            val pWaitFence = allocateLong(1)
-            pWaitFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
-            vkWaitForFences(device.vkHandle, pWaitFence, true, Long.MAX_VALUE)
+    fun prepareFrame(): FramePreparation = runMemorySafe {
+        val pWaitFence = allocateLong(1)
+        pWaitFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
+        vkWaitForFences(device.vkHandle, pWaitFence, true, Long.MAX_VALUE)
 
-            val pImageIndex = allocateInt(1)
-            val resultAcquire = vkAcquireNextImageKHR(
-                device.vkHandle,
-                swapchain.vkHandle,
-                Long.MAX_VALUE,
-                imageAvailableSemaphores[currentFrameInFlight].vkHandle,
-                0,
-                pImageIndex
-            )
-            val imageIndex = pImageIndex[0]
+        val pImageIndex = allocateInt(1)
+        val resultAcquire = vkAcquireNextImageKHR(
+            device.vkHandle,
+            swapchain.vkHandle,
+            Long.MAX_VALUE,
+            imageAvailableSemaphores[currentFrameInFlight].vkHandle,
+            0,
+            pImageIndex
+        )
+        val imageIndex = pImageIndex[0]
 
-            if (resultAcquire == VK_ERROR_OUT_OF_DATE_KHR) {
-                resizeSwapchain()
-                return@runMemorySafe FramePreparation(false, imageIndex)
-            }
-
-            val pResetFence = allocateLong(1)
-            pResetFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
-            vkResetFences(device.vkHandle, pResetFence)
-
-            if (resultAcquire == VK_SUCCESS || resultAcquire == VK_SUBOPTIMAL_KHR)
-                return@runMemorySafe FramePreparation(true, imageIndex)
-
-            resultAcquire.catchVK()
-            throw Exception()
+        if (resultAcquire == VK_ERROR_OUT_OF_DATE_KHR) {
+            resizeSwapchain()
+            return@runMemorySafe FramePreparation(false, imageIndex)
         }
+
+        val pResetFence = allocateLong(1)
+        pResetFence.put(0, inFlightFences[currentFrameInFlight].vkHandle)
+        vkResetFences(device.vkHandle, pResetFence)
+
+        if (resultAcquire == VK_SUCCESS || resultAcquire == VK_SUBOPTIMAL_KHR)
+            return@runMemorySafe FramePreparation(true, imageIndex)
+
+        resultAcquire.catchVK()
+        throw Exception()
     }
 
     abstract fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData
 
-    fun submitFrame(frameSubmitData: FrameSubmitData) {
-        if (!frameSubmitData.doSubmit) return
+    fun submitFrame(frameSubmitData: FrameSubmitData) = runMemorySafe {
+        val pWaitSemaphores = allocateLong(1 + frameSubmitData.additionalWaitSemaphores.size)
+        val pCommandBuffers = allocatePointer(1 + frameSubmitData.additionalCommandBuffers.size)
+        val pSignalSemaphores = allocateLong(1 + frameSubmitData.additionalSignalSemaphores.size)
+        val pWaitStages = allocateInt(1 + frameSubmitData.additionalWaitStages.size)
 
-        runMemorySafe {
-            val pWaitSemaphores = allocateLong(1 + frameSubmitData.additionalWaitSemaphores.size)
-            val pCommandBuffers = allocatePointer(1 + frameSubmitData.additionalCommandBuffers.size)
-            val pSignalSemaphores = allocateLong(1 + frameSubmitData.additionalSignalSemaphores.size)
-            val pWaitStages = allocateInt(1 + frameSubmitData.additionalWaitStages.size)
-
-            pWaitSemaphores.put(0, imageAvailableSemaphores[currentFrameInFlight].vkHandle)
-            frameSubmitData.additionalWaitSemaphores.forEachIndexed { index, semaphore ->
-                pWaitSemaphores.put(index + 1, semaphore.vkHandle)
-            }
-
-            pCommandBuffers.put(0, commandBuffers[currentFrameInFlight].vkHandle)
-            frameSubmitData.additionalCommandBuffers.forEachIndexed { index, commandBuffer ->
-                pCommandBuffers.put(index + 1, commandBuffer.vkHandle)
-            }
-
-            pSignalSemaphores.put(0, renderFinishedSemaphores[currentFrameInFlight].vkHandle)
-            frameSubmitData.additionalSignalSemaphores.forEachIndexed { index, semaphore ->
-                pSignalSemaphores.put(index+ 1, semaphore.vkHandle)
-            }
-
-            pWaitStages.put(0, PipelineStage.COLOR_ATTACHMENT_OUTPUT.vkBits)
-            frameSubmitData.additionalWaitStages.forEachIndexed { index, waitStage ->
-                pWaitStages.put(index + 1, waitStage.vkBits)
-            }
-
-            val submitInfo = calloc(VkSubmitInfo::calloc) {
-                sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                pNext(0)
-                waitSemaphoreCount(pWaitSemaphores.capacity())
-                pWaitSemaphores(pWaitSemaphores)
-                pCommandBuffers(pCommandBuffers)
-                pSignalSemaphores(pSignalSemaphores)
-                pWaitDstStageMask(pWaitStages)
-            }
-
-            vkQueueSubmit(graphicsQueue.vkHandle, submitInfo, inFlightFences[currentFrameInFlight].vkHandle).catchVK()
-
-            val pImageIndices = allocateInt(1)
-            pImageIndices.put(0, frameSubmitData.imageIndex)
-
-            val pSwapchains = allocateLong(1)
-            pSwapchains.put(0, swapchain.vkHandle)
-
-            val presentInfo = calloc(VkPresentInfoKHR::calloc) {
-                sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
-                pNext(0)
-                pWaitSemaphores(pSignalSemaphores)
-                swapchainCount(1)
-                pSwapchains(pSwapchains)
-                pImageIndices(pImageIndices)
-                pResults(null)
-            }
-
-            val presentResult = vkQueuePresentKHR(presentQueue.vkHandle, presentInfo)
-
-            if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
-                resizeSwapchain()
-            } else if (presentResult != VK_SUCCESS) presentResult.catchVK()
-
-            currentFrame = (currentFrame + 1) % Globals.FRAMES_TOTAL
-            currentFrameInFlight = (currentFrameInFlight + 1) % Globals.FRAMES_IN_FLIGHT
+        pWaitSemaphores.put(0, imageAvailableSemaphores[currentFrameInFlight].vkHandle)
+        frameSubmitData.additionalWaitSemaphores.forEachIndexed { index, semaphore ->
+            pWaitSemaphores.put(index + 1, semaphore.vkHandle)
         }
+
+        pCommandBuffers.put(0, commandBuffers[currentFrameInFlight].vkHandle)
+        frameSubmitData.additionalCommandBuffers.forEachIndexed { index, commandBuffer ->
+            pCommandBuffers.put(index + 1, commandBuffer.vkHandle)
+        }
+
+        pSignalSemaphores.put(0, renderFinishedSemaphores[currentFrameInFlight].vkHandle)
+        frameSubmitData.additionalSignalSemaphores.forEachIndexed { index, semaphore ->
+            pSignalSemaphores.put(index + 1, semaphore.vkHandle)
+        }
+
+        pWaitStages.put(0, PipelineStage.COLOR_ATTACHMENT_OUTPUT.vkBits)
+        frameSubmitData.additionalWaitStages.forEachIndexed { index, waitStage ->
+            pWaitStages.put(index + 1, waitStage.vkBits)
+        }
+
+        val submitInfo = calloc(VkSubmitInfo::calloc) {
+            sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+            pNext(0)
+            waitSemaphoreCount(pWaitSemaphores.capacity())
+            pWaitSemaphores(pWaitSemaphores)
+            pCommandBuffers(pCommandBuffers)
+            pSignalSemaphores(pSignalSemaphores)
+            pWaitDstStageMask(pWaitStages)
+        }
+
+        vkQueueSubmit(graphicsQueue.vkHandle, submitInfo, inFlightFences[currentFrameInFlight].vkHandle).catchVK()
+
+        val pImageIndices = allocateInt(1)
+        pImageIndices.put(0, frameSubmitData.imageIndex)
+
+        val pSwapchains = allocateLong(1)
+        pSwapchains.put(0, swapchain.vkHandle)
+
+        val presentInfo = calloc(VkPresentInfoKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
+            pNext(0)
+            pWaitSemaphores(pSignalSemaphores)
+            swapchainCount(1)
+            pSwapchains(pSwapchains)
+            pImageIndices(pImageIndices)
+            pResults(null)
+        }
+
+        val presentResult = vkQueuePresentKHR(presentQueue.vkHandle, presentInfo)
+
+        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
+            resizeSwapchain()
+        } else if (presentResult != VK_SUCCESS) presentResult.catchVK()
+
+        currentFrame = (currentFrame + 1) % Globals.FRAMES_TOTAL
+        currentFrameInFlight = (currentFrameInFlight + 1) % Globals.FRAMES_IN_FLIGHT
     }
 
 

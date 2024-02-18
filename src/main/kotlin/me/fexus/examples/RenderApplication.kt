@@ -6,7 +6,7 @@ import me.fexus.window.Window
 
 interface RenderApplication {
     fun startRenderLoop(window: Window, renderer: VulkanRendererBase) {
-        val desiredFPS = 151
+        val desiredFPS = 111
 
         val optimalTime: Double = 1.0 / desiredFPS
 
@@ -42,7 +42,8 @@ interface RenderApplication {
             val prep = renderer.prepareFrame()
             if (prep.acquireSuccessful) {
                 val frameData = renderer.recordFrame(prep, updateLength)
-                renderer.submitFrame(frameData)
+                if (frameData.doSubmit)
+                    renderer.submitFrame(frameData)
             }
 
             window.pollEvents()

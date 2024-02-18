@@ -67,7 +67,7 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
 
-        private const val MAX_PARTICLE_COUNT = 512
+        private const val MAX_PARTICLE_COUNT = 4096
         private const val STORAGE_BUFFER_ARRAY_SIZE = 8
         private const val WORKGROUP_SIZE_X = 64
     }
@@ -78,7 +78,6 @@ class Compute : VulkanRendererBase(createWindow()) {
     private lateinit var depthAttachment: VulkanImage
     private lateinit var spriteVertexBuffer: VulkanBuffer
     private lateinit var spriteIndexBuffer: VulkanBuffer
-    private lateinit var generalInfoBuffers: Array<VulkanBuffer>
     private lateinit var sampler: VulkanSampler
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
@@ -86,6 +85,10 @@ class Compute : VulkanRendererBase(createWindow()) {
     private val graphicsPipeline = GraphicsPipeline()
     private val computePipeline = ComputePipeline()
 
+    private lateinit var worldInfoBuffers: Array<VulkanBuffer>
+    private lateinit var inputMapBuffers: Array<VulkanBuffer>
+    private lateinit var playerInfoBuffers: Array<VulkanBuffer>
+    private lateinit var levelTimelineBuffer: VulkanBuffer
     private lateinit var particleInitialDataBuffer: VulkanBuffer
     private lateinit var particleFinalPositionBuffer: VulkanBuffer
 
@@ -197,7 +200,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         val cameraBufferLayout = VulkanBufferConfiguration(
             128L, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
-        this.generalInfoBuffers = Array(Globals.FRAMES_TOTAL) { bufferFactory.createBuffer(cameraBufferLayout) }
+        this.worldInfoBuffers = Array(Globals.FRAMES_TOTAL) { bufferFactory.createBuffer(cameraBufferLayout) }
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
@@ -243,7 +246,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         // Update Descriptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(
             0, DescriptorType.UNIFORM_BUFFER, Globals.FRAMES_TOTAL, this.descriptorSet, 0,
-            generalInfoBuffers.map { DescriptorBufferInfo(it.vkBufferHandle, 0L, VK_WHOLE_SIZE) }
+            worldInfoBuffers.map { DescriptorBufferInfo(it.vkBufferHandle, 0L, VK_WHOLE_SIZE) }
         )
         val descWriteBufferArr = DescriptorBufferWrite(
             1, DescriptorType.STORAGE_BUFFER, 2, this.descriptorSet, 0,
@@ -393,7 +396,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         camera.position.toByteBuffer(data, 0)
         camera.extent.toByteBuffer(data, 8)
         data.putInt(16, tickCounter.toInt())
-        generalInfoBuffers[currentFrame].put(0, data)
+        worldInfoBuffers[currentFrame].put(0, data)
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
@@ -568,8 +571,8 @@ class Compute : VulkanRendererBase(createWindow()) {
     }
 
     private fun handleInput() {
-        val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val yMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
+        val xMove =  inputHandler.isKeyDown(Key.D).toInt() - inputHandler.isKeyDown(Key.A).toInt()
+        val yMove = inputHandler.isKeyDown(Key.S).toInt() - inputHandler.isKeyDown(Key.W).toInt()
 
         camera.position.x += xMove * 0.1f
         camera.position.y += yMove * 0.1f
@@ -596,7 +599,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         sampler.destroy(device)
         spriteVertexBuffer.destroy()
         spriteIndexBuffer.destroy()
-        generalInfoBuffers.forEach(VulkanBuffer::destroy)
+        worldInfoBuffers.forEach(VulkanBuffer::destroy)
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)
