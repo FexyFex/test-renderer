@@ -3,7 +3,6 @@ package me.fexus.examples.compute
 import me.fexus.camera.Camera2D
 import me.fexus.examples.Globals
 import me.fexus.math.vec.Vec2
-import me.fexus.math.vec.Vec4
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModel
 import me.fexus.vulkan.util.FramePreparation
@@ -79,7 +78,7 @@ class Compute : VulkanRendererBase(createWindow()) {
     private lateinit var depthAttachment: VulkanImage
     private lateinit var spriteVertexBuffer: VulkanBuffer
     private lateinit var spriteIndexBuffer: VulkanBuffer
-    private lateinit var generalInfoBuffer: VulkanBuffer
+    private lateinit var generalInfoBuffers: Array<VulkanBuffer>
     private lateinit var sampler: VulkanSampler
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
@@ -198,7 +197,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         val cameraBufferLayout = VulkanBufferConfiguration(
             128L, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT, BufferUsage.UNIFORM_BUFFER
         )
-        this.generalInfoBuffer = bufferFactory.createBuffer(cameraBufferLayout)
+        this.generalInfoBuffers = Array(Globals.FRAMES_TOTAL) { bufferFactory.createBuffer(cameraBufferLayout) }
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
@@ -208,7 +207,7 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
-            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 16),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16),
@@ -222,7 +221,7 @@ class Compute : VulkanRendererBase(createWindow()) {
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
                 DescriptorSetLayoutBinding(
-                    0, 1,
+                    0, Globals.FRAMES_TOTAL,
                     DescriptorType.UNIFORM_BUFFER,
                     ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT,
                     DescriptorSetLayoutBindingFlag.NONE
@@ -243,8 +242,8 @@ class Compute : VulkanRendererBase(createWindow()) {
 
         // Update Descriptor Set
         val descWriteCameraBuf = DescriptorBufferWrite(
-            0, DescriptorType.UNIFORM_BUFFER, 1, this.descriptorSet, 0,
-            listOf(DescriptorBufferInfo(generalInfoBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            0, DescriptorType.UNIFORM_BUFFER, Globals.FRAMES_TOTAL, this.descriptorSet, 0,
+            generalInfoBuffers.map { DescriptorBufferInfo(it.vkBufferHandle, 0L, VK_WHOLE_SIZE) }
         )
         val descWriteBufferArr = DescriptorBufferWrite(
             1, DescriptorType.STORAGE_BUFFER, 2, this.descriptorSet, 0,
@@ -268,7 +267,11 @@ class Compute : VulkanRendererBase(createWindow()) {
             ClassLoader.getSystemResource("shaders/compute/standard_vert.spv").readBytes(),
             ClassLoader.getSystemResource("shaders/compute/standard_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
-            blendEnable = true
+            blendEnable = true,
+            specializationConstants = listOf(
+                SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE),
+                SpecializationConstantInt(1, Globals.FRAMES_TOTAL)
+            )
         )
         this.graphicsPipeline.create(device, listOf(descriptorSetLayout), pipelineConfig)
     }
@@ -279,7 +282,8 @@ class Compute : VulkanRendererBase(createWindow()) {
             pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.BOTH),
             specializationConstants = listOf(
                 SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE),
-                SpecializationConstantInt(1, WORKGROUP_SIZE_X)
+                SpecializationConstantInt(1, WORKGROUP_SIZE_X),
+                SpecializationConstantInt(2, Globals.FRAMES_TOTAL)
             )
         )
         this.computePipeline.create(device, descriptorSetLayout, computePipelineConfig)
@@ -300,26 +304,17 @@ class Compute : VulkanRendererBase(createWindow()) {
     }
 
     private fun populateParticleInitDataBuffer() = runMemorySafe {
-        //val buf = allocate(particleInitialDataBuffer.config.size.toInt())
         val lifetimeInTicks = 1000L
         repeat(MAX_PARTICLE_COUNT) { index ->
             val offset = index * ParticleInitialData.SIZE_BYTES
-            val initData = ParticleInitialData(Vec2(0f, 0f), tickCounter, lifetimeInTicks, 0, 0)
-            //initData.intoByteBuffer(buf, offset)
+            val behaviourID = if (Math.random() > 0.5) 1 else 0
+            val initData = ParticleInitialData(Vec2(0f, 0f), tickCounter, lifetimeInTicks, behaviourID, 0)
             initData.copyIntoVulkanBuffer(particleInitialDataBuffer, offset)
         }
-        //particleInitialDataBuffer.put(0, buf)
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
         handleInput()
-
-        val data = ByteBuffer.allocate(128)
-        data.order(ByteOrder.LITTLE_ENDIAN)
-        camera.position.toByteBuffer(data, 0)
-        camera.extent.toByteBuffer(data, 8)
-        data.putInt(16, tickCounter.toInt())
-        generalInfoBuffer.put(0, data)
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -393,6 +388,13 @@ class Compute : VulkanRendererBase(createWindow()) {
             pStencilAttachment(null)
         }
 
+        val data = ByteBuffer.allocate(128)
+        data.order(ByteOrder.LITTLE_ENDIAN)
+        camera.position.toByteBuffer(data, 0)
+        camera.extent.toByteBuffer(data, 8)
+        data.putInt(16, tickCounter.toInt())
+        generalInfoBuffers[currentFrame].put(0, data)
+
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
         // COMPUTE
@@ -433,6 +435,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         val pPushConstants = allocate(128)
         pPushConstants.putInt(0, 0)
         pPushConstants.putInt(4, 1)
+        pPushConstants.putInt(8, currentFrame)
 
         vkCmdBindDescriptorSets(
             commandBuffer.vkHandle,
@@ -593,7 +596,7 @@ class Compute : VulkanRendererBase(createWindow()) {
         sampler.destroy(device)
         spriteVertexBuffer.destroy()
         spriteIndexBuffer.destroy()
-        generalInfoBuffer.destroy()
+        generalInfoBuffers.forEach(VulkanBuffer::destroy)
         depthAttachment.destroy()
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)

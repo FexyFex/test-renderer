@@ -38,10 +38,10 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
     protected val presentQueue = Queue()
     protected val swapchain = Swapchain()
     protected val commandPool = CommandPool()
-    protected val commandBuffers = Array(Globals.framesInFlight) { CommandBuffer() }
-    protected val imageAvailableSemaphores = Array(Globals.framesInFlight) { Semaphore() }
-    protected val renderFinishedSemaphores = Array(Globals.framesInFlight) { Semaphore() }
-    protected val inFlightFences = Array(Globals.framesInFlight) { Fence() }
+    protected val commandBuffers = Array(Globals.FRAMES_IN_FLIGHT) { CommandBuffer() }
+    protected val imageAvailableSemaphores = Array(Globals.FRAMES_IN_FLIGHT) { Semaphore() }
+    protected val renderFinishedSemaphores = Array(Globals.FRAMES_IN_FLIGHT) { Semaphore() }
+    protected val inFlightFences = Array(Globals.FRAMES_IN_FLIGHT) { Fence() }
 
     protected var currentFrame: Int = 0; private set
     protected var currentFrameInFlight: Int = 0; private set
@@ -73,7 +73,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
         presentQueue.create(device, uniqueQueueFamilies.first { it.supportsPresent }, 0)
 
         val extent = window.extent2D
-        swapchain.create(surface, core.physicalDevice, device, Globals.framesTotal, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
+        swapchain.create(surface, core.physicalDevice, device, Globals.FRAMES_TOTAL, ImageExtent2D(extent.x, extent.y), uniqueQueueFamilies)
 
         commandPool.create(device, graphicsCapableQueueFamily)
         commandBuffers.forEach { it.create(device, commandPool) }
@@ -191,8 +191,8 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
                 resizeSwapchain()
             } else if (presentResult != VK_SUCCESS) presentResult.catchVK()
 
-            currentFrame = (currentFrame + 1) % Globals.framesTotal
-            currentFrameInFlight = (currentFrameInFlight + 1) % Globals.framesInFlight
+            currentFrame = (currentFrame + 1) % Globals.FRAMES_TOTAL
+            currentFrameInFlight = (currentFrameInFlight + 1) % Globals.FRAMES_IN_FLIGHT
         }
     }
 
@@ -257,7 +257,7 @@ abstract class VulkanRendererBase(protected val window: Window): RenderApplicati
             surface,
             core.physicalDevice,
             device,
-            Globals.framesTotal,
+            Globals.FRAMES_TOTAL,
             newExtent,
             uniqueQueueFamilies
         )

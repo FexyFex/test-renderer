@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "./routines/routine_gravity.glsl"
+#include "./routines/routine_falling.glsl"
 #include "./routines/routine_attraction.glsl"
 #include "./routines/routine_linear.glsl"
 
@@ -28,24 +28,26 @@ struct FinalParticleData {
 
 // Supply a high default value because we can only go lower when used to supply array sizes...
 layout (constant_id = 0) const int BUFFER_COUNT = 512;
+layout (constant_id = 2) const int FRAMES_TOTAL = 5;
 
 // local_size_x_id = 1 means that the workgroup size is supplied through the specialization constant that has id = 1
 layout (local_size_x_id = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } generalInfoBuffer;
+layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } generalInfoBuffer[FRAMES_TOTAL];
 layout (set = 0, binding = 1) readonly buffer InitialDataBuffer { ParticleInitialData data[]; } initialDataBuffer[BUFFER_COUNT];
 layout (set = 0, binding = 1) writeonly buffer FinalDataBuffer { FinalParticleData data[]; } finalPositionBuffer[BUFFER_COUNT];
 
 layout (push_constant) uniform PushConstants {
     uint initDataBufferIndex;
     uint finalParticleDataBufferIndex;
+    uint frameIndex;
 };
 
 void main() {
     uint particleIndex = gl_GlobalInvocationID.x;
 
     ParticleInitialData initData = initialDataBuffer[initDataBufferIndex].data[particleIndex];
-    uint timeLived = generalInfoBuffer.info.tickCounter - initData.spawnTimeStamp;
+    uint timeLived = generalInfoBuffer[frameIndex].info.tickCounter - initData.spawnTimeStamp;
 
     vec2 newPos;
     switch (initData.behaviourID) {
@@ -53,7 +55,7 @@ void main() {
             newPos = linear(initData.spawnPosition, vec2(0.01), timeLived);
             break;
         case 1:
-            newPos = gravity(initData.spawnPosition, vec2(0.0, 0.1), timeLived);
+            newPos = fall(initData.spawnPosition, vec2(0.0, -0.15), vec2(0.0, 0.002), timeLived);
             break;
     }
 

@@ -84,7 +84,7 @@ class FexVulkanGUI (
     // Descriptor Set stuff
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
-    private val descriptorSets = Array(Globals.framesTotal) { DescriptorSet() }
+    private val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
     private val imagesDescriptorSetLayout = DescriptorSetLayout()
     private val imagesDescriptorSet = DescriptorSet() // Images get their own descriptor set (UPDATE_AFTER_BIND)
 
@@ -138,7 +138,7 @@ class FexVulkanGUI (
             MemoryPropertyFlag.HOST_COHERENT + MemoryPropertyFlag.HOST_VISIBLE,
             BufferUsage.UNIFORM_BUFFER
         )
-        repeat(Globals.framesTotal) {
+        repeat(Globals.FRAMES_TOTAL) {
             val buf = deviceUtil.createBuffer(screenSizeBufferConfig)
             buffers.add(buf)
         }

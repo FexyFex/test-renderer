@@ -16,8 +16,8 @@ import java.nio.IntBuffer
 
 class Swapchain {
     var vkHandle: Long = 0L; private set
-    var images = Array(Globals.framesTotal) { 0L }
-    var imageViews = Array(Globals.framesTotal) { 0L }
+    var images = Array(Globals.FRAMES_TOTAL) { 0L }
+    var imageViews = Array(Globals.FRAMES_TOTAL) { 0L }
 
     lateinit var imageColorFormat: ImageColorFormat; private set
     lateinit var imageExtent: ImageExtent2D; private set

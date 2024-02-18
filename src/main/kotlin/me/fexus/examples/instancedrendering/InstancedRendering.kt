@@ -130,7 +130,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
 
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
-            Globals.framesTotal, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 4)
