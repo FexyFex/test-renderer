@@ -14,6 +14,7 @@ import java.nio.ByteBuffer
 
 class VulkanBuffer(private val device: Device, val vkBufferHandle: Long, val vkMemoryHandle: Long, val config: VulkanBufferConfiguration) {
     private var mappingHandle: Long = -1L
+    var index: Int = -1 // An index the user can set (useful for bindless approaches)
 
     fun hasProperty(memProp: MemoryPropertyFlags) = memProp in config.memoryProperties
     fun hasUsage(usage: IBufferUsage) = usage in config.usage

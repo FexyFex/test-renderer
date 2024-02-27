@@ -36,4 +36,9 @@ data class Vec2(override var x: Float, override var y: Float): TVec2<Float>() {
         buffer.putFloat(offset, x)
         buffer.putFloat(offset + Float.SIZE_BYTES, y)
     }
+
+
+    companion object {
+        const val SIZE_BYTES = Float.SIZE_BYTES * 2
+    }
 }

@@ -10,6 +10,7 @@ class VulkanImage(
     val vkImageViewHandle: Long,
     val config: VulkanImageConfiguration,
 ) {
+    var index: Int = -1 // An index the user can set (useful for bindless approaches)
 
     fun destroy() {
         vkDestroyImageView(device.vkHandle, vkImageViewHandle, null)
