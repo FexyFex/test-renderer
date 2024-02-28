@@ -1,0 +1,63 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../defines.glsl"
+#include "./bulletroutines/routine_falling.glsl"
+#include "./bulletroutines/routine_attraction.glsl"
+#include "./bulletroutines/routine_linear.glsl"
+
+
+
+// Supply a high default value because we can only go lower when used to supply array sizes...
+layout (constant_id = 0) const int BUFFER_COUNT = 512;
+
+// local_size_x_id = 1 means that the workgroup size is supplied through the specialization constant that has id = 1
+layout (local_size_x_id = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout (set = 0, binding = 0) uniform UBO { WorldInfo info; } worldInfoBuffer;
+layout (set = 0, binding = 1) buffer BulletDatBauffer { BulletData data[]; } bulletDataBuffer[BUFFER_COUNT];
+layout (set = 0, binding = 1) buffer PlayerInfoBuffer { PlayerInfo info; } playerInfoBuffer[BUFFER_COUNT];
+
+layout (push_constant) uniform PushConstants {
+    uint inputMapBufferIndex;
+    uint playerInfoBufferIndex;
+
+    uint bulletDataBufferIndex;
+};
+
+void main() {
+    uint bulletIndex = gl_GlobalInvocationID.x;
+    float delta = worldInfoBuffer.info.delta;
+
+    BulletData oldBulletData = bulletDataBuffer[bulletDataBufferIndex].data[bulletIndex];
+
+    if (oldBulletData.lifetime <= 0.0) {
+        return;
+    }
+
+    vec2 newPos;
+    switch (oldBulletData.behaviourID) {
+        case 0:
+            newPos = linear(oldBulletData.position, oldBulletData.behaviourData, delta);
+            break;
+        case 1:
+           // newPos = fall(initData.spawnPosition, vec2(0.0, -0.15), vec2(0.0, 0.002), timeLived);
+            break;
+    }
+
+    BulletData newBulletData;
+    newBulletData.position = newPos;
+    newBulletData.rotation = oldBulletData.rotation;
+    newBulletData.lifetime = oldBulletData.lifetime;
+    newBulletData.timeLived = oldBulletData.timeLived + delta;
+    newBulletData.visualID = oldBulletData.visualID;
+    newBulletData.behaviourID = oldBulletData.behaviourID;
+    newBulletData.behaviourData = oldBulletData.behaviourData;
+
+    if (newBulletData.timeLived > newBulletData.lifetime) {
+        newBulletData.lifetime = 0.0; // no lifetime signals a dead bullet
+    }
+
+    bulletDataBuffer[bulletDataBufferIndex].data[bulletIndex] = newBulletData;
+}

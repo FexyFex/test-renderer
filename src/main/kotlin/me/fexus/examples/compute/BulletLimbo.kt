@@ -1,6 +1,6 @@
 package me.fexus.examples.compute
 
-import me.fexus.examples.compute.bulletlimbo.GameLogic
+import me.fexus.examples.compute.bulletlimbo.GameGPUWorkFlow
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -66,7 +66,7 @@ class BulletLimbo: VulkanRendererBase(createWindow()) {
     private val postProcessingPipeline = GraphicsPipeline()
 
     private lateinit var sampler: VulkanSampler
-    private val gamelogic = GameLogic()
+    private val gamelogic = GameGPUWorkFlow()
 
 
     fun start() {
@@ -167,20 +167,35 @@ class BulletLimbo: VulkanRendererBase(createWindow()) {
                 .float32(3, 0f)
         }
 
-        val defaultColorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
-        defaultColorAttachment[0]
-            .sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
-            .pNext(0)
-            .imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
-            .resolveMode(VK_RESOLVE_MODE_NONE)
-            .resolveImageView(0)
-            .resolveImageLayout(0)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .clearValue(clearValueColor)
-            .imageView(colorAttachmentImage.vkImageViewHandle)
+        val swapchainColorAttachmentInfo = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
+        with(swapchainColorAttachmentInfo[0]) {
+            sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            pNext(0)
+            imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            resolveMode(VK_RESOLVE_MODE_NONE)
+            resolveImageView(0)
+            resolveImageLayout(0)
+            loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            clearValue(clearValueColor)
+            imageView(swapchainImageViewHandle)
+        }
 
-        val defaultDepthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
+        val gameColorAttachmentInfo = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
+        with(gameColorAttachmentInfo[0]) {
+            sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            pNext(0)
+            imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            resolveMode(VK_RESOLVE_MODE_NONE)
+            resolveImageView(0)
+            resolveImageLayout(0)
+            loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            clearValue(clearValueColor)
+            imageView(colorAttachmentImage.vkImageViewHandle)
+        }
+
+        val gameDepthAttachmentInfo = calloc(VkRenderingAttachmentInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             pNext(0)
             imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
@@ -204,8 +219,20 @@ class BulletLimbo: VulkanRendererBase(createWindow()) {
             renderArea(renderArea)
             layerCount(1)
             viewMask(0)
-            pColorAttachments(defaultColorAttachment)
-            pDepthAttachment(defaultDepthAttachment)
+            pColorAttachments(gameColorAttachmentInfo)
+            pDepthAttachment(gameDepthAttachmentInfo)
+            pStencilAttachment(null)
+        }
+
+        val postProcessingRendering = calloc(VkRenderingInfoKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
+            pNext(0)
+            flags(0)
+            renderArea(renderArea)
+            layerCount(1)
+            viewMask(0)
+            pColorAttachments(swapchainColorAttachmentInfo)
+            pDepthAttachment(null)
             pStencilAttachment(null)
         }
 
@@ -299,7 +326,24 @@ class BulletLimbo: VulkanRendererBase(createWindow()) {
         )
 
         // Postprocessing here
+        val pDescriptorSets = allocateLongValues(descriptorSet.vkHandle)
+        val pPushConstants = allocate(128)
+        vkCmdBeginRenderingKHR(commandBuffer.vkHandle, postProcessingRendering)
 
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, postProcessingPipeline.vkHandle)
+        vkCmdBindDescriptorSets(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_BIND_POINT_GRAPHICS, postProcessingPipeline.vkLayoutHandle,
+            0, pDescriptorSets, null
+        )
+        vkCmdPushConstants(
+            commandBuffer.vkHandle,
+            postProcessingPipeline.vkLayoutHandle,
+            ShaderStage.BOTH.vkBits, 0, pPushConstants
+        )
+        vkCmdDraw(commandBuffer.vkHandle, 6, 1, 0, 0)
+
+        vkCmdEndRenderingKHR(commandBuffer.vkHandle)
         // Postprocessing here
 
         val swapchainImageTransitionBarrier = calloc(VkImageMemoryBarrier::calloc, 1)

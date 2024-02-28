@@ -12,7 +12,7 @@ struct GeneralInfo {
 layout (constant_id = 0) const int BUFFER_COUNT = 512;
 layout (constant_id = 1) const int FRAMES_TOTAL = 5;
 
-layout (set = 0, binding = 0) uniform UBO { GeneralInfo data; } generalInfoBuffer[FRAMES_TOTAL];
+layout (set = 0, binding = 0) uniform UBO { GeneralInfo data; } generalInfoBuffer;
 
 layout (location = 0) in vec2 inFragCoords;
 

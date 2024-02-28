@@ -2,6 +2,7 @@ package me.fexus.examples.compute.bulletlimbo
 
 import me.fexus.camera.Camera2D
 import me.fexus.examples.Globals
+import me.fexus.examples.compute.bulletlimbo.enemy.EnemyRegistry
 import me.fexus.math.vec.Vec2
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.VulkanDeviceUtil
@@ -20,6 +21,7 @@ import me.fexus.vulkan.component.descriptor.set.layout.createflags.DescriptorSet
 import me.fexus.vulkan.component.descriptor.write.DescriptorBufferInfo
 import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
 import me.fexus.vulkan.component.pipeline.*
+import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.component.pipeline.specializationconstant.SpecializationConstantInt
 import me.fexus.vulkan.descriptors.DescriptorType
@@ -31,9 +33,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK13.*
 
 
-// Gamelogic is mostly process on the GPU side, hence we have some command buffer logic in here as well.
-// We do have to check for signals from the GPU after all.
-class GameLogic {
+class GameGPUWorkFlow {
     companion object {
         private const val BULLETS_PER_BUFFER = 4096
         private const val STORAGE_BUFFER_ARRAY_SIZE = 8
@@ -46,6 +46,7 @@ class GameLogic {
     private val camera = Camera2D(Vec2(0f), Vec2(16f, 9f))
     private var tickCounter: Long = 0L
     private val playArea = Area2D(Vec2(0f), Vec2(16f, 9f))
+    private val enemyRegistry = EnemyRegistry().init()
 
     private val spriteMesh = SpriteMesh()
 
@@ -53,7 +54,6 @@ class GameLogic {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
     private val graphicsPipeline = GraphicsPipeline()
-    private val computePipeline = ComputePipeline()
 
     private val gameBuffersBucket = BufferBucket()
     private val worldInfoBuffer = WorldInfoBuffer() // contains camera and time
@@ -63,7 +63,12 @@ class GameLogic {
     private lateinit var levelTimelineEventsBuffer: VulkanBuffer // contains level events such as bullet or enemy spawns
     private lateinit var enemyBehaviourBuffer: VulkanBuffer // contains enemy flight routes and shoot events
     private lateinit var signalBuffers: Array<VulkanBuffer> // contains flags so that the GPU can signal certain events
-    private val bulletDataBuffers = mutableListOf<VulkanBuffer>() // contains bullet data such as position, rotation, visual...
+    private lateinit var bulletDataBuffer: VulkanBuffer // contains bullet data such as position, rotation, visual...
+    private lateinit var statisticsBuffer: VulkanBuffer // contains values that may need to be transferred between compute shaders
+
+    private val timelineComputePipeline = ComputePipeline()
+    private val playerComputePipeline = ComputePipeline()
+    private val bulletComputePipeline = ComputePipeline()
 
 
     fun init(deviceUtil: VulkanDeviceUtil) {
@@ -73,77 +78,78 @@ class GameLogic {
         createObjects()
         createDescriptorStuff()
         createPipelines()
+
+        repeat(Globals.FRAMES_TOTAL) {
+            updateDescriptorSet(it)
+        }
     }
 
 
     private fun updateBuffers(frameIndex: Int) {
         worldInfoBuffer.updateData(camera.position, camera.extent, tickCounter, playArea, frameIndex)
-
-        updateDescriptorSet(frameIndex)
     }
 
     fun recordGameLogicCompute(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
-        // synchronize the read and write ops
-        val computeBarrier = calloc(VkBufferMemoryBarrier::calloc, 1)
-        with(computeBarrier[0]) {
-            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
-            pNext(0L)
-            buffer(bulletDataBuffers[frameIndex].vkBufferHandle)
+        updateBuffers(frameIndex)
+
+        // Sync for the compute-related buffers
+        val preComputeBufferBarriers = calloc(VkBufferMemoryBarrier::calloc, 2)
+        preComputeBufferBarriers.forEach {
+            it.sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            it.pNext(0)
+            it.offset(0L)
+            it.srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            it.dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            it.size(VK_WHOLE_SIZE)
+        }
+        with(preComputeBufferBarriers[0]) {
+            buffer(playerInfoBuffer.vkBufferHandle)
             srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            offset(0L)
-            size(VK_WHOLE_SIZE)
+        }
+        with(preComputeBufferBarriers[1]) {
+            buffer(bulletDataBuffer.vkBufferHandle)
+            srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
-            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            0, null, computeBarrier, null
+            PipelineStage.FRAGMENT_SHADER.vkBits, PipelineStage.COMPUTE.vkBits,
+            0, null, preComputeBufferBarriers, null
         )
 
-        updateBuffers(frameIndex)
+        // Begin the GPU workflow
 
-        val pDescriptorSets = allocateLongValues(descriptorSets[frameIndex].vkHandle)
 
-        val pPushConstants = allocate(128)
-        pPushConstants.putInt(0, 0)
-        pPushConstants.putInt(4, 1)
-        pPushConstants.putInt(8, frameIndex)
-
-        vkCmdBindDescriptorSets(
-            commandBuffer.vkHandle,
-            VK_PIPELINE_BIND_POINT_COMPUTE,
-            computePipeline.vkLayoutHandle,
-            0,
-            pDescriptorSets,
-            null
-        )
-        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline.vkHandle)
-        vkCmdPushConstants(
-            commandBuffer.vkHandle,
-            computePipeline.vkLayoutHandle,
-            VK_SHADER_STAGE_COMPUTE_BIT or VK_SHADER_STAGE_FRAGMENT_BIT or VK_SHADER_STAGE_VERTEX_BIT,
-            0,
-            pPushConstants
-        )
-        vkCmdDispatch(commandBuffer.vkHandle, BULLETS_PER_BUFFER / WORKGROUP_SIZE_X, 1, 1)
-
-        with(computeBarrier[0]) {
+        // Sync Barriers to make sure buffers are written to before read ops
+        val postComputeBufferBarriers = calloc(VkBufferMemoryBarrier::calloc, 2)
+        postComputeBufferBarriers.forEach {
+            it.sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            it.pNext(0)
+            it.offset(0L)
+            it.srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            it.dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            it.size(VK_WHOLE_SIZE)
+        }
+        with(postComputeBufferBarriers[0]) {
+            buffer(playerInfoBuffer.vkBufferHandle)
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        }
+        with(postComputeBufferBarriers[1]) {
+            buffer(bulletDataBuffer.vkBufferHandle)
             srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
             dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
         }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-            0, null, computeBarrier, null
+            PipelineStage.COMPUTE.vkBits, PipelineStage.VERTEX_SHADER.vkBits,
+            0, null, postComputeBufferBarriers, null
         )
-        // COMPUTE
     }
 
 
     fun recordDrawCommands(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
-
         val pDescriptorSets = allocateLongValues(descriptorSets[frameIndex].vkHandle)
 
         val pPushConstants = allocate(128)
@@ -186,10 +192,8 @@ class GameLogic {
             listOf(DescriptorBufferInfo(worldInfoBuffer[frameIndex].vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
         val descWriteBufferArr = DescriptorBufferWrite(
-            1, DescriptorType.STORAGE_BUFFER, bulletDataBuffers.size, descriptorSet, 0,
-            bulletDataBuffers.map {
-                DescriptorBufferInfo(it.vkBufferHandle, 0L, VK_WHOLE_SIZE)
-            }
+            1, DescriptorType.STORAGE_BUFFER, 1, descriptorSet, 0,
+            listOf(DescriptorBufferInfo(bulletDataBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
         )
         descriptorSet.update(device, descWriteCameraBuf, descWriteBufferArr)
     }
@@ -232,16 +236,30 @@ class GameLogic {
     }
 
     private fun createPipelines() {
+        val timelineComputePipeline = ComputePipelineConfiguration(
+            ClassLoader.getSystemResource("shaders/compute/workflow/timeline_compute.spv").readBytes(),
+            pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
+            specializationConstants = listOf(SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE))
+        )
+        this.timelineComputePipeline.create(device, descriptorSetLayout, timelineComputePipeline)
+
+        val playerComputePipeline = ComputePipelineConfiguration(
+            ClassLoader.getSystemResource("shaders/compute/workflow/player_compute.spv").readBytes(),
+            pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
+            specializationConstants = listOf(SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE))
+        )
+        this.playerComputePipeline.create(device, descriptorSetLayout, playerComputePipeline)
+
         val computePipelineConfig = ComputePipelineConfiguration(
-            ClassLoader.getSystemResource("shaders/compute/particle_compute.spv").readBytes(),
-            pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.BOTH),
+            ClassLoader.getSystemResource("shaders/compute/workflow/particle_compute.spv").readBytes(),
+            pushConstantsLayout = PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
             specializationConstants = listOf(
                 SpecializationConstantInt(0, STORAGE_BUFFER_ARRAY_SIZE),
                 SpecializationConstantInt(1, WORKGROUP_SIZE_X),
                 SpecializationConstantInt(2, Globals.FRAMES_TOTAL)
             )
         )
-        this.computePipeline.create(deviceUtil.device, descriptorSetLayout, computePipelineConfig)
+        this.bulletComputePipeline.create(deviceUtil.device, descriptorSetLayout, computePipelineConfig)
 
         val pipelineConfig = GraphicsPipelineConfiguration(
             listOf(
@@ -271,7 +289,9 @@ class GameLogic {
             BufferUsage.STORAGE_BUFFER
         )
         this.inputMapBuffers = Array(Globals.FRAMES_TOTAL) {
-            deviceUtil.createBuffer(inputMapBufferConfig) inside gameBuffersBucket
+            val buf = deviceUtil.createBuffer(inputMapBufferConfig) inside gameBuffersBucket
+            buf.index = 0
+            buf
         }
 
         val playerInfoBufferConfig = VulkanBufferConfiguration(
@@ -280,6 +300,7 @@ class GameLogic {
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.playerInfoBuffer = deviceUtil.createBuffer(playerInfoBufferConfig) inside gameBuffersBucket
+        this.playerInfoBuffer.index = 1
 
         val levelTimelineBufferConfig = VulkanBufferConfiguration(
             64L,
@@ -287,6 +308,7 @@ class GameLogic {
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.levelTimelineBuffer = deviceUtil.createBuffer(levelTimelineBufferConfig) inside gameBuffersBucket
+        this.levelTimelineBuffer.index = 2
 
         val levelTimelineEventsBufferConfig = VulkanBufferConfiguration(
             64L,
@@ -295,6 +317,7 @@ class GameLogic {
         )
         this.levelTimelineEventsBuffer =
             deviceUtil.createBuffer(levelTimelineEventsBufferConfig) inside gameBuffersBucket
+        this.levelTimelineEventsBuffer.index = 3
 
         val signalBufferConfig = VulkanBufferConfiguration(
             64L,
@@ -302,7 +325,9 @@ class GameLogic {
             BufferUsage.STORAGE_BUFFER
         )
         this.signalBuffers = Array(Globals.FRAMES_TOTAL) {
-            deviceUtil.createBuffer(signalBufferConfig) inside gameBuffersBucket
+            val buf = deviceUtil.createBuffer(signalBufferConfig) inside gameBuffersBucket
+            buf.index = 4
+            buf
         }
 
         val enemyBehaviourBufferConfig = VulkanBufferConfiguration(
@@ -311,13 +336,23 @@ class GameLogic {
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.enemyBehaviourBuffer = deviceUtil.createBuffer(enemyBehaviourBufferConfig) inside gameBuffersBucket
+        this.enemyBehaviourBuffer.index = 5
 
         val bulletBufferConfig = VulkanBufferConfiguration(
-            32L * BULLETS_PER_BUFFER,
+            BulletData.SIZE_BYTES * BULLETS_PER_BUFFER.toLong(),
             MemoryPropertyFlag.DEVICE_LOCAL,
             BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
-        this.bulletDataBuffers.add(deviceUtil.createBuffer(bulletBufferConfig) inside gameBuffersBucket)
+        this.bulletDataBuffer = deviceUtil.createBuffer(bulletBufferConfig) inside gameBuffersBucket
+        this.bulletDataBuffer.index = 6
+
+        val statisticsBufferConfig = VulkanBufferConfiguration(
+            64L,
+            MemoryPropertyFlag.DEVICE_LOCAL,
+            BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
+        )
+        this.statisticsBuffer = deviceUtil.createBuffer(statisticsBufferConfig) inside gameBuffersBucket
+        this.statisticsBuffer.index = 7
     }
 
 
@@ -327,7 +362,11 @@ class GameLogic {
 
 
     fun destroy() {
-        computePipeline.destroy(device)
+        timelineComputePipeline.destroy(device)
+        playerComputePipeline.destroy(device)
+        bulletComputePipeline.destroy(device)
+
+        worldInfoBuffer.destroy()
         gameBuffersBucket.destroyDescriptors().clear()
     }
 }
