@@ -36,7 +36,7 @@ import org.lwjgl.vulkan.VK13.*
 class GameGPUWorkFlow {
     companion object {
         private const val BULLETS_PER_BUFFER = 4096
-        private const val STORAGE_BUFFER_ARRAY_SIZE = 8
+        private const val STORAGE_BUFFER_ARRAY_SIZE = 16
         private const val WORKGROUP_SIZE_X = 64
     }
 
@@ -64,7 +64,7 @@ class GameGPUWorkFlow {
     private lateinit var enemyBehaviourBuffer: VulkanBuffer // contains enemy flight routes and shoot events
     private lateinit var signalBuffers: Array<VulkanBuffer> // contains flags so that the GPU can signal certain events
     private lateinit var bulletDataBuffer: VulkanBuffer // contains bullet data such as position, rotation, visual...
-    private lateinit var statisticsBuffer: VulkanBuffer // contains values that may need to be transferred between compute shaders
+    private lateinit var statisticsBuffer: VulkanBuffer // contains values that may need to be kept accross multiple frames
 
     private val timelineComputePipeline = ComputePipeline()
     private val playerComputePipeline = ComputePipeline()
@@ -119,7 +119,33 @@ class GameGPUWorkFlow {
         )
 
         // Begin the GPU workflow
+        val pDescriptorSets = allocateLongValues(descriptorSets[frameIndex].vkHandle)
+        val pPushConstants = allocate(128)
 
+        vkCmdBindDescriptorSets(
+            commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, timelineComputePipeline.vkLayoutHandle,
+            0, pDescriptorSets, null
+        )
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, timelineComputePipeline.vkHandle)
+
+        // Synchronize access to the bullet buffer between timeline inserts and the bullet compute
+        val bulletBufferSyncBarrier = calloc(VkBufferMemoryBarrier::calloc, 1)
+        with(bulletBufferSyncBarrier[0]) {
+            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            pNext(0)
+            offset(0L)
+            buffer(bulletDataBuffer.vkBufferHandle)
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            size(VK_WHOLE_SIZE)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            PipelineStage.COMPUTE.vkBits, PipelineStage.COMPUTE.vkBits,
+            0, null, bulletBufferSyncBarrier, null
+        )
 
         // Sync Barriers to make sure buffers are written to before read ops
         val postComputeBufferBarriers = calloc(VkBufferMemoryBarrier::calloc, 2)
@@ -154,10 +180,8 @@ class GameGPUWorkFlow {
 
         val pPushConstants = allocate(128)
 
-        val pVertexBuffers = allocateLong(1)
-        pVertexBuffers.put(0, spriteMesh.vertexBuffer.vkBufferHandle)
-        val pOffsets = allocateLong(1)
-        pOffsets.put(0, 0L)
+        val pVertexBuffers = allocateLongValues(spriteMesh.vertexBuffer.vkBufferHandle)
+        val pOffsets = allocateLongValues(0L)
 
         vkCmdBindDescriptorSets(
             commandBuffer.vkHandle,
@@ -353,6 +377,18 @@ class GameGPUWorkFlow {
         )
         this.statisticsBuffer = deviceUtil.createBuffer(statisticsBufferConfig) inside gameBuffersBucket
         this.statisticsBuffer.index = 7
+
+        // Set buffer contents to 0, just in case
+        deviceUtil.runSingleTimeCommands {
+            vkCmdFillBuffer(
+                it.vkHandle, playerInfoBuffer.vkBufferHandle,
+                0L, playerInfoBuffer.config.size, 0
+            )
+            vkCmdFillBuffer(
+                it.vkHandle, bulletDataBuffer.vkBufferHandle,
+                0L, bulletDataBuffer.config.size, 0
+            )
+        }
     }
 
 

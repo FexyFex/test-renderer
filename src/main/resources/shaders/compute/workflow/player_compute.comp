@@ -8,15 +8,58 @@ layout (constant_id = 0) const int BUFFER_COUNT = 512;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
+layout (set = 0, binding = 0) uniform UBO { WorldInfo worldInfo; } worldInfoBuffer;
 layout (set = 0, binding = 1) buffer InputMapBuffer { uint inputs; } inputMapBuffer[BUFFER_COUNT];
-layout (set = 0, binding = 1) buffer PlayerInfoBuffer { uint inputs; } playerInfoBuffer[BUFFER_COUNT];
+layout (set = 0, binding = 1) buffer PlayerInfoBuffer { PlayerInfo info; } playerInfoBuffer[BUFFER_COUNT];
 
 layout (push_constant) uniform PushConstants {
     uint inputMapBufferIndex;
     uint playerInfoBufferIndex;
 };
 
+
+bool isKeyDown(uint inputs, uint inputBits) {
+    return (inputs & inputBits) == inputBits;
+}
+
+bool playerHasFlag(PlayerInfo player, uint flagBits) {
+    return (player.flagBits & flagBits) == flagBits;
+}
+
 // compute movement and collision in here
 void main() {
+    float delta = worldInfoBuffer.worldInfo.delta;
 
+    uint inputs = inputMapBuffer[inputMapBufferIndex].inputs;
+    PlayerInfo oldPlayerInfo = playerInfoBuffer[playerInfoBufferIndex].info;
+    PlayerInfo newPlayerInfo;
+    newPlayerInfo.position = oldPlayerInfo.position;
+    newPlayerInfo.health = oldPlayerInfo.health;
+    newPlayerInfo.flagBits = oldPlayerInfo.flagBits;
+    newPlayerInfo.spellCount = oldPlayerInfo.spellCount;
+    newPlayerInfo.placeHolders = oldPlayerInfo.placeHolders;
+
+    if (playerHasFlag(newPlayerInfo, PLAYER_HIT_BIT)) {
+        newPlayerInfo.health -= 1;
+        newPlayerInfo.flagBits = newPlayerInfo.flagBits ^ PLAYER_HIT_BIT; // Toggle off the hit bit
+
+        if (newPlayerInfo.health <= 0) {
+            newPlayerInfo.flagBits = newPlayerInfo.flagBits | PLAYER_DEAD_BIT;
+        }
+    }
+
+    // Early exit if dead.
+    if (playerHasFlag(newPlayerInfo, PLAYER_DEAD_BIT)) {
+        playerInfoBuffer[playerInfoBufferIndex].info = newPlayerInfo;
+        return;
+    }
+
+    float playerBaseSpeed = 1.0;
+    float playerFinalSpeed = playerBaseSpeed - (playerBaseSpeed * float(playerHasFlag(newPlayerInfo, PLAYER_SLOW_BIT)) * 0.5);
+    newPlayerInfo.position.y += float(isKeyDown(inputs, INPUT_UP_BIT)) * playerFinalSpeed * delta;
+    newPlayerInfo.position.y -= float(isKeyDown(inputs, INPUT_DOWN_BIT)) * playerFinalSpeed * delta;
+    newPlayerInfo.position.x += float(isKeyDown(inputs, INPUT_RIGHT_BIT)) * playerFinalSpeed * delta;
+    newPlayerInfo.position.x -= float(isKeyDown(inputs, INPUT_LEFT_BIT)) * playerFinalSpeed * delta;
+
+    playerInfoBuffer[playerInfoBufferIndex].info = newPlayerInfo;
 }
