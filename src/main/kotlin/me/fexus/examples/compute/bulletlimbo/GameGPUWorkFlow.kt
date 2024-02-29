@@ -3,6 +3,8 @@ package me.fexus.examples.compute.bulletlimbo
 import me.fexus.camera.Camera2D
 import me.fexus.examples.Globals
 import me.fexus.examples.compute.bulletlimbo.enemy.EnemyRegistry
+import me.fexus.examples.compute.bulletlimbo.level.ILevel
+import me.fexus.examples.compute.bulletlimbo.level.Level1
 import me.fexus.math.vec.Vec2
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.VulkanDeviceUtil
@@ -35,7 +37,7 @@ import org.lwjgl.vulkan.VK13.*
 
 class GameGPUWorkFlow {
     companion object {
-        private const val BULLETS_PER_BUFFER = 4096
+        private const val BULLETS_PER_BUFFER = 32768
         private const val STORAGE_BUFFER_ARRAY_SIZE = 16
         private const val WORKGROUP_SIZE_X = 64
     }
@@ -47,6 +49,7 @@ class GameGPUWorkFlow {
     private var tickCounter: Long = 0L
     private val playArea = Area2D(Vec2(0f), Vec2(16f, 9f))
     private val enemyRegistry = EnemyRegistry().init()
+    private var currentLevel: ILevel = Level1
 
     private val spriteMesh = SpriteMesh()
 
@@ -127,6 +130,11 @@ class GameGPUWorkFlow {
             0, pDescriptorSets, null
         )
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, timelineComputePipeline.vkHandle)
+        vkCmdPushConstants(
+            commandBuffer.vkHandle,
+            timelineComputePipeline.vkLayoutHandle,
+            ShaderStage.COMPUTE.vkBits, 0, pPushConstants
+        )
 
         // Synchronize access to the bullet buffer between timeline inserts and the bullet compute
         val bulletBufferSyncBarrier = calloc(VkBufferMemoryBarrier::calloc, 1)
@@ -135,8 +143,8 @@ class GameGPUWorkFlow {
             pNext(0)
             offset(0L)
             buffer(bulletDataBuffer.vkBufferHandle)
-            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
             srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
             dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
             size(VK_WHOLE_SIZE)
