@@ -2,6 +2,7 @@ package me.fexus.examples.compute.bulletlimbo
 
 import me.fexus.camera.Camera2D
 import me.fexus.examples.Globals
+import me.fexus.examples.compute.bulletlimbo.bullet.BulletRegistry
 import me.fexus.examples.compute.bulletlimbo.enemy.EnemyRegistry
 import me.fexus.examples.compute.bulletlimbo.level.ILevel
 import me.fexus.examples.compute.bulletlimbo.level.Level1
@@ -35,7 +36,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK13.*
 
 
-class GameGPUWorkFlow {
+class BulletLimboGPUWorkFlow {
     companion object {
         private const val BULLETS_PER_BUFFER = 32768
         private const val STORAGE_BUFFER_ARRAY_SIZE = 16
@@ -49,6 +50,7 @@ class GameGPUWorkFlow {
     private var tickCounter: Long = 0L
     private val playArea = Area2D(Vec2(0f), Vec2(16f, 9f))
     private val enemyRegistry = EnemyRegistry().init()
+    private val bulletRegister = BulletRegistry().init()
     private var currentLevel: ILevel = Level1
 
     private val spriteMesh = SpriteMesh()

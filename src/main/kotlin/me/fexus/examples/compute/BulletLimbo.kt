@@ -1,6 +1,6 @@
 package me.fexus.examples.compute
 
-import me.fexus.examples.compute.bulletlimbo.GameGPUWorkFlow
+import me.fexus.examples.compute.bulletlimbo.BulletLimboGPUWorkFlow
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -41,6 +41,11 @@ import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_K
 import org.lwjgl.vulkan.VK12.*
 
 
+/**
+ * A little demo-game that is supposed to show how a good portion of the game's logic can be
+ * moved to the GPU. In this case it certainly isn't the most optimal solution.
+ * Some tasks are sometimes better left to the CPU...
+*/
 class BulletLimbo: VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
@@ -66,7 +71,7 @@ class BulletLimbo: VulkanRendererBase(createWindow()) {
     private val postProcessingPipeline = GraphicsPipeline()
 
     private lateinit var sampler: VulkanSampler
-    private val gamelogic = GameGPUWorkFlow()
+    private val gamelogic = BulletLimboGPUWorkFlow()
 
 
     fun start() {
