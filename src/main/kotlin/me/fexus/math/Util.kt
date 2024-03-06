@@ -1,7 +1,7 @@
 package me.fexus.math
 
-import kotlin.math.floor
-import kotlin.math.sqrt
+import me.fexus.math.vec.Vec3
+import kotlin.math.*
 
 
 fun inverseSqrt(value: Double) = 1.0 / sqrt(value)
@@ -31,4 +31,24 @@ val Double.rad get() = Math.toRadians(this)
 
 fun fract(value: Float): Float {
     return value - floor(value)
+}
+
+
+fun Float.clamp(min: Float, max: Float) = Math.clamp(this, min, max)
+fun Double.clamp(min: Double, max: Double) = Math.clamp(this, min, max)
+
+
+fun lerp(start: Vec3, end: Vec3, progress: Float): Vec3 {
+    val distance = end - start
+    val distanceCovered = distance * progress
+    return start + distanceCovered
+}
+
+fun slerp(start: Vec3, end: Vec3, progress: Float): Vec3 {
+    val dot = start.dot(end).clamp(-1.0f, 1.0f)
+
+    val theta = acos(dot) * progress
+    val relativeVec = (end - (start * dot)).normalize()
+
+    return ((start * cos(theta)) + (relativeVec * sin(theta)))
 }
