@@ -36,6 +36,8 @@ fun fract(value: Float): Float {
 
 fun Float.clamp(min: Float, max: Float) = Math.clamp(this, min, max)
 fun Double.clamp(min: Double, max: Double) = Math.clamp(this, min, max)
+fun Int.clamp(min: Int, max: Int) = Math.clamp(this.toLong(), min, max)
+fun Long.clamp(min: Long, max: Long) = Math.clamp(this, min, max)
 
 
 fun lerp(start: Vec3, end: Vec3, progress: Float): Vec3 {

@@ -88,6 +88,14 @@
             <artifactId>kotlin-stdlib</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.jcraft/jorbis -->
+        <dependency>
+            <groupId>org.jcraft</groupId>
+            <artifactId>jorbis</artifactId>
+            <version>0.0.17</version>
+        </dependency>
+
     </dependencies>
 
     <build>

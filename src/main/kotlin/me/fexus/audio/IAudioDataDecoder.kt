@@ -8,7 +8,7 @@ interface IAudioDataDecoder {
     val audioFormat: AudioFormat
     val isEndOfStream: Boolean
 
-    fun init()
+    fun init(): IAudioDataDecoder
     fun isInitialized(): Boolean
 
     fun getFullAudioData(): AudioBuffer
