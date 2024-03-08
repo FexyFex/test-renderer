@@ -1,28 +1,24 @@
 package me.fexus.audio.decoder
 
 import me.fexus.audio.AudioBuffer
-import me.fexus.audio.IAudioDataDecoder
-import me.fexus.audio.decoder.wav.HeaderWAVExtension
+import me.fexus.audio.AudioDataDecoder
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 
 
-class AudioDecoderWAV(override val fileData: ByteArray): IAudioDataDecoder {
-    private lateinit var audioStream: AudioInputStream
+class AudioDecoderWAV(override val audioStream: AudioInputStream): AudioDataDecoder {
+    constructor(audioData: ByteArray): this(AudioSystem.getAudioInputStream(audioData.inputStream()))
+
     override lateinit var audioFormat: AudioFormat; private set
     override var isEndOfStream: Boolean = false; private set
+    override val isInitialized: Boolean; get() = this::audioFormat.isInitialized
 
 
     override fun init(): AudioDecoderWAV {
-        this.audioStream = AudioSystem.getAudioInputStream(this.fileData.inputStream())
         this.audioFormat = this.audioStream.format
 
         return this
-    }
-
-    override fun isInitialized(): Boolean {
-        return this::audioStream.isInitialized && this::audioFormat.isInitialized
     }
 
     override fun getFullAudioData(): AudioBuffer {

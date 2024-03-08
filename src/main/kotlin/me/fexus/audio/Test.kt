@@ -1,13 +1,14 @@
 package me.fexus.audio
 
 import me.fexus.audio.decoder.AudioDecoderOGG
+import me.fexus.audio.libraries.AudioLibraryJavaAudioSystem
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.DataLine
 import javax.sound.sampled.SourceDataLine
 
 
 fun main() {
-    val audioSystem = FexAudioSystem().init()
+    val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryJavaAudioSystem>()
 
     val fileData = ClassLoader.getSystemResource("audio/the_sleeping_sea.ogg").readBytes()
     val fileDecoder = AudioDecoderOGG(fileData).init()

@@ -1,19 +1,22 @@
 package me.fexus.audio
 
+
 class FexAudioSystem {
-    companion object {
-        val DEFAULT_CONFIGURATION = AudioSystemConfiguration(
-            "audio/"
-        )
-    }
+    lateinit var library: AudioLibrary
 
-    lateinit var config: AudioSystemConfiguration; private set
+    val isInitialized: Boolean; get() = this::library.isInitialized && library.isInitialized
 
-    fun init(config: AudioSystemConfiguration = DEFAULT_CONFIGURATION): FexAudioSystem {
 
+    inline fun <reified L: AudioLibrary> initWithLibrary(): FexAudioSystem {
+        this.library = L::class.constructors.first().call()
+        this.library.init()
 
         return this
     }
+
+
+    fun createEmitter() = library.createEmitter()
+    fun createChannel(channelType: AudioChannel.Type) = library.createChannel(channelType)
 
 
     fun close() {

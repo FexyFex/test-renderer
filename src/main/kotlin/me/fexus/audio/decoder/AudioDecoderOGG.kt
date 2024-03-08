@@ -9,15 +9,14 @@ import com.jcraft.jorbis.Comment
 import com.jcraft.jorbis.DspState
 import com.jcraft.jorbis.Info
 import me.fexus.audio.AudioBuffer
-import me.fexus.audio.IAudioDataDecoder
-import me.fexus.audio.decoder.ogg.PCMInfoArray
+import me.fexus.audio.AudioDataDecoder
 import me.fexus.math.clamp
 import java.io.InputStream
 import javax.sound.sampled.AudioFormat
 
 
-class AudioDecoderOGG(override val fileData: ByteArray): IAudioDataDecoder {
-    private val inputStream: InputStream = fileData.inputStream()
+class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
+    constructor(audioData: ByteArray): this(audioData.inputStream())
 
     private lateinit var buffer: ByteArray
     private val bufferSize: Int = 2048
@@ -47,6 +46,7 @@ class AudioDecoderOGG(override val fileData: ByteArray): IAudioDataDecoder {
 
     override lateinit var audioFormat: AudioFormat; private set
     override var isEndOfStream: Boolean = false; private set
+    override val isInitialized: Boolean; get() = this::audioFormat.isInitialized
 
 
     override fun init(): AudioDecoderOGG {
@@ -83,7 +83,7 @@ class AudioDecoderOGG(override val fileData: ByteArray): IAudioDataDecoder {
         var currentPacket: Int = 1
 
         while (needMoreData) {
-            count = inputStream.read(buffer, index, bufferSize)
+            count = audioStream.read(buffer, index, bufferSize)
             joggSyncState.wrote(count)
 
             when (currentPacket) {
@@ -179,7 +179,7 @@ class AudioDecoderOGG(override val fileData: ByteArray): IAudioDataDecoder {
                 this.index = joggSyncState.buffer(this.bufferSize)
                 this.buffer = joggSyncState.data
 
-                this.count = inputStream.read(buffer, index, bufferSize)
+                this.count = audioStream.read(buffer, index, bufferSize)
                 joggSyncState.wrote(count)
 
                 if (count <= 0) needMoreData = false
@@ -219,10 +219,6 @@ class AudioDecoderOGG(override val fileData: ByteArray): IAudioDataDecoder {
 
             jorbisDspState.synthesis_read(range)
         }
-    }
-
-    override fun isInitialized(): Boolean {
-        return this::audioFormat.isInitialized
     }
 
     override fun getFullAudioData(): AudioBuffer {
