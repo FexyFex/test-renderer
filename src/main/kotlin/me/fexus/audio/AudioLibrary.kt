@@ -15,7 +15,7 @@ interface AudioLibrary {
 
     fun init()
 
-    fun createChannel(channelType: AudioChannel.Type): AudioChannel
+    fun createChannel(channelType: AudioChannel.Type, decoder: AudioDataDecoder): AudioChannel
 
     fun createEmitter(): SoundEmitter
 
@@ -27,9 +27,9 @@ interface AudioLibrary {
     }
 
     companion object {
-        inline fun <reified E, reified G> G.assertType(expected: E): E {
+        inline fun <reified E> Any.assertType(): E {
             if (this is E) return this
-            else throw LibraryComponentMismatchExcpetion(E::class, G::class)
+            else throw LibraryComponentMismatchExcpetion(E::class, this::class)
         }
     }
 

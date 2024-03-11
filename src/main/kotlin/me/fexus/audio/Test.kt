@@ -1,13 +1,23 @@
 package me.fexus.audio
 
-import me.fexus.audio.decoder.AudioDecoderOGG
 import me.fexus.audio.libraries.AudioLibraryJavaAudioSystem
-import javax.sound.sampled.AudioSystem
-import javax.sound.sampled.DataLine
-import javax.sound.sampled.SourceDataLine
 
 
 fun main() {
+    val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryJavaAudioSystem>()
+
+    val fileData = ClassLoader.getSystemResource("audio/success.ogg").readBytes()
+    val decoder = audioSystem.createDecoder(fileData, AudioFileFormat.OGG)
+
+    val source = audioSystem.createEmitter()
+    val channel = audioSystem.createChannel(AudioChannel.Type.ALL_AT_ONCE, decoder)
+
+    source.play(channel)
+    audioSystem.shutdown()
+}
+
+/*
+fun oldmain() {
     val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryJavaAudioSystem>()
 
     val fileData = ClassLoader.getSystemResource("audio/the_sleeping_sea.ogg").readBytes()
@@ -30,3 +40,5 @@ fun main() {
 
     audioSystem.close()
 }
+
+ */

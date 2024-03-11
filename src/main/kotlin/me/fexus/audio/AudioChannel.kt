@@ -7,6 +7,7 @@ interface AudioChannel {
     val type: Type
     val audioFormat: AudioFormat
     val timestamp: Float
+    val decoder: AudioDataDecoder
 
 
     fun prepareBuffers(buffers: List<AudioBuffer>)

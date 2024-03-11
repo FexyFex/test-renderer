@@ -5,6 +5,9 @@ import me.fexus.audio.AudioLibrary.Companion.assertType
 import me.fexus.math.vec.DVec3
 import me.fexus.math.vec.Vec3
 import javax.sound.sampled.AudioFormat
+import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.DataLine
+import javax.sound.sampled.SourceDataLine
 
 
 class AudioLibraryJavaAudioSystem: AudioLibrary {
@@ -20,9 +23,9 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
         isInitialized = true
     }
 
-    override fun createChannel(channelType: AudioChannel.Type): Channel {
+    override fun createChannel(channelType: AudioChannel.Type, decoder: AudioDataDecoder): Channel {
         assertInitialized()
-        return Channel(channelType)
+        return Channel(channelType, decoder)
     }
 
     override fun createEmitter(): Emitter {
@@ -34,25 +37,13 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
         isInitialized = false
     }
 
-    class Channel(override val type: AudioChannel.Type): AudioChannel {
-        override lateinit var audioFormat: AudioFormat; private set
-        override val timestamp: Float; get() = 0f
+    class Channel(override val type: AudioChannel.Type, override val decoder: AudioDataDecoder): AudioChannel, AudioDataDecoder by decoder {
+        override val timestamp: Float; get() = -1f
 
-        init {
+        override fun prepareBuffers(buffers: List<AudioBuffer>) {}
+        override fun queueBuffer(buffer: AudioBuffer) {}
 
-        }
-
-        override fun prepareBuffers(buffers: List<AudioBuffer>) {
-
-        }
-
-        override fun queueBuffer(buffer: AudioBuffer) {
-
-        }
-
-        override fun clear() {
-
-        }
+        override fun clear() {}
     }
 
     class Emitter: SoundEmitter {
@@ -62,16 +53,36 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
         override var doLooping: Boolean = false
         override var volume: Float = 1f
         override var gain: Float = 1f
-        override var isPlaying: Boolean = false
+        override val isPlaying: Boolean; get() = sourceDataLine.isActive
         override var pitch: Float = 1f
 
         override lateinit var queuedBuffers: List<AudioBuffer>
+        private lateinit var currentChannel: Channel
+
+        private lateinit var sourceDataLine: SourceDataLine
 
 
         override fun play(channel: AudioChannel) {
-            val validatedChannel = channel.assertType(::Channel)
+            val validatedChannel: Channel = channel.assertType<Channel>()
+            if (!this::currentChannel.isInitialized || validatedChannel != currentChannel)
+                this.currentChannel = validatedChannel
 
+            if (!this::sourceDataLine.isInitialized) {
+                val lineInfo = DataLine.Info(SourceDataLine::class.java, validatedChannel.audioFormat)
+                this.sourceDataLine = AudioSystem.getLine(lineInfo) as SourceDataLine
+            } else {
+                this.sourceDataLine.stop()
+                this.sourceDataLine.flush()
+                this.sourceDataLine.close()
+            }
 
+            this.sourceDataLine.open(validatedChannel.audioFormat)
+            this.sourceDataLine.start()
+
+            if (validatedChannel.type == AudioChannel.Type.ALL_AT_ONCE) {
+                val audioBuffer = validatedChannel.getFullAudioData()
+                this.sourceDataLine.write(audioBuffer.data, 0, audioBuffer.data.size)
+            }
         }
     }
 }

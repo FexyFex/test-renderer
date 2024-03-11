@@ -1,6 +1,8 @@
 package me.fexus.audio.libraries
 
 import me.fexus.audio.*
+import me.fexus.math.vec.DVec3
+import me.fexus.math.vec.Vec3
 import org.lwjgl.openal.AL
 import org.lwjgl.openal.ALC.createCapabilities
 import org.lwjgl.openal.ALC10.*
@@ -33,8 +35,8 @@ class AudioLibraryOpenAL: AudioLibrary {
         isInitialized = true
     }
 
-    override fun createChannel(channelType: AudioChannel.Type): Channel {
-        return Channel(channelType, )
+    override fun createChannel(channelType: AudioChannel.Type, decoder: AudioDataDecoder): Channel {
+        return Channel(channelType, decoder)
     }
 
     override fun createEmitter(): Emitter {
@@ -43,10 +45,13 @@ class AudioLibraryOpenAL: AudioLibrary {
 
     override fun shutdown() {
         isInitialized = false
+
+        alcDestroyContext(openALContext)
+        alcCloseDevice(openALDevice)
     }
 
 
-    class Channel(override val type: AudioChannel.Type): AudioChannel {
+    class Channel(override val type: AudioChannel.Type, override val decoder: AudioDataDecoder): AudioChannel {
         override lateinit var audioFormat: AudioFormat; private set
         override val timestamp: Float; get() = 0f
 
@@ -64,6 +69,19 @@ class AudioLibraryOpenAL: AudioLibrary {
     }
 
     class Emitter(): SoundEmitter {
+        override val position: DVec3 = DVec3(0.0)
+        override val velocity: Vec3 = Vec3(0f)
 
+        override var doLooping: Boolean = false
+        override var gain: Float = 0f
+        override val isPlaying: Boolean = false
+        override var pitch: Float = 1f
+        override var volume: Float = 1f
+
+        override val queuedBuffers: List<AudioBuffer> = mutableListOf()
+
+        override fun play(channel: AudioChannel) {
+
+        }
     }
 }
