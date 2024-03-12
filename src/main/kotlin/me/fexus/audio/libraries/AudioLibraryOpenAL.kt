@@ -153,6 +153,7 @@ class AudioLibraryOpenAL: AudioLibrary {
         private fun prepareNewClip() {
             val clip = this.nextClip!!
 
+            if (this::currentClip.isInitialized && clip == this.currentClip) return
             if (!this::currentClip.isInitialized || clip != this.currentClip)
                 this.currentClip = clip
 
