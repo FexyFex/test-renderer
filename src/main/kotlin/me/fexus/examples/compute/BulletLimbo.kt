@@ -45,6 +45,8 @@ import org.lwjgl.vulkan.VK12.*
  * A little demo-game that is supposed to show how a good portion of the game's logic can be
  * moved to the GPU. In this case it certainly isn't the most optimal solution.
  * Some tasks are sometimes better left to the CPU...
+ * One advantage of such a system is the fact that it is possible to create save-states
+ * with relative ease by simply pulling all the data from the buffers.
 */
 class BulletLimbo: VulkanRendererBase(createWindow()) {
     companion object {

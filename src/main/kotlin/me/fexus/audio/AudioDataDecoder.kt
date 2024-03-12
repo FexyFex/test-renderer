@@ -7,11 +7,11 @@ import javax.sound.sampled.AudioFormat
 interface AudioDataDecoder {
     val audioStream: InputStream
     val audioFormat: AudioFormat
-    val isEndOfStream: Boolean
     val isInitialized: Boolean
+    val audioDataSize: Int
 
     fun init(): AudioDataDecoder
 
     fun getFullAudioData(): AudioBuffer
-    fun getAudioData(size: Int): AudioBuffer
+    fun getAudioData(offset: Int, size: Int): AudioBuffer
 }

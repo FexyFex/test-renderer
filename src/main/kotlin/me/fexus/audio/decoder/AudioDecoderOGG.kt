@@ -16,8 +16,6 @@ import javax.sound.sampled.AudioFormat
 
 
 class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
-    constructor(audioData: ByteArray): this(audioData.inputStream())
-
     private lateinit var buffer: ByteArray
     private val bufferSize: Int = 2048
     private var count = 0
@@ -43,9 +41,9 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
 
     private val unpackedAudioData = ArrayList<Byte>()
     private var unpackedAudioDataOffset = 0
+    override val audioDataSize: Int; get() = unpackedAudioData.size
 
     override lateinit var audioFormat: AudioFormat; private set
-    override var isEndOfStream: Boolean = false; private set
     override val isInitialized: Boolean; get() = this::audioFormat.isInitialized
 
 
@@ -56,7 +54,6 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
 
         val fileValid = readHeader()
         if (!fileValid) throw InvalidOGGDataException()
-        println("Header passed")
 
         initSound()
 
@@ -65,7 +62,7 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
         this.pcmIndex = IntArray(jorbisInfo.channels)
 
         readBody()
-        unpackedAudioDataOffset = 0
+        //unpackedAudioDataOffset = 0
 
         return this
     }
@@ -79,8 +76,8 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
     }
 
     private fun readHeader(): Boolean {
-        var needMoreData: Boolean = true
-        var currentPacket: Int = 1
+        var needMoreData = true
+        var currentPacket = 1
 
         while (needMoreData) {
             count = audioStream.read(buffer, index, bufferSize)
@@ -222,22 +219,13 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
     }
 
     override fun getFullAudioData(): AudioBuffer {
-        this.isEndOfStream = true
-        unpackedAudioDataOffset = unpackedAudioData.size
         return AudioBuffer(unpackedAudioData.toByteArray(), this.audioFormat)
     }
 
-    override fun getAudioData(size: Int): AudioBuffer {
-        var end = unpackedAudioDataOffset + size
-
-        if (end >= unpackedAudioData.size) {
-            isEndOfStream = true
-            end = unpackedAudioData.size
-        }
-
-        val slice = unpackedAudioData.subList(unpackedAudioDataOffset, end).toByteArray()
-
-        this.unpackedAudioDataOffset = end
+    override fun getAudioData(offset: Int, size: Int): AudioBuffer {
+        val start = offset.clamp(0, unpackedAudioData.size)
+        val end = (offset + size).clamp(offset, unpackedAudioData.size)
+        val slice = unpackedAudioData.subList(start, end).toByteArray()
 
         return AudioBuffer(slice, this.audioFormat)
     }

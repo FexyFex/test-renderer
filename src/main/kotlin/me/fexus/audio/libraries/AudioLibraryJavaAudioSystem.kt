@@ -2,14 +2,14 @@ package me.fexus.audio.libraries
 
 import me.fexus.audio.*
 import me.fexus.audio.AudioLibrary.Companion.assertType
-import me.fexus.math.vec.DVec3
 import me.fexus.math.vec.Vec3
-import javax.sound.sampled.AudioFormat
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.DataLine
 import javax.sound.sampled.SourceDataLine
 
 
+@Suppress("unused")
 class AudioLibraryJavaAudioSystem: AudioLibrary {
     override val libraryName: String = "Java AudioSystem"
     override val libraryDescription: String = "The default Java audio library."
@@ -23,9 +23,9 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
         isInitialized = true
     }
 
-    override fun createChannel(channelType: AudioChannel.Type, decoder: AudioDataDecoder): Channel {
+    override fun createClip(channelType: AudioClip.Type, decoder: AudioDataDecoder): AudioClip {
         assertInitialized()
-        return Channel(channelType, decoder)
+        return AudioClip(channelType, decoder)
     }
 
     override fun createEmitter(): Emitter {
@@ -33,42 +33,56 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
         return Emitter()
     }
 
+    override fun setListenerPosition(position: Vec3) {}
+    override fun setListenerVelocity(velocity: Vec3) {}
+    override fun setListenerRotation(up: Vec3, rotation: Vec3) {}
+
     override fun shutdown() {
         isInitialized = false
     }
 
-    class Channel(override val type: AudioChannel.Type, override val decoder: AudioDataDecoder): AudioChannel, AudioDataDecoder by decoder {
-        override val timestamp: Float; get() = -1f
-
-        override fun prepareBuffers(buffers: List<AudioBuffer>) {}
-        override fun queueBuffer(buffer: AudioBuffer) {}
-
-        override fun clear() {}
-    }
-
     class Emitter: SoundEmitter {
-        override val position: DVec3 = DVec3(0.0)
-        override val velocity: Vec3 = Vec3(0f)
-
         override var doLooping: Boolean = false
-        override var volume: Float = 1f
         override var gain: Float = 1f
         override val isPlaying: Boolean; get() = sourceDataLine.isActive
         override var pitch: Float = 1f
 
-        override lateinit var queuedBuffers: List<AudioBuffer>
-        private lateinit var currentChannel: Channel
+        override lateinit var currentClip: AudioClip
+        private val hasNextClip = AtomicBoolean(false)
+        private var nextClip: AudioClip? = null
+        override var bufferSize: Int = FexAudioSystem.DEFAULT_BUFFER_SIZE
+        private val queuedBuffers = mutableListOf<AudioBuffer>()
 
         private lateinit var sourceDataLine: SourceDataLine
+        override val readyToPlay: AtomicBoolean = AtomicBoolean(false)
 
 
-        override fun play(channel: AudioChannel) {
-            val validatedChannel: Channel = channel.assertType<Channel>()
-            if (!this::currentChannel.isInitialized || validatedChannel != currentChannel)
-                this.currentChannel = validatedChannel
+        override fun setVelocity(velocity: Vec3) {
+            TODO("Not yet implemented")
+        }
+
+        override fun setPosition(position: Vec3) {
+            TODO("Not yet implemented")
+        }
+
+        override fun play() {
+
+        }
+
+        override fun play(clip: AudioClip) {
+            if (this.hasNextClip.get()) return
+            this.nextClip = clip
+            this.hasNextClip.set(true)
+        }
+
+        private fun prepareNewClip() {
+            val validatedClip = this.nextClip!!
+
+            if (!this::currentClip.isInitialized || validatedClip != currentClip)
+                this.currentClip = validatedClip
 
             if (!this::sourceDataLine.isInitialized) {
-                val lineInfo = DataLine.Info(SourceDataLine::class.java, validatedChannel.audioFormat)
+                val lineInfo = DataLine.Info(SourceDataLine::class.java, validatedClip.audioFormat)
                 this.sourceDataLine = AudioSystem.getLine(lineInfo) as SourceDataLine
             } else {
                 this.sourceDataLine.stop()
@@ -76,13 +90,66 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
                 this.sourceDataLine.close()
             }
 
-            this.sourceDataLine.open(validatedChannel.audioFormat)
+            this.sourceDataLine.open(validatedClip.audioFormat)
             this.sourceDataLine.start()
 
-            if (validatedChannel.type == AudioChannel.Type.ALL_AT_ONCE) {
-                val audioBuffer = validatedChannel.getFullAudioData()
-                this.sourceDataLine.write(audioBuffer.data, 0, audioBuffer.data.size)
+            when (validatedClip.type) {
+                AudioClip.Type.ALL_AT_ONCE -> {
+                    val audioBuffer = validatedClip.getFullAudioData()
+                    this.sourceDataLine.write(audioBuffer.data, 0, audioBuffer.data.size)
+                }
+                AudioClip.Type.STREAMING -> {
+                    queuedBuffers.clear()
+                    repeat(3) {
+                        val buf = validatedClip.getAudioData(this.bufferSize)
+                        this.queuedBuffers.add(it, buf)
+                    }
+                }
             }
+
+            readyToPlay.set(true)
+        }
+
+        override fun pause() {
+            this.readyToPlay.set(false)
+        }
+
+        override fun stop() {
+            this.readyToPlay.set(false)
+            if (this::currentClip.isInitialized)
+                this.currentClip.rewind()
+        }
+
+        override fun _process() {
+            if (this.hasNextClip.get()) {
+                stop()
+                prepareNewClip()
+                this.hasNextClip.set(false)
+                this.nextClip = null
+            }
+
+            if (!this::currentClip.isInitialized || !this::sourceDataLine.isInitialized || !readyToPlay.get()) return
+
+            val validatedChannel = this.currentClip.assertType<AudioClip>()
+            if (validatedChannel.type == AudioClip.Type.ALL_AT_ONCE) return
+            if (this.queuedBuffers.isEmpty()) return
+
+            val buf: AudioBuffer = queuedBuffers.removeAt(0)
+
+            sourceDataLine.write(buf.data, 0, buf.data.size)
+
+            if (!validatedChannel.isEndOfStream) {
+                queuedBuffers.add(2, validatedChannel.getAudioData(this.bufferSize))
+            } else {
+                if (doLooping) {
+                    validatedChannel.rewind()
+                    queuedBuffers.add(2, validatedChannel.getAudioData(this.bufferSize))
+                } else if (queuedBuffers.isEmpty()) this.readyToPlay.set(false)
+            }
+        }
+
+        override fun _shutdown() {
+            sourceDataLine.close()
         }
     }
 }

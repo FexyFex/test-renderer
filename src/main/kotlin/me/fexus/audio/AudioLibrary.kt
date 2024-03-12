@@ -1,5 +1,6 @@
 package me.fexus.audio
 
+import me.fexus.math.vec.Vec3
 import kotlin.reflect.KClass
 
 
@@ -10,12 +11,16 @@ interface AudioLibrary {
     val libraryDescription: String
 
     val isInitialized: Boolean
-    val listenerData: ListenerData
+    var listenerData: ListenerData
 
 
     fun init()
 
-    fun createChannel(channelType: AudioChannel.Type, decoder: AudioDataDecoder): AudioChannel
+    fun setListenerPosition(position: Vec3)
+    fun setListenerRotation(up: Vec3, rotation: Vec3)
+    fun setListenerVelocity(velocity: Vec3)
+
+    fun createClip(channelType: AudioClip.Type, decoder: AudioDataDecoder): AudioClip
 
     fun createEmitter(): SoundEmitter
 

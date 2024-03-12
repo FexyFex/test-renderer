@@ -2,37 +2,34 @@ package me.fexus.audio.decoder
 
 import me.fexus.audio.AudioBuffer
 import me.fexus.audio.AudioDataDecoder
+import me.fexus.math.clamp
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 
 
 class AudioDecoderWAV(override val audioStream: AudioInputStream): AudioDataDecoder {
-    constructor(audioData: ByteArray): this(AudioSystem.getAudioInputStream(audioData.inputStream()))
-
     override lateinit var audioFormat: AudioFormat; private set
-    override var isEndOfStream: Boolean = false; private set
     override val isInitialized: Boolean; get() = this::audioFormat.isInitialized
+    private val unpackedAudioData = audioStream.readAllBytes()
+    override val audioDataSize: Int = unpackedAudioData.size
 
 
     override fun init(): AudioDecoderWAV {
         this.audioFormat = this.audioStream.format
-
         return this
     }
 
     override fun getFullAudioData(): AudioBuffer {
-        this.isEndOfStream = true
-        return AudioBuffer(this.audioStream.readAllBytes(), this.audioFormat)
+        return AudioBuffer(unpackedAudioData, this.audioFormat)
     }
 
-    override fun getAudioData(size: Int): AudioBuffer {
-        val arr = ByteArray(size)
-        val bytesRead = this.audioStream.read(arr, 0, size)
+    override fun getAudioData(offset: Int, size: Int): AudioBuffer {
+        val start = offset.clamp(0, unpackedAudioData.size)
+        val end = (offset + size).clamp(offset, unpackedAudioData.size)
+        val slice = unpackedAudioData.slice(start until end).toByteArray()
 
-        if (bytesRead == -1) this.isEndOfStream = true
-
-        return AudioBuffer(arr, this.audioFormat)
+        return AudioBuffer(slice, this.audioFormat)
     }
 
 }
