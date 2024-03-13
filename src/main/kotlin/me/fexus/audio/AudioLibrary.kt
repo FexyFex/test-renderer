@@ -17,7 +17,7 @@ interface AudioLibrary {
     fun init()
 
     fun setListenerPosition(position: Vec3)
-    fun setListenerRotation(up: Vec3, rotation: Vec3)
+    fun setListenerOrientation(lookAt: Vec3, up: Vec3)
     fun setListenerVelocity(velocity: Vec3)
 
     fun createClip(channelType: AudioClip.Type, decoder: AudioDataDecoder): AudioClip

@@ -1,10 +1,5 @@
 package me.fexus.examples.parallaxmapping
 
-import me.fexus.audio.AudioClip
-import me.fexus.audio.AudioFileFormat
-import me.fexus.audio.FexAudioSystem
-import me.fexus.audio.libraries.AudioLibraryJavaAudioSystem
-import me.fexus.audio.libraries.AudioLibraryOpenAL
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.Globals
 import me.fexus.math.mat.Mat4
@@ -49,7 +44,6 @@ import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
 import me.fexus.window.input.InputHandler
 import me.fexus.window.input.Key
-import me.fexus.window.input.event.InputEventSubscriber
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRDynamicRendering.*
 import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
@@ -58,7 +52,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class ParallaxMapping: VulkanRendererBase(createWindow()), InputEventSubscriber {
+class ParallaxMapping: VulkanRendererBase(createWindow()) {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -76,12 +70,6 @@ class ParallaxMapping: VulkanRendererBase(createWindow()), InputEventSubscriber 
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
     }
-
-    private val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryJavaAudioSystem>()
-    private val menuSongFileData = ClassLoader.getSystemResource("audio/the_sleeping_sea.ogg").readBytes()
-    private val decoder = audioSystem.createDecoder(menuSongFileData, AudioFileFormat.OGG)
-    private val menuSong = audioSystem.createClip(AudioClip.Type.STREAMING, decoder)
-    private val source = audioSystem.createEmitter()
 
     private val camera = CameraPerspective(window.aspect)
 
@@ -107,13 +95,7 @@ class ParallaxMapping: VulkanRendererBase(createWindow()), InputEventSubscriber 
         initVulkanCore()
         initObjects()
         camera.position.z = -3f
-        subscribe(inputHandler)
         startRenderLoop(window, this)
-    }
-
-    override fun onKeyPressed(key: Key) {
-        if (key == Key.K) source.play(menuSong)
-        if (key == Key.L) source.stop()
     }
 
     private fun initObjects() {
@@ -552,8 +534,6 @@ class ParallaxMapping: VulkanRendererBase(createWindow()), InputEventSubscriber 
         descriptorPool.destroy(device)
         descriptorSetLayout.destroy(device)
         pipeline.destroy(device)
-
-        audioSystem.shutdown()
 
         super.destroy()
     }

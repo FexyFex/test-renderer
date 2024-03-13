@@ -1,6 +1,7 @@
 package me.fexus.audio
 
 import me.fexus.audio.command.*
+import me.fexus.math.vec.Vec3
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -29,6 +30,11 @@ class AudioCommmandThread: Thread() {
     }
 
 
+    fun setListenerData(listenerData: ListenerData) { library.listenerData = listenerData }
+    fun setListenerPosition(position: Vec3) = library.setListenerPosition(position)
+    fun setListenerOrientation(lookAt: Vec3, up: Vec3) = library.setListenerOrientation(lookAt, up)
+    fun setListenerVelocity(velocity: Vec3) = library.setListenerVelocity(velocity)
+
     fun submitCommand(command: AudioCommand<*>) {
         commands.add(command)
     }
@@ -50,22 +56,6 @@ class AudioCommmandThread: Thread() {
                     val emitter = library.createEmitter()
                     this.emitters.add(emitter)
                     command.result = emitter
-                }
-                is CommandSetListenerData -> {
-                    this.library.listenerData = command.listenerData
-                    command.result = true
-                }
-                is CommandSetListenerPosition -> {
-                    this.library.setListenerPosition(command.position)
-                    command.result = true
-                }
-                is CommandSetListenerVelocity -> {
-                    this.library.setListenerVelocity(command.velocity)
-                    command.result = true
-                }
-                is CommandSetListenerOrientation -> {
-                    this.library.setListenerRotation(command.up, command.lookingAt)
-                    command.result = true
                 }
                 is CommandShutdown -> {
                     keepRunning.set(false)

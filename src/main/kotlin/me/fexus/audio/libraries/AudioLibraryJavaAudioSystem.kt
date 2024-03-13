@@ -35,7 +35,7 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
 
     override fun setListenerPosition(position: Vec3) {}
     override fun setListenerVelocity(velocity: Vec3) {}
-    override fun setListenerRotation(up: Vec3, rotation: Vec3) {}
+    override fun setListenerOrientation(up: Vec3, lookAt: Vec3) {}
 
     override fun shutdown() {
         isInitialized = false
@@ -44,8 +44,9 @@ class AudioLibraryJavaAudioSystem: AudioLibrary {
     class Emitter: SoundEmitter {
         override var doLooping: Boolean = false
         override var gain: Float = 1f
-        override val isPlaying: Boolean; get() = sourceDataLine.isActive
         override var pitch: Float = 1f
+
+        override val isPlaying: Boolean; get() = sourceDataLine.isActive
 
         override lateinit var currentClip: AudioClip
         private val hasNextClip = AtomicBoolean(false)

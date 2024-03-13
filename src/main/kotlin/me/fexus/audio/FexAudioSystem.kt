@@ -47,22 +47,10 @@ class FexAudioSystem {
         return command.result
     }
 
-    fun setListenerPosition(position: Vec3) {
-        val cmd = CommandSetListenerPosition(position)
-        playbackThread.submitCommand(cmd)
-    }
-    fun setListenerVelocity(velocity: Vec3) {
-        val cmd = CommandSetListenerVelocity(velocity)
-        playbackThread.submitCommand(cmd)
-    }
-    fun setListenerOrientation(lookingAt: Vec3, up: Vec3) {
-        val cmd = CommandSetListenerOrientation(lookingAt, up)
-        playbackThread.submitCommand(cmd)
-    }
-    fun setListenerData(listenerData: ListenerData) {
-        val cmd = CommandSetListenerData(listenerData)
-        playbackThread.submitCommand(cmd)
-    }
+    fun setListenerPosition(position: Vec3) = playbackThread.setListenerPosition(position)
+    fun setListenerVelocity(velocity: Vec3) = playbackThread.setListenerVelocity(velocity)
+    fun setListenerOrientation(lookingAt: Vec3, up: Vec3) = playbackThread.setListenerOrientation(lookingAt, up)
+    fun setListenerData(listenerData: ListenerData) = playbackThread.setListenerData(listenerData)
 
     fun shutdown() {
         val cmd = CommandShutdown()

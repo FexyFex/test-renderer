@@ -5,6 +5,7 @@ import me.fexus.audio.AudioLibrary.Companion.assertType
 import me.fexus.audio.openal.catchALError
 import me.fexus.audio.openal.findOpenALFormat
 import me.fexus.audio.openal.toByteBuffer
+import me.fexus.math.clamp
 import me.fexus.math.vec.Vec3
 import org.lwjgl.openal.AL
 import org.lwjgl.openal.AL10.*
@@ -72,12 +73,12 @@ class AudioLibraryOpenAL: AudioLibrary {
         listenerData.position.z = position.z
     }
 
-    override fun setListenerRotation(up: Vec3, rotation: Vec3) {
-        val buf = floatArrayOf(rotation.x, rotation.y, rotation.z, up.x, up.y, up.z)
+    override fun setListenerOrientation(lookAt: Vec3, up: Vec3) {
+        val buf = floatArrayOf(lookAt.x, lookAt.y, lookAt.z, up.x, up.y, up.z)
         alListenerfv(AL_ORIENTATION, buf).catchALError()
-        listenerData.rotation.x = rotation.x
-        listenerData.rotation.y = rotation.y
-        listenerData.rotation.z = rotation.z
+        listenerData.rotation.x = lookAt.x
+        listenerData.rotation.y = lookAt.y
+        listenerData.rotation.z = lookAt.z
         listenerData.up.x = up.x
         listenerData.up.y = up.y
         listenerData.up.z = up.z
@@ -98,14 +99,24 @@ class AudioLibraryOpenAL: AudioLibrary {
 
 
     class Emitter: SoundEmitter {
-        override val isPlaying: Boolean; get() = alGetSourcei(sourceID, AL_SOURCE_STATE).catchALError() == AL_PLAYING
         override var doLooping: Boolean = false
-        override var gain: Float = 0f
+        override var gain: Float = 1f
+            set(value) {
+                val actualValue = value.clamp(0f, 100f)
+                alSourcef(sourceID, AL_GAIN, actualValue).catchALError()
+                field = actualValue
+            }
         override var pitch: Float = 1f
+            set(value) {
+                val actualValue = value.clamp(0f, 100f)
+                alSourcef(sourceID, AL_PITCH, actualValue).catchALError()
+                field = actualValue
+            }
+
+        override val isPlaying: Boolean
+            get() = alGetSourcei(sourceID, AL_SOURCE_STATE).catchALError() == AL_PLAYING
 
         override lateinit var currentClip: AudioClip
-        private val hasNextClip = AtomicBoolean(false)
-        private var nextClip: AudioClip? = null
         private var openALFormat: Int = -1
         private var sampleRate: Int = -1
 
@@ -115,10 +126,6 @@ class AudioLibraryOpenAL: AudioLibrary {
         override val readyToPlay: AtomicBoolean = AtomicBoolean(false)
 
         private var sourceID: Int = -1
-
-        private val playRequested = AtomicBoolean(false)
-        private val pauseRequested = AtomicBoolean(false)
-        private val stopRequested = AtomicBoolean(false)
 
 
         override fun setPosition(position: Vec3) {
@@ -130,29 +137,22 @@ class AudioLibraryOpenAL: AudioLibrary {
         }
 
         override fun play(clip: AudioClip) {
-            if (this.hasNextClip.get()) return
-            this.nextClip = clip
-            this.hasNextClip.set(true)
-            play()
+            prepareNewClip(clip)
         }
 
         override fun play() {
-            this.playRequested.set(true)
-            this.pauseRequested.set(false)
-            this.stopRequested.set(false)
+            alSourcePlay(sourceID).catchALError()
         }
 
         override fun pause() {
-            this.pauseRequested.set(true)
+            alSourcePause(sourceID).catchALError()
         }
 
         override fun stop() {
-            this.stopRequested.set(true)
+            alSourceStop(sourceID).catchALError()
         }
 
-        private fun prepareNewClip() {
-            val clip = this.nextClip!!
-
+        private fun prepareNewClip(clip: AudioClip) {
             if (this::currentClip.isInitialized && clip == this.currentClip) return
             if (!this::currentClip.isInitialized || clip != this.currentClip)
                 this.currentClip = clip
@@ -187,36 +187,8 @@ class AudioLibraryOpenAL: AudioLibrary {
         }
 
         override fun _process() {
-            if (this.hasNextClip.get()) {
-                readyToPlay.set(false)
-                if (this::currentClip.isInitialized)
-                    this.currentClip.rewind()
-                prepareNewClip()
-                this.nextClip = null
-                this.hasNextClip.set(false)
-            }
-
             if (!this::currentClip.isInitialized || !this.readyToPlay.get() || this.sourceID <= -1) return
-
-            if (this.playRequested.get()) {
-                this.playRequested.set(false)
-                alSourcePlay(sourceID).catchALError()
-            }
-
-            if (this.pauseRequested.get()) {
-                alSourcePause(sourceID).catchALError()
-                return
-            }
-            if (this.stopRequested.get()) {
-                alSourceStop(sourceID).catchALError()
-                currentClip.rewind()
-                return
-            }
-
             if (!this.isPlaying) return
-
-            alSourcef(sourceID, AL_GAIN, this.gain)
-            alSourcef(sourceID, AL_PITCH, this.pitch)
 
             val validatedClip = this.currentClip.assertType<AudioClip>()
             if (validatedClip.type == AudioClip.Type.ALL_AT_ONCE) return
