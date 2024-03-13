@@ -27,14 +27,6 @@ class FexAudioSystem {
         return this
     }
 
-    fun createDecoder(fileData: ByteArray, fileFormat: AudioFileFormat) = createDecoder(fileData.inputStream(), fileFormat)
-    fun createDecoder(fileDataStream: InputStream, fileFormat: AudioFileFormat): AudioDataDecoder {
-        val constructor = fileFormat.decoder.constructors.first()
-        val decoder = constructor.call(fileDataStream) as AudioDataDecoder
-        decoder.init()
-        return decoder
-    }
-
     // Clips don't have any library-dependent logic, so it's fine to do it here
     fun createClip(type: AudioClip.Type, decoder: AudioDataDecoder): AudioClip {
         return AudioClip(type, decoder)
@@ -61,5 +53,13 @@ class FexAudioSystem {
 
     companion object {
         const val DEFAULT_BUFFER_SIZE = 4096
+
+        fun createDecoder(fileData: ByteArray, fileFormat: AudioFileFormat) = createDecoder(fileData.inputStream(), fileFormat)
+        fun createDecoder(fileDataStream: InputStream, fileFormat: AudioFileFormat): AudioDataDecoder {
+            val constructor = fileFormat.decoder.constructors.first()
+            val decoder = constructor.call(fileDataStream) as AudioDataDecoder
+            decoder.init()
+            return decoder
+        }
     }
 }

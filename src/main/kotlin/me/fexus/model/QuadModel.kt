@@ -23,7 +23,7 @@ object QuadModel {
         fun toFloatArray() = floatArrayOf(pos.x, pos.y, pos.z, 1.0f, uv.x, uv.y, 0.0f, 0.0f)
 
         fun writeToByteBuffer(buffer: ByteBuffer, offset: Int) {
-            pos.toByteBuffer(buffer, offset)
+            pos.intoByteBuffer(buffer, offset)
             buffer.putFloat(offset + 12, 1.0f)
             uv.toByteBuffer(buffer, offset + 16)
         }

@@ -25,6 +25,8 @@ interface SoundEmitter {
     fun setPosition(position: Vec3)
     fun setVelocity(velocity: Vec3)
 
+    fun destroy() {}
+
     fun _process()
 
     fun _shutdown()

@@ -138,6 +138,7 @@ class AudioLibraryOpenAL: AudioLibrary {
 
         override fun play(clip: AudioClip) {
             prepareNewClip(clip)
+            play()
         }
 
         override fun play() {
@@ -183,7 +184,6 @@ class AudioLibraryOpenAL: AudioLibrary {
             }
 
             readyToPlay.set(true)
-            alSourcePlay(this.sourceID).catchALError()
         }
 
         override fun _process() {

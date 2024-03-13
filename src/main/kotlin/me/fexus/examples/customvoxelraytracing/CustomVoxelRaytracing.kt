@@ -463,7 +463,7 @@ class CustomVoxelRaytracing: VulkanRendererBase(createWindow()) {
             )
 
             val pPushConstants = allocate(128)
-            (-camera.position).toByteBuffer(pPushConstants, 0)
+            (-camera.position).intoByteBuffer(pPushConstants, 0)
             chunkDataBufferArray.chunkAddressOffset.toByteBuffer(pPushConstants, 16)
             (-renderDistance).toByteBuffer(pPushConstants, 32)
             renderDistance.toByteBuffer(pPushConstants, 48)

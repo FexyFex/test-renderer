@@ -163,6 +163,10 @@ val e = GLFWWindowRefreshCallbackI {
         }
     }
 
+    fun setCursorPos(pos: IVec2) {
+        glfwSetCursorPos(this.handle, pos.x.toDouble(), pos.y.toDouble())
+    }
+
     fun hideCursor() {
         glfwSetInputMode(this.handle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
     }

@@ -443,8 +443,8 @@ class ParallaxMapping: VulkanRendererBase(createWindow()) {
 
             val pPushConstants = allocate(128)
             modelMatrix.toByteBufferColumnMajor(pPushConstants, 0)
-            Vec3(5f, 1.0f, 1f).toByteBuffer(pPushConstants, 64)
-            (-camera.position).toByteBuffer(pPushConstants, 80)
+            Vec3(5f, 1.0f, 1f).intoByteBuffer(pPushConstants, 64)
+            (-camera.position).intoByteBuffer(pPushConstants, 80)
             pPushConstants.putFloat(96, heightScale)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS

@@ -90,7 +90,7 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
     }
 
 
-    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
+    fun intoByteBuffer(buf: ByteBuffer, offset: Int) {
         buf.putFloat(offset, x)
         buf.putFloat(offset + 4, y)
         buf.putFloat(offset + 8, z)

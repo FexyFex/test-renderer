@@ -1,10 +1,12 @@
 package me.fexus.window.input
 
+import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.Vec2
 import me.fexus.window.Window
 import me.fexus.window.input.event.InputEventPoster
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.glfw.GLFWCharCallbackI
+import org.lwjgl.glfw.GLFWCursorPosCallbackI
 import org.lwjgl.glfw.GLFWKeyCallbackI
 import org.lwjgl.glfw.GLFWMouseButtonCallbackI
 
@@ -56,6 +58,11 @@ class InputHandler(private val window: Window): InputEventPoster() {
             postCharTyped(charCode.toChar())
         }
         GLFW.glfwSetCharCallback(window.handle, charCallback)
+
+        val cursorPosCallback = GLFWCursorPosCallbackI { _, x: Double, y: Double ->
+            postMouseMoved(IVec2(x.toInt(), y.toInt()))
+        }
+        GLFW.glfwSetCursorPosCallback(window.handle, cursorPosCallback)
     }
 
     fun isKeyDown(key: Key): Boolean = key in downKeys
