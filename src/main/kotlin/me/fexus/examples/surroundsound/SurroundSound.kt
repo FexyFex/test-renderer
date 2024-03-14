@@ -10,7 +10,6 @@ import me.fexus.math.rad
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
-import me.fexus.texture.TextureLoader
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
 import me.fexus.vulkan.VulkanRendererBase
@@ -85,14 +84,14 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     private val ground = Ground(FIELD_SIZE, FIELD_SIZE)
 
     private val meshUploader = MeshUploader(deviceUtil)
-    private val textureUploader = TextureUploader(deviceUtil)
 
     private lateinit var groundVertexBuffer: VulkanBuffer
     private lateinit var groundIndexBuffer: VulkanBuffer
 
+    private val cubemap = Cubemap(deviceUtil)
+
     private lateinit var depthAttachment: VulkanImage
     private lateinit var cameraBuffers: Array<VulkanBuffer>
-    private lateinit var imageCubemap: VulkanImage
     private lateinit var sampler: VulkanSampler
     private lateinit var monolithBuffer: VulkanBuffer
 
@@ -101,7 +100,6 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     private val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
 
     private val groundPipeline = GraphicsPipeline()
-    private val monolithPipeline = GraphicsPipeline()
 
     private val inputHandler = InputHandler(window)
 
@@ -141,12 +139,11 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
 
         createAttachments()
 
+        cubemap.initImageArray()
+
         val groundMesh = ground.buildMesh()
         this.groundVertexBuffer = meshUploader.uploadBuffer(groundMesh.vertexBuffer, BufferUsage.VERTEX_BUFFER)
         this.groundIndexBuffer = meshUploader.uploadBuffer(groundMesh.indexBuffer, BufferUsage.INDEX_BUFFER)
-
-        val cubemapTexture = TextureLoader("textures/surroundsound/cubemap.jpg")
-        this.imageCubemap = textureUploader.uploadTexture(cubemapTexture)
 
         // -- CAMERA BUFFER --
         val cameraBufferConfig = VulkanBufferConfiguration(
@@ -170,6 +167,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         this.monolithBuffer = deviceUtil.createBuffer(monolithBufferConfig)
 
         createDescriptorStuff()
+
+        cubemap.init(descriptorSetLayout)
 
         val groundPipelineConfig = GraphicsPipelineConfiguration(
             listOf(
@@ -253,7 +252,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             val descWriteTextures = DescriptorImageWrite(
                 1, DescriptorType.SAMPLED_IMAGE, 1, set, 0,
                 listOf(
-                    DescriptorImageInfo(0L, imageCubemap.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
+                    DescriptorImageInfo(0L, cubemap.imageArray.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
                 )
             )
             val descWriteSampler = DescriptorImageWrite(
@@ -419,7 +418,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             val pDescriptorSets = allocateLong(1)
             pDescriptorSets.put(0, descriptorSets[currentFrame].vkHandle)
 
-            val pVertexBuffers = allocateLongValues(groundVertexBuffer.vkBufferHandle)
+            val pVertexBuffers = allocateLongValues(cubemap.vertexBuffer.vkBufferHandle)
             val pOffsets = allocateLongValues(0L)
 
             val pPushConstants = allocate(128)
@@ -432,6 +431,16 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
                 commandBuffer.vkHandle, bindPoint, groundPipeline.vkLayoutHandle,
                 0, pDescriptorSets, null
             )
+
+            // cubemap skybox
+            pPushConstants.putInt(0, 0)
+            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, cubemap.pipeline.vkHandle)
+            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+            vkCmdPushConstants(commandBuffer.vkHandle, cubemap.pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
+            vkCmdDraw(commandBuffer.vkHandle, cubemap.vertexCount, 1, 0, 0)
+
+            // ground
+            pVertexBuffers.put(0, groundVertexBuffer.vkBufferHandle)
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, groundPipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, groundIndexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)
@@ -492,7 +501,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         groundVertexBuffer.destroy()
         groundIndexBuffer.destroy()
 
-        imageCubemap.destroy()
+        cubemap.destroy()
 
         monolithBuffer.destroy()
 

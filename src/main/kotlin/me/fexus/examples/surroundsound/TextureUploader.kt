@@ -7,6 +7,7 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
+import me.fexus.vulkan.descriptors.image.usage.IImageUsage
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.util.ImageExtent3D
@@ -19,11 +20,11 @@ import org.lwjgl.vulkan.VkImageSubresourceRange
 
 class TextureUploader(private val deviceUtil: VulkanDeviceUtil) {
 
-    fun uploadTexture(texture: TextureLoader): VulkanImage {
+    fun uploadTexture(texture: TextureLoader, usage: IImageUsage): VulkanImage {
         val imageConfig = VulkanImageConfiguration(
             ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(texture.width, texture.height, 1),
             1, 1, 1, ImageColorFormat.B8G8R8A8_SRGB, ImageTiling.OPTIMAL,
-            ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
+            ImageAspect.COLOR, usage, MemoryPropertyFlag.DEVICE_LOCAL
         )
         val image = deviceUtil.createImage(imageConfig)
 
