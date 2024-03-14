@@ -203,7 +203,7 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
             PushConstantsLayout(128),
             vertexShader, fragmentShader,
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
-            cullMode = CullMode.NONE, depthTest = false, depthWrite = false
+            cullMode = CullMode.FRONTFACE, depthTest = false, depthWrite = false
         )
         this.pipeline.create(deviceUtil.device, listOf(descriptorSetLayout), pipelineConfig)
     }

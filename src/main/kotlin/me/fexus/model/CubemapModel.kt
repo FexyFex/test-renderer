@@ -27,23 +27,29 @@ object CubemapModel {
     private val n6 = Vec3(0f, 0f, -1f)
 
     val vertices = arrayOf(
-        Vertex(pos5, uv1, 0, n1), Vertex(pos3, uv2, 0, n1), Vertex(pos1, uv3, 0, n1),
-        Vertex(pos3, uv4, 0, n2), Vertex(pos8, uv4, 0, n2), Vertex(pos4, uv2, 0, n2),
+        // TOP
+        Vertex(pos5, uv1, 0, n1), Vertex(pos7, uv3, 0, n1), Vertex(pos3, uv2, 0, n1),
+        Vertex(pos5, uv1, 0, n1), Vertex(pos3, uv2, 0, n1), Vertex(pos1, uv4, 0, n1),
 
-        Vertex(pos7, uv3, 1, n3), Vertex(pos6, uv4, 1, n3), Vertex(pos8, uv2, 1, n3),
-        Vertex(pos2, uv3, 1, n4), Vertex(pos8, uv4, 1, n4), Vertex(pos6, uv2, 1, n4),
+        // RIGHT
+        Vertex(pos1, uv3, 1, n5), Vertex(pos4, uv4, 1, n5), Vertex(pos2, uv1, 1, n5),
+        Vertex(pos1, uv3, 1, n5), Vertex(pos3, uv2, 1, n5), Vertex(pos4, uv4, 1, n5),
 
-        Vertex(pos1, uv3, 2, n5), Vertex(pos4, uv4, 2, n5), Vertex(pos2, uv2, 2, n5),
-        Vertex(pos5, uv3, 2, n6), Vertex(pos2, uv4, 2, n6), Vertex(pos6, uv2, 2, n6),
+        // FRONT
+        Vertex(pos5, uv3, 2, n6), Vertex(pos1, uv2, 2, n6), Vertex(pos2, uv4, 2, n6),
+        Vertex(pos5, uv3, 2, n6), Vertex(pos2, uv4, 2, n6), Vertex(pos6, uv1, 2, n6),
 
-        Vertex(pos5, uv1, 3, n1), Vertex(pos7, uv4, 3, n1), Vertex(pos3, uv2, 3, n1),
-        Vertex(pos3, uv3, 3, n2), Vertex(pos7, uv1, 3, n2), Vertex(pos8, uv4, 3, n2),
+        // LEFT
+        Vertex(pos7, uv3, 3, n3), Vertex(pos6, uv4, 3, n3), Vertex(pos8, uv1, 3, n3),
+        Vertex(pos7, uv3, 3, n3), Vertex(pos5, uv2, 3, n3), Vertex(pos6, uv4, 3, n3),
 
-        Vertex(pos7, uv3, 4, n3), Vertex(pos5, uv1, 4, n3), Vertex(pos6, uv4, 4, n3),
-        Vertex(pos2, uv3, 4, n4), Vertex(pos4, uv1, 4, n4), Vertex(pos8, uv4, 4, n4),
+        // BACK
+        Vertex(pos3, uv3, 4, n2), Vertex(pos8, uv4, 4, n2), Vertex(pos4, uv1, 4, n2),
+        Vertex(pos3, uv3, 4, n2), Vertex(pos7, uv2, 4, n2), Vertex(pos8, uv4, 4, n2),
 
-        Vertex(pos1, uv3, 5, n5), Vertex(pos3, uv1, 5, n5), Vertex(pos4, uv4, 5, n5),
-        Vertex(pos5, uv3, 5, n6), Vertex(pos1, uv1, 5, n6), Vertex(pos2, uv4, 5, n6)
+        // BOTTOM
+        Vertex(pos2, uv2, 5, n4), Vertex(pos8, uv1, 5, n4), Vertex(pos6, uv3, 5, n4),
+        Vertex(pos2, uv2, 5, n4), Vertex(pos4, uv4, 5, n4), Vertex(pos8, uv1, 5, n4),
     )
 
     data class Vertex(val pos: Vec3, val uv: Vec2, val textureIndex: Int, val normal: Vec3) {

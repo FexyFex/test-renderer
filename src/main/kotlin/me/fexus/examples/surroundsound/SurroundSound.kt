@@ -155,7 +155,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
-        val samplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.LINEAR)
+        val samplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.LINEAR)
         this.sampler = deviceUtil.createSampler(samplerConfig)
         // -- SAMPLER --
 
@@ -281,8 +281,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         val transM = Mat4(1f).translate(Vec3(xMove * moveSpeed, 0, zMove * moveSpeed)) / rotM
         val forward = Vec3(transM[3][0], transM[3][1], transM[3][2])
 
-        camera.position.x += forward.x * 0.1f
-        camera.position.z += forward.z * 0.1f
+        camera.position.x += forward.x * 0.35f
+        camera.position.z += forward.z * 0.35f
 
         calculateCameraY()
     }
