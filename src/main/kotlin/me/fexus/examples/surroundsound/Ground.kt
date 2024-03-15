@@ -5,6 +5,7 @@ import me.fexus.examples.surroundsound.ground.GroundMeshBuilder
 import me.fexus.math.fract
 import me.fexus.math.lerp
 import me.fexus.math.vec.Vec3
+import kotlin.jvm.internal.Ref.FloatRef
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -35,6 +36,9 @@ class Ground(val width: Int, val breadth: Int) {
 
     // Sucks
     fun getHeightAt(x: Float, z: Float): Float {
+        if (x.roundToInt() !in IntRange(0, width)) throw Exception("meh")
+        if (z.roundToInt() !in IntRange(0, breadth)) throw Exception("meh")
+
         val minX = floor(x).toInt()
         val maxX = ceil(x).toInt()
         val minZ = floor(z).toInt()

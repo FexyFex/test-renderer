@@ -13,11 +13,12 @@ import me.fexus.audio.AudioDataDecoder
 import me.fexus.math.clamp
 import java.io.InputStream
 import javax.sound.sampled.AudioFormat
+import kotlin.math.min
 
 
 class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
     private lateinit var buffer: ByteArray
-    private val bufferSize: Int = 2048
+    private var bufferSize: Int = 2048
     private var count = 0
     private var index = 0
 
@@ -83,62 +84,37 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
             count = audioStream.read(buffer, index, bufferSize)
             joggSyncState.wrote(count)
 
-            when (currentPacket) {
-                1 -> {
-                    when (joggSyncState.pageout(joggPage)) {
-                        -1 -> return false
-                        1 -> {
-                            joggStreamState.init(joggPage.serialno())
-                            joggStreamState.reset()
+            if (currentPacket == 1) {
+                val pageOut = joggSyncState.pageout(joggPage)
+                if (pageOut == -1) return false
+                if (pageOut == 1) {
+                    joggStreamState.init(joggPage.serialno())
+                    joggStreamState.reset()
 
-                            jorbisInfo.init()
-                            jorbisComment.init()
+                    jorbisInfo.init()
+                    jorbisComment.init()
 
-                            if (joggStreamState.pagein(joggPage) == -1) return false
+                    if (joggStreamState.pagein(joggPage) == -1) return false
+                    if (joggStreamState.packetout(joggPacket) != 1) return false
+                    if (jorbisInfo.synthesis_headerin(jorbisComment, joggPacket) < 0) return false
 
-                            if (joggStreamState.packetout(joggPacket) != 1) return false
-
-                            if (jorbisInfo.synthesis_headerin(jorbisComment, joggPacket) < 0) return false
-
-                            currentPacket++
-                        }
-                        else -> {}
-                    }
-
-                    when (joggSyncState.pageout(joggPage)) {
-                        -1 -> return false
-                        1 -> {
-                            joggStreamState.pagein(joggPage)
-                            when (joggStreamState.packetout(joggPacket)) {
-                                -1 -> return false
-                                1 -> {
-                                    jorbisInfo.synthesis_headerin(jorbisComment, joggPacket)
-
-                                    currentPacket++
-                                    if (currentPacket == 4) needMoreData = false
-                                }
-                            }
-                        }
-                    }
+                    currentPacket++
                 }
-                2, 3 -> {
-                    when (joggSyncState.pageout(joggPage)) {
-                        -1 -> return false
-                        1 -> {
-                            joggStreamState.pagein(joggPage)
-                            when (joggStreamState.packetout(joggPacket)) {
-                                -1 -> return false
-                                1 -> {
-                                    jorbisInfo.synthesis_headerin(
-                                        jorbisComment, joggPacket
-                                    )
-                                    currentPacket++
-                                    if (currentPacket == 4) {
-                                        needMoreData = false
-                                    }
-                                }
-                            }
-                        }
+                if (currentPacket == 1) continue
+            }
+            if (currentPacket == 2 || currentPacket == 3) {
+                val pageOut = joggSyncState.pageout(joggPage)
+                if (pageOut == -1) return false
+                if (pageOut == 1) {
+                    joggStreamState.pagein(joggPage)
+
+                    val packetOut = joggStreamState.packetout(joggPacket)
+                    if (packetOut == -1) return false
+                    if (packetOut == 1) {
+                        jorbisInfo.synthesis_headerin(jorbisComment, joggPacket)
+
+                        currentPacket++
+                        if (currentPacket == 4) needMoreData = false
                     }
                 }
             }
@@ -156,30 +132,33 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
         var needMoreData = true
 
         while (needMoreData) {
-            if (joggSyncState.pageout(joggPage) == 1) {
+            val pageOut = joggSyncState.pageout(joggPage)
+            if (pageOut == 1) {
                 joggStreamState.pagein(joggPage)
 
-                if (joggPage.granulepos() == 0L)
-                    needMoreData = false
-
-                processPackets@ while (true)  {
-                    when (joggStreamState.packetout(joggPacket)) {
-                        -1, 0 -> break@processPackets
-                        1 -> decodeCurrentPacket()
+                if (joggPage.granulepos() > 0L) {
+                    processPackets@ while (true) {
+                        val packetOut = joggStreamState.packetout(joggPacket)
+                        if (packetOut == 1) decodeCurrentPacket() else break@processPackets
                     }
+                    if (joggPage.eos() != 0) needMoreData = false
+                } else {
+                    needMoreData = false
                 }
-
-                if (joggPage.eos() != 0) needMoreData = false
             }
 
             if (needMoreData) {
                 this.index = joggSyncState.buffer(this.bufferSize)
                 this.buffer = joggSyncState.data
 
-                this.count = audioStream.read(buffer, index, bufferSize)
+                try {
+                    this.count = audioStream.read(buffer, index, bufferSize)
+                } catch (e: Exception) {
+                    return
+                }
                 joggSyncState.wrote(count)
 
-                if (count <= 0) needMoreData = false
+                if (count == 0 ) needMoreData = false
             }
         }
     }
@@ -188,10 +167,9 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
         if (jorbisBlock.synthesis(joggPacket) == 0)
             jorbisDspState.synthesis_blockin(jorbisBlock)
 
-        var range: Int
-        var samples: Int
-        while (jorbisDspState.synthesis_pcmout(pcmInfo, pcmIndex).also { samples = it } > 0) {
-            range = if (samples < convertedBufferSize) samples else convertedBufferSize
+        var samples: Int = jorbisDspState.synthesis_pcmout(pcmInfo, pcmIndex)
+        while (samples > 0) {
+            val range = if (samples < convertedBufferSize) samples else convertedBufferSize
 
             for (i in 0 until jorbisInfo.channels) {
                 var sampleIndex = i * 2
@@ -204,17 +182,18 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
                     convertedBuffer[sampleIndex] = value.toByte()
                     convertedBuffer[sampleIndex + 1] = (value ushr 8).toByte()
 
-                    sampleIndex += 2 * jorbisInfo.channels
+                    sampleIndex += 2 * (jorbisInfo.channels)
                 }
             }
 
             val length = 2 * jorbisInfo.channels * range
-            //outputLine!!.write(convertedBuffer, 0, length)
             for (i in 0 until length) {
                 unpackedAudioData.add(unpackedAudioDataOffset++, convertedBuffer[i])
             }
 
             jorbisDspState.synthesis_read(range)
+
+            samples = jorbisDspState.synthesis_pcmout(pcmInfo, pcmIndex)
         }
     }
 

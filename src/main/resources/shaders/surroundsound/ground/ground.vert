@@ -20,8 +20,7 @@ layout (location = 0) out vec3 outColor;
 
 void main() {
     vec4 position = vec4(inPosition.xyz, 1.0);
-    position.z *= -1.0;
-    position.x *= -1.0;
+
     gl_Position = cameraBuffer.proj * cameraBuffer.view * position;
     float val = (1.0 - abs(mod(inPosition.y / 2.0, 1.0))) * 0.5;
     float halved = val * 0.5;

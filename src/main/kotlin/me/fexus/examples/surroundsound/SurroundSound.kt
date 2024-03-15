@@ -1,5 +1,6 @@
 package me.fexus.examples.surroundsound
 
+import me.fexus.audio.AudioClip
 import me.fexus.audio.FexAudioSystem
 import me.fexus.audio.libraries.AudioLibraryOpenAL
 import me.fexus.camera.CameraPerspective
@@ -77,6 +78,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     }
 
     private val camera = CameraPerspective(window.aspect)
+    private val player = Player()
 
     private val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryOpenAL>()
     private val soundRegistry = SoundRegistry()
@@ -125,9 +127,11 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         val middle = windowSize / 2
         val dist = middle - newPosition
 
-        camera.rotation.x -= dist.y.toFloat() / 10f
-        camera.rotation.x = camera.rotation.x.clamp(-90f, 90f)
-        camera.rotation.y -= dist.x.toFloat() / 10f
+        player.viewDirection.x -= dist.y.toFloat() / 10f
+        player.viewDirection.x = player.viewDirection.x.clamp(-90f, 90f)
+        player.viewDirection.y -= dist.x.toFloat() / 10f
+
+       // audioSystem.setListenerOrientation(camera.rotation, Vec3(0f, -1f, 0f))
 
         window.setCursorPos(middle)
     }
@@ -139,8 +143,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     private fun initObjects() {
         subscribe(inputHandler)
         ground.generateNewHeightMap(103L)
-        camera.position.x = FIELD_SIZE * 0.5f
-        camera.position.z = FIELD_SIZE * 0.5f
+        player.position.x = FIELD_SIZE * 0.5f
+        player.position.z = FIELD_SIZE * 0.5f
         calculateCameraY()
 
         createAttachments()
@@ -191,6 +195,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             cullMode = CullMode.NONE
         )
         this.groundPipeline.create(device, listOf(descriptorSetLayout), groundPipelineConfig)
+
+        monoliths.forEach(HummingMonolith::play)
     }
 
     private fun createMonolithMeshBuffers() {
@@ -234,8 +240,9 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
 
         val pos = Vec3(2.2f, 0f, -1.11f)
         pos.y = ground.getHeightAt(pos.x, pos.y)
-        val monolith1 = HummingMonolith(pos, Vec3(0f), SoundLibrary.THE_SLEEPING_SEA, audioSystem)
-        //monolith1.loadSoundWithRegistry(soundRegistry)
+        val sound = soundRegistry.loadSound(SoundLibrary.FIRST_REVOLUTION)
+        val clip = audioSystem.createClip(AudioClip.Type.STREAMING, sound)
+        val monolith1 = HummingMonolith(pos, Vec3(0f), audioSystem, clip)
         monolith1.intoByteBuffer(buf, 0)
         this.monoliths.add(monolith1)
 
@@ -331,26 +338,31 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
 
         val rotM = Mat4(1f)
             .rotate(0f, Vec3(1f, 0f, 0f))
-            .rotate(camera.rotation.y.rad, Vec3(0f, 1f, 0f))
-            .rotate(camera.rotation.z.rad, Vec3(0f, 0f, 1f))
+            .rotate(player.viewDirection.y.rad, Vec3(0f, 1f, 0f))
+            .rotate(player.viewDirection.z.rad, Vec3(0f, 0f, 1f))
         val transM = Mat4(1f).translate(Vec3(xMove * moveSpeed, 0, zMove * moveSpeed)) / rotM
         val forward = Vec3(transM[3][0], transM[3][1], transM[3][2])
 
-        camera.position.x += forward.x * 0.35f
-        camera.position.z += forward.z * 0.35f
+        player.position.x -= forward.x * 0.35f
+        player.position.z -= forward.z * 0.35f
 
         calculateCameraY()
+
+        audioSystem.setListenerPosition(player.position)
     }
 
     private fun calculateCameraY() {
         try {
-            camera.position.y = -ground.getHeightAt(camera.position.x, camera.position.z) - 1f
+            player.position.y = -ground.getHeightAt(player.position.x, player.position.z) + 1f
         } catch(_: Exception) {
-            camera.position.y = -1f
+            player.position.y = 1f
         }
     }
 
     private fun updateBuffers() {
+        camera.position = -player.position
+        camera.rotation = player.viewDirection
+
         val view = camera.calculateView()
         val proj = camera.calculateReverseZProjection()
         val data = ByteBuffer.allocate(144)

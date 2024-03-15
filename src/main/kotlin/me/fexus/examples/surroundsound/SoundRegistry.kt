@@ -13,7 +13,6 @@ class SoundRegistry {
 
         val fileData = ClassLoader.getSystemResource(sound.pathInResources).readBytes()
         val decoder = FexAudioSystem.createDecoder(fileData, sound.audioFileFormat)
-        decoder.init()
 
         loadedSounds[sound] = decoder
         return decoder

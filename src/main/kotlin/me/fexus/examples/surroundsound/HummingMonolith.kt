@@ -9,20 +9,15 @@ import me.fexus.math.vec.Vec3
 import java.nio.ByteBuffer
 
 
-class HummingMonolith(val position: Vec3, val rotation: Vec3, val sound: Sound, private val audioSystem: FexAudioSystem) {
+class HummingMonolith(val position: Vec3, val rotation: Vec3, private val audioSystem: FexAudioSystem, private val clip: AudioClip) {
     private val emitter = audioSystem.createEmitter()
-    private lateinit var clip: AudioClip
 
     private var flags: MonolithFlags = MonolithFlag.NONE
 
 
-    infix fun loadSoundWithRegistry(soundRegistry: SoundRegistry): HummingMonolith {
-        this.clip = audioSystem.createClip(AudioClip.Type.STREAMING, soundRegistry.loadSound(sound))
-        return this
-    }
-
     fun play() {
         emitter.play(clip)
+        emitter.setPosition(position)
         flags += MonolithFlag.HUMMMING
     }
 
