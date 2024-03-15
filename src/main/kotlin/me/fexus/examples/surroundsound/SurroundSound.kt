@@ -73,15 +73,22 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         }
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
-        private const val FIELD_SIZE = 32
+        private const val FIELD_SIZE = 24
     }
 
     private val camera = CameraPerspective(window.aspect)
 
     private val audioSystem = FexAudioSystem().initWithLibrary<AudioLibraryOpenAL>()
     private val soundRegistry = SoundRegistry()
+
+    private val monolithImporter = MonolithModelImporter()
     private val monoliths = mutableListOf<HummingMonolith>()
+    private val monolithOuterPipeline = GraphicsPipeline()
+    private val monolithInnerPipeline = GraphicsPipeline()
+    private lateinit var monolithVertexBuffer: VulkanBuffer
+
     private val ground = Ground(FIELD_SIZE, FIELD_SIZE)
+    private val groundPipeline = GraphicsPipeline()
 
     private val meshUploader = MeshUploader(deviceUtil)
 
@@ -99,7 +106,6 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
 
-    private val groundPipeline = GraphicsPipeline()
 
     private val inputHandler = InputHandler(window)
 
@@ -141,6 +147,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
 
         cubemap.initImageArray()
 
+        createMonolithMeshBuffers()
+
         val groundMesh = ground.buildMesh()
         this.groundVertexBuffer = meshUploader.uploadBuffer(groundMesh.vertexBuffer, BufferUsage.VERTEX_BUFFER)
         this.groundIndexBuffer = meshUploader.uploadBuffer(groundMesh.indexBuffer, BufferUsage.INDEX_BUFFER)
@@ -169,6 +177,8 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         createDescriptorStuff()
 
         cubemap.init(descriptorSetLayout)
+        createMonolithPipelines()
+        createMonoliths()
 
         val groundPipelineConfig = GraphicsPipelineConfiguration(
             listOf(
@@ -183,12 +193,53 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         this.groundPipeline.create(device, listOf(descriptorSetLayout), groundPipelineConfig)
     }
 
+    private fun createMonolithMeshBuffers() {
+        val buf = monolithImporter.loadMesh("models/monolith.glb")
+        this.monolithVertexBuffer = meshUploader.uploadBuffer(buf, BufferUsage.VERTEX_BUFFER)
+    }
+
+    private fun createMonolithPipelines() {
+        val outerPipelineConfig = GraphicsPipelineConfiguration(
+            listOf(
+                VertexAttribute(0, VertexAttributeFormat.VEC3, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC2, 12),
+                VertexAttribute(2, VertexAttributeFormat.VEC3, 20)
+            ),
+            PushConstantsLayout(128),
+            ClassLoader.getSystemResource("shaders/surroundsound/monolith/monolith_outer_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/surroundsound/monolith/monolith_outer_frag.spv").readBytes(),
+            dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
+            cullMode = CullMode.NONE
+        )
+        this.monolithOuterPipeline.create(device, listOf(descriptorSetLayout), outerPipelineConfig)
+
+        val innerPipelineConfig = GraphicsPipelineConfiguration(
+            listOf(
+                VertexAttribute(0, VertexAttributeFormat.VEC3, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC2, 12),
+                VertexAttribute(2, VertexAttributeFormat.VEC3, 20)
+            ),
+            PushConstantsLayout(128),
+            ClassLoader.getSystemResource("shaders/surroundsound/monolith/monolith_inner_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/surroundsound/monolith/monolith_inner_frag.spv").readBytes(),
+            dynamicStates = listOf(DynamicState.VIEWPORT, DynamicState.SCISSOR),
+            cullMode = CullMode.NONE
+        )
+        this.monolithInnerPipeline.create(device, listOf(descriptorSetLayout), innerPipelineConfig)
+    }
+
     private fun createMonoliths() {
+        val buf = ByteBuffer.allocate(this.monolithBuffer.config.size.toInt())
+        buf.order(ByteOrder.LITTLE_ENDIAN)
+
         val pos = Vec3(2.2f, 0f, -1.11f)
         pos.y = ground.getHeightAt(pos.x, pos.y)
-        val monolith = HummingMonolith(pos, Vec3(0f), SoundLibrary.THE_SLEEPING_SEA, audioSystem)
-        monolith.loadSoundWithRegistry(soundRegistry)
-        this.monoliths.add(monolith)
+        val monolith1 = HummingMonolith(pos, Vec3(0f), SoundLibrary.THE_SLEEPING_SEA, audioSystem)
+        //monolith1.loadSoundWithRegistry(soundRegistry)
+        monolith1.intoByteBuffer(buf, 0)
+        this.monoliths.add(monolith1)
+
+        this.monolithBuffer.put(0, buf)
     }
 
     private fun createAttachments() {
@@ -261,8 +312,12 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
                     DescriptorImageInfo(this.sampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
                 )
             )
+            val descWriteStorageBuffers = DescriptorBufferWrite(
+                3, DescriptorType.STORAGE_BUFFER, 1, set, 0,
+                listOf(DescriptorBufferInfo(monolithBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE))
+            )
 
-            set.update(device, descWriteCameraBuf, descWriteTextures, descWriteSampler)
+            set.update(device, descWriteCameraBuf, descWriteTextures, descWriteSampler, descWriteStorageBuffers)
         }
     }
 
@@ -447,6 +502,15 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             vkCmdPushConstants(commandBuffer.vkHandle, groundPipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
             val indexCount = ground.currentMesh.indexBuffer.capacity() / Int.SIZE_BYTES
             vkCmdDrawIndexed(commandBuffer.vkHandle, indexCount, 1, 0, 0, 0)
+
+            // monoliths
+            pVertexBuffers.put(0, monolithVertexBuffer.vkBufferHandle)
+            pPushConstants.putInt(0, 0)
+            vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, monolithOuterPipeline.vkHandle)
+            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+            vkCmdPushConstants(commandBuffer.vkHandle, monolithOuterPipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
+            val vertCount = this@SurroundSound.monolithImporter.innerVertexOffset / 32
+            vkCmdDraw(commandBuffer.vkHandle, vertCount, 1, 0, 0)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
@@ -504,6 +568,9 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         cubemap.destroy()
 
         monolithBuffer.destroy()
+        monolithVertexBuffer.destroy()
+        monolithOuterPipeline.destroy(device)
+        monolithInnerPipeline.destroy(device)
 
         audioSystem.shutdown()
 
