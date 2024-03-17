@@ -143,9 +143,9 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
     private fun initObjects() {
         subscribe(inputHandler)
         ground.generateNewHeightMap(103L)
-        player.position.x = FIELD_SIZE * 0.5f
-        player.position.z = FIELD_SIZE * 0.5f
-        calculateCameraY()
+        //player.position.x = FIELD_SIZE * 0.5f
+        //player.position.z = FIELD_SIZE * 0.5f
+        calculatePlayerY()
 
         createAttachments()
 
@@ -238,7 +238,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         val buf = ByteBuffer.allocate(this.monolithBuffer.config.size.toInt())
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
-        val pos = Vec3(2.2f, 0f, -1.11f)
+        val pos = Vec3(0f, 0f, 0f)
         pos.y = ground.getHeightAt(pos.x, pos.y)
         val sound = soundRegistry.loadSound(SoundLibrary.FIRST_REVOLUTION)
         val clip = audioSystem.createClip(AudioClip.Type.STREAMING, sound)
@@ -346,12 +346,12 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         player.position.x -= forward.x * 0.35f
         player.position.z -= forward.z * 0.35f
 
-        calculateCameraY()
+        calculatePlayerY()
 
         audioSystem.setListenerPosition(player.position)
     }
 
-    private fun calculateCameraY() {
+    private fun calculatePlayerY() {
         try {
             player.position.y = -ground.getHeightAt(player.position.x, player.position.z) + 1f
         } catch(_: Exception) {

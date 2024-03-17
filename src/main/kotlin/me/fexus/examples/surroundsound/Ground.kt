@@ -23,7 +23,7 @@ class Ground(val width: Int, val breadth: Int) {
         for (x in 0 until width) {
             for (z in 0 until breadth) {
                 val rand = seed xor (((x * 32325.21f).roundToInt() - (z * 2332.244f).roundToInt()).toLong() * 0xFFFF * x * z)
-                val height = (rand % 0.512536f) - 0.8f
+                val height = (rand % 0.312536f) - 0.4f
                 heightmap[x, z] = height
             }
         }
