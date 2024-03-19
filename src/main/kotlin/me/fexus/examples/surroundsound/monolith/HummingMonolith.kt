@@ -2,14 +2,21 @@ package me.fexus.examples.surroundsound.monolith
 
 import me.fexus.audio.AudioClip
 import me.fexus.audio.FexAudioSystem
+import me.fexus.examples.surroundsound.CommandRecorder
 import me.fexus.examples.surroundsound.monolith.flag.MonolithFlag
 import me.fexus.examples.surroundsound.monolith.flag.MonolithFlags
 import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
+import me.fexus.vulkan.component.CommandBuffer
 import java.nio.ByteBuffer
 
 
-class HummingMonolith(val position: Vec3, val rotation: Vec3, private val audioSystem: FexAudioSystem, private val clip: AudioClip) {
+class HummingMonolith(
+    val position: Vec3,
+    val rotation: Vec3,
+    private val audioSystem: FexAudioSystem,
+    private val clip: AudioClip,
+) {
     private val emitter = audioSystem.createEmitter()
 
     private var flags: MonolithFlags = MonolithFlag.NONE
@@ -18,12 +25,12 @@ class HummingMonolith(val position: Vec3, val rotation: Vec3, private val audioS
     fun play() {
         emitter.play(clip)
         emitter.setPosition(position)
-        flags += me.fexus.examples.surroundsound.monolith.flag.MonolithFlag.HUMMMING
+        flags += MonolithFlag.HUMMMING
     }
 
     fun stop() {
         emitter.stop()
-        flags -= me.fexus.examples.surroundsound.monolith.flag.MonolithFlag.HUMMMING
+        flags -= MonolithFlag.HUMMMING
     }
 
 

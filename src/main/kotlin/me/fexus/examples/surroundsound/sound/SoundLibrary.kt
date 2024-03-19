@@ -1,4 +1,4 @@
-package me.fexus.examples.surroundsound
+package me.fexus.examples.surroundsound.sound
 
 import me.fexus.audio.AudioFileFormat
 

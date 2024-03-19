@@ -13,8 +13,8 @@ data class MonolithModel(val buffer: ByteBuffer, val outerMesh: SubMesh, val inn
     )
 
     companion object {
-        fun load(pathInResources: String): MonolithModel {
-            val uri = ClassLoader.getSystemResource(pathInResources).toURI()
+        fun load(): MonolithModel {
+            val uri = ClassLoader.getSystemResource("models/monolith.glb").toURI()
             val modelReader = GltfModelReader()
             val model = modelReader.read(uri)
 
