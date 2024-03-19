@@ -140,13 +140,12 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         player.viewDirection.x = player.viewDirection.x.clamp(-90f, 90f)
         player.viewDirection.y -= dist.x.toFloat() / 10f
 
-       // audioSystem.setListenerOrientation(camera.rotation, Vec3(0f, -1f, 0f))
-
         window.setCursorPos(middle)
     }
 
     override fun onKeyPressed(key: Key) {
         if (key == Key.ESC) trapMouse = !trapMouse
+        if (key == Key.P) monoliths.first().play()
     }
 
     private fun initObjects() {
@@ -204,8 +203,6 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             cullMode = CullMode.NONE
         )
         this.groundPipeline.create(device, listOf(descriptorSetLayout), groundPipelineConfig)
-
-        monoliths.forEach(HummingMonolith::play)
     }
 
     private fun createMonolithMeshBuffers() {
@@ -383,7 +380,7 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
             .rotate(player.viewDirection.y.rad, Vec3(0f, 1f, 0f))
             .rotate(player.viewDirection.z.rad, Vec3(0f, 0f, 1f))
         val transM = Mat4(1f).translate(Vec3(xMove * moveSpeed, 0, zMove * moveSpeed)) / rotM
-        val forward = Vec3(transM[3][0], transM[3][1], transM[3][2])
+        val forward = Vec3(transM[3][0], transM[3][1], transM[3][2]).normalize() / 5f
 
         player.position.x -= forward.x * 0.35f
         player.position.z -= forward.z * 0.35f
@@ -414,6 +411,9 @@ class SurroundSound: VulkanRendererBase(createWindow()), InputEventSubscriber {
         data.putFloat(128, time.toFloat())
 
         cameraBuffers[currentFrame].put(0, data)
+
+        val inverseView = view.inverse()
+        audioSystem.setListenerOrientation(-Vec3(inverseView[2].xyz), Vec3(0f, 1f, 0f))
     }
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {

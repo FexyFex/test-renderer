@@ -24,6 +24,7 @@ class HummingMonolith(
 
     fun play() {
         emitter.play(clip)
+        emitter.doLooping = true
         emitter.setPosition(position)
         flags += MonolithFlag.HUMMMING
     }

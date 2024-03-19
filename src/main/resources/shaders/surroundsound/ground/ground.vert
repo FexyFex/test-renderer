@@ -22,7 +22,7 @@ void main() {
     vec4 position = vec4(inPosition.xyz, 1.0);
 
     gl_Position = cameraBuffer.proj * cameraBuffer.view * position;
-    float val = (abs(mod(inPosition.y / 2.0, 1.0))) * 0.5;
+    float val = (abs(mod(inPosition.y / 1.5, 1.0))) * 0.8;
     float halved = val * 0.5;
     outColor = vec3(0.2 + halved, 0.2 + val, 0.2 + halved);
 }

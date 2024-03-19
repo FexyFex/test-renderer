@@ -2,9 +2,6 @@ package me.fexus.audio.libraries
 
 import me.fexus.audio.*
 import me.fexus.audio.AudioLibrary.Companion.assertType
-import me.fexus.audio.openal.catchALError
-import me.fexus.audio.openal.findOpenALFormat
-import me.fexus.audio.openal.toByteBuffer
 import me.fexus.math.clamp
 import me.fexus.math.vec.Vec3
 import org.lwjgl.openal.AL
@@ -225,6 +222,51 @@ class AudioLibraryOpenAL: AudioLibrary {
             sourceID = -1
 
             queuedBuffers.forEach { alDeleteBuffers(it) }
+        }
+    }
+
+
+    companion object {
+        fun findOpenALFormat(channelCount: Int, bitsPerSample: Int): Int {
+            // IMPORTANT:
+            //  For OpenAL to support spatial dislocation of sound, the audio must be single channel (MONO) only!!!
+            return when {
+                channelCount == 1 && bitsPerSample == 8 -> AL_FORMAT_MONO8
+                channelCount == 1 && bitsPerSample == 16 -> AL_FORMAT_MONO16
+                channelCount > 1 && bitsPerSample == 8 -> AL_FORMAT_STEREO8
+                channelCount > 1 && bitsPerSample == 16 -> AL_FORMAT_STEREO16
+                else -> throw Exception("No matching format found for channel count = $channelCount and $bitsPerSample bit per sample")
+            }
+        }
+
+        fun ByteArray.toByteBuffer(): ByteBuffer {
+            val buf = ByteBuffer.allocateDirect(this.size)
+            this.forEachIndexed { index, byte ->
+                buf.put(index, byte)
+            }
+            return buf
+        }
+
+        fun <T>T.catchALError(): T {
+            Companion.catchALError()
+            return this
+        }
+
+        fun catchALError() {
+            val errCode = alGetError()
+
+            if (errCode == AL_NO_ERROR) return
+
+            val errString = when (errCode) {
+                40961 -> "Invalid name"
+                40962 -> "Invalid enum"
+                40963 -> "Invalid value"
+                40964 -> "Invalid Operation"
+                40965 -> "Out of memory"
+                else -> "Unknown"
+            }
+
+            throw Exception("AL Error: $errString")
         }
     }
 }

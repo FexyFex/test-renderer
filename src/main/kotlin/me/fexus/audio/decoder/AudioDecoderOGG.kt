@@ -131,7 +131,9 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
     private fun readBody() {
         var needMoreData = true
 
+        var i = -1
         while (needMoreData) {
+            i++
             val pageOut = joggSyncState.pageout(joggPage)
             if (pageOut == 1) {
                 joggStreamState.pagein(joggPage)
@@ -151,14 +153,12 @@ class AudioDecoderOGG(override val audioStream: InputStream): AudioDataDecoder {
                 this.index = joggSyncState.buffer(this.bufferSize)
                 this.buffer = joggSyncState.data
 
-                try {
-                    this.count = audioStream.read(buffer, index, bufferSize)
-                } catch (e: Exception) {
-                    return
-                }
+                val actualIndex = if (index == -1) 0 else index
+                this.count = audioStream.read(buffer, actualIndex, bufferSize)
+
                 joggSyncState.wrote(count)
 
-                if (count == 0 ) needMoreData = false
+                if (count == 0 || index == -1) needMoreData = false
             }
         }
     }
