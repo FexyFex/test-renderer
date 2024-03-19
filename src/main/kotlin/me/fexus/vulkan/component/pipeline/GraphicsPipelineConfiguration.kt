@@ -14,6 +14,9 @@ data class GraphicsPipelineConfiguration(
 
     val dynamicStates: List<DynamicState> = emptyList(),
 
+    val vertexInputBindings: List<VertexInputBinding> =
+        listOf(VertexInputBinding(0, vertexAttributes.sumOf { it.format.size }, VertexInputRate.VERTEX)),
+
     val blendEnable: Boolean = false,
     val primitive: Primitive = Primitive.TRIANGLES,
     val polygonMode: PolygonMode = PolygonMode.FILL,
@@ -24,5 +27,5 @@ data class GraphicsPipelineConfiguration(
     val depthTest: Boolean = true,
     val depthWrite: Boolean = true
 ) {
-    val vertexStride: Int = if (vertexAttributes.isEmpty()) 0 else vertexAttributes.last().offset + vertexAttributes.last().format.size
+
 }

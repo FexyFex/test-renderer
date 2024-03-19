@@ -45,11 +45,13 @@ class GraphicsPipeline: IPipeline {
         vkCreatePipelineLayout(device.vkHandle, pipelineLayoutInfo, null, pPipelineLayoutHandle)
         this@GraphicsPipeline.vkLayoutHandle = pPipelineLayoutHandle[0]
 
-        val vertexBindingDescription = calloc(VkVertexInputBindingDescription::calloc,1)
-        vertexBindingDescription[0]
-            .binding(0)
-            .stride(config.vertexStride)
-            .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
+        val vertexBindingDescription = calloc(VkVertexInputBindingDescription::calloc, config.vertexInputBindings.size)
+        config.vertexInputBindings.forEachIndexed { index, vertexInputBinding ->
+            vertexBindingDescription[index]
+                .binding(vertexInputBinding.binding)
+                .stride(vertexInputBinding.stride)
+                .inputRate(vertexInputBinding.inputRate.vkEnum)
+        }
 
         val vertexAttributeDescription = calloc(VkVertexInputAttributeDescription::calloc, config.vertexAttributes.size)
         config.vertexAttributes.forEachIndexed { index, vertexAttribute ->

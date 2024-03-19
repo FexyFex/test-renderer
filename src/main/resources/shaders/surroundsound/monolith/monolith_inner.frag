@@ -14,5 +14,5 @@ layout (location = 0) out vec4 outColor;
 
 
 void main() {
-    outColor = vec4(0.7, 0.24, 0.4, 1.0);//texture(sampler2D(textures[0], defaultSampler), inTexCoords.xy, 1.0);
+    outColor = vec4((sin(inTime) + 1.0) / 2.0, 0.24, 0.4, 1.0);//texture(sampler2D(textures[0], defaultSampler), inTexCoords.xy, 1.0);
 }

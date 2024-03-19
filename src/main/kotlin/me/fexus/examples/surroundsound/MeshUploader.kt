@@ -5,6 +5,7 @@ import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
+import me.fexus.vulkan.descriptors.buffer.usage.IBufferUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import org.lwjgl.vulkan.VK10.vkCmdCopyBuffer
 import org.lwjgl.vulkan.VkBufferCopy
@@ -14,7 +15,7 @@ import java.nio.ByteBuffer
 class MeshUploader(private val deviceUtil: VulkanDeviceUtil) {
 
 
-    fun uploadBuffer(vertexData: ByteBuffer, usage: BufferUsage): VulkanBuffer {
+    fun uploadBuffer(vertexData: ByteBuffer, usage: IBufferUsage): VulkanBuffer {
         val size = vertexData.capacity().toLong()
 
         val vertexBufferConfig = VulkanBufferConfiguration(
