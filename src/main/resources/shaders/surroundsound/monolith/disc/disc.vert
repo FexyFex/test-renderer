@@ -4,7 +4,7 @@
 
 #include "../../defines.glsl"
 
-const float minHeight = -5.3;
+const float minHeight = -7.3;
 const float maxHeight = 6.3;
 const float maxDiameter = 3.0;
 
@@ -35,7 +35,7 @@ void main() {
 
     vec3 position = (inPosition * scale);
     //position.y += mix(minHeight, maxHeight, progress);
-    float dotA = 0.5;
+    float dotA = progress - 0.5;
     float theta = acos(dotA) * progress;
     float relativeVec = (maxHeight - (minHeight * dotA));
     position.y += ((minHeight * cos(theta)) + relativeVec * sin(theta));
