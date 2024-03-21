@@ -83,6 +83,39 @@ class SparseVoxelOctree {
         return x or (y shl 1) or (z shl 2)
     }
 
+    fun forEachVoxel(action: (position: IVec3, voxel: VoxelType) -> Unit) {
+        val extent = EXTENT ushr 1
+
+        octree.children.forEachIndexed { octantIndex, node ->
+            if (node == null) return@forEachIndexed
+
+            val position = localOctPositionFromIndex(octantIndex) * extent
+            if (node is IOctreeParentNode && node.hasChildren) {
+                forEachVoxelRec(node, position, 2, action)
+                return@forEachIndexed
+            }
+            action(position, node.nodeData.voxelType)
+        }
+    }
+
+    private fun forEachVoxelRec(
+        parent: IOctreeParentNode<OctreeNodeDataVoxelType>,
+        parentPos: IVec3,
+        mipLevel: Int,
+        action: (position: IVec3, voxel: VoxelType) -> Unit
+    ) {
+        parent.children.forEachIndexed { octantIndex, node ->
+            if (node == null) return@forEachIndexed
+
+            val position = localOctPositionFromIndex(octantIndex) * (EXTENT ushr mipLevel)
+            if (node is IOctreeParentNode && node.hasChildren) {
+                forEachVoxelRec(node, parentPos + position, mipLevel + 1, action)
+                return@forEachIndexed
+            }
+            action(parentPos + position, node.nodeData.voxelType)
+        }
+    }
+
 
     // Index must never exceed 7, but I won't check for that case because that would be a lot of assertions
     private fun localOctPositionFromIndex(index: Int): IVec3 {
@@ -96,7 +129,7 @@ class SparseVoxelOctree {
     private fun assertCoords(pos: IVec3) = assertCoords(pos.x, pos.y, pos.z)
     private fun assertCoords(x: Int, y: Int, z: Int) {
         if (x !in bounds || y !in bounds || z !in bounds)
-            throw AssertionError("Out of bounds $x, $y, $z")
+            throw Exception("Out of bounds $x, $y, $z")
     }
 
 

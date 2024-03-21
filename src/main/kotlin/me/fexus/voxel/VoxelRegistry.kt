@@ -1,16 +1,20 @@
 package me.fexus.voxel
 
+import me.fexus.voxel.type.VoidVoxel
 import me.fexus.voxel.type.VoxelType
 
 
 object VoxelRegistry {
-    private val registeredVoxels = Array<VoxelType?>(255) { null }
+    private val registeredVoxels = Array<VoxelType?>(63) { null }
     private var nextID = 1 // 0 is empty, hence why we start at 1
+    var voxelCount: Int = 0; private set
+
 
     fun init() {
         val voxelTypes = VoxelType::class.sealedSubclasses
-                .flatMap { it.sealedSubclasses + it }
-                .mapNotNull { it.objectInstance }
+            .filter { it != VoidVoxel::class }
+            .flatMap { it.sealedSubclasses + it }
+            .mapNotNull { it.objectInstance }
 
         voxelTypes.forEach(VoxelRegistry::registerVoxel)
     }
@@ -20,6 +24,14 @@ object VoxelRegistry {
         val id = nextID++
         voxelType.id = id
         registeredVoxels[id] = voxelType
+        voxelCount++
+    }
+
+
+    fun forEachVoxel(action: (voxel: VoxelType) -> Unit) {
+        registeredVoxels.forEach {
+            if (it != null) action(it)
+        }
     }
 
 

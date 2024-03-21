@@ -13,8 +13,6 @@ import java.nio.ByteBuffer
 
 
 class MeshUploader(private val deviceUtil: VulkanDeviceUtil) {
-
-
     fun uploadBuffer(vertexData: ByteBuffer, usage: IBufferUsage): VulkanBuffer {
         val size = vertexData.capacity().toLong()
 
