@@ -44,10 +44,10 @@ SideInfo unpack(uint packed) {
     side.position.x = packed & 31;
     side.position.y = (packed >> 5) & 31;
     side.position.z = (packed >> 10) & 31;
-    side.scaling.x = (packed >> 15) & 15;
-    side.scaling.y = (packed >> 19) & 15;
-    side.dirIndex = (packed >> 23) & 7;
-    side.textureIndex = (packed >> 26) & 63;
+    side.scaling.x = (packed >> 15) & 31;
+    side.scaling.y = (packed >> 20) & 31;
+    side.dirIndex = (packed >> 25) & 7;
+    side.textureIndex = (packed >> 28) & 15;
     return side;
 }
 
@@ -59,9 +59,12 @@ void main() {
     vec3 normal = dirs[side.dirIndex];
 
     vec3 rotatedPos = inPosition;
+    vec3 scaling = vec3(1.0);
     if (normal.x != 0.0) {
         rotatedPos.z = rotatedPos.x;
         rotatedPos.x = 0.0;
+        scaling.z = side.scaling.x;
+        scaling.y = side.scaling.y;
         if (normal.x > 0.0) {
             rotatedPos.x = 1.0 - rotatedPos.x - 1.0;
             rotatedPos.z = 1.0 - rotatedPos.z;
@@ -69,19 +72,25 @@ void main() {
     } else if (normal.y != 0.0) {
         rotatedPos.z = rotatedPos.y;
         rotatedPos.y = 0.0;
+        scaling.z = side.scaling.y;
+        scaling.x = side.scaling.x;
         if (normal.y > 0.0) {
             rotatedPos.z = rotatedPos.z;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
-    } else if (normal.z < 0.0) {
-        rotatedPos.y = rotatedPos.y;
-        rotatedPos.x = 1.0 - rotatedPos.x;
+    } else {
+        scaling.x = scaling.x;
+        scaling.y = scaling.y;
+        if (normal.z < 0.0) {
+            rotatedPos.y = rotatedPos.y;
+            rotatedPos.x = 1.0 - rotatedPos.x;
+        }
     }
 
-    vec3 position = rotatedPos * vec3(side.scaling.xy, 1.0) + side.position;
+    vec3 position = rotatedPos * scaling + side.position;
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 
-    outTexCoords = inTexCoords; // * side.scaling;
+    outTexCoords = inTexCoords * side.scaling;
     outTextureIndex = side.textureIndex;
 }

@@ -25,17 +25,17 @@ data class VoxelSide(
 
     companion object {
         private const val BITS_POSITION = 31 // 5 bits
-        private const val BITS_SCALING = 15 // 4 bits
+        private const val BITS_SCALING = 31 // 5 bits
         private const val BITS_DIRECTION = 7 // 3 bits
-        private const val BITS_TEXTURE_INDEX = 63 // 7 bits
-        // (4 * 3) + (4 * 2) + 3 + 9 = 32
+        private const val BITS_TEXTURE_INDEX = 15 // 4 bits
+        // (5 * 3) + (5 * 2) + 3 + 4 = 32
 
         private const val BIT_OFFSET_POSITION_X = 0
         private const val BIT_OFFSET_POSITION_Y = 5
         private const val BIT_OFFSET_POSITION_Z = 10
         private const val BIT_OFFSET_SCALING_X = 15
-        private const val BIT_OFFSET_SCALING_Y = 19
-        private const val BIT_OFFSET_DIRECTION = 23
-        private const val BIT_OFFSET_TEXTURE_INDEX = 26
+        private const val BIT_OFFSET_SCALING_Y = 20
+        private const val BIT_OFFSET_DIRECTION = 25
+        private const val BIT_OFFSET_TEXTURE_INDEX = 28
     }
 }

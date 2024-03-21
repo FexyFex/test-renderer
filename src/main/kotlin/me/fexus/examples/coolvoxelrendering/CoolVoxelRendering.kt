@@ -158,7 +158,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
-        val samplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.NEAREST)
+        val samplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.sampler = deviceUtil.createSampler(samplerConfig)
         // -- SAMPLER --
 
