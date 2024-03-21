@@ -55,7 +55,7 @@ interface RenderApplication {
 
             // Frame limiting
             //------------------------------------------------------------------------------------------
-            continue // use this if you want to set frames to UNLIMITED
+            //continue // use this if you want to set frames to UNLIMITED
 
             val nanosPerFrame = 1_000_000_000 / desiredFPS
             val frameEnd = frameStart + nanosPerFrame
