@@ -7,6 +7,7 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.rad
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec2
+import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
@@ -182,6 +183,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private fun fillSideBuffer() {
         val buf = ByteBuffer.allocate(this.sidePositionsBuffer.config.size.toInt())
         buf.order(ByteOrder.LITTLE_ENDIAN)
+
         var offset = 0
         chunk.forEachVoxel { position, voxel ->
             VoxelSideDirection.values().forEach { dir ->
