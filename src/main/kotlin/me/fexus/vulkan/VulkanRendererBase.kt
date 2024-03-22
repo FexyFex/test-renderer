@@ -27,6 +27,7 @@ import me.fexus.window.Window
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK12.*
+import kotlin.system.measureNanoTime
 
 
 abstract class VulkanRendererBase(protected val window: Window) : RenderApplication {
@@ -58,9 +59,9 @@ abstract class VulkanRendererBase(protected val window: Window) : RenderApplicat
     protected val deviceUtil = VulkanDeviceUtil(core.device, bufferFactory, imageFactory)
 
 
-    fun initVulkanCore(extensions: List<DeviceExtension> = emptyList()): VulkanRendererBase {
+    fun initVulkanCore(extensions: List<DeviceExtension> = emptyList(), withDebug: Boolean = false): VulkanRendererBase {
         core.enabledExtensions.addAll(extensions)
-        core.createInstance()
+        core.createInstance(withDebug)
         surface.create(core.instance, window)
         core.createPhysicalDevice()
         uniqueQueueFamilies.addAll(findUniqueQueueFamilies())
@@ -105,7 +106,7 @@ abstract class VulkanRendererBase(protected val window: Window) : RenderApplicat
         vkWaitForFences(device.vkHandle, pWaitFence, true, Long.MAX_VALUE)
 
         val pImageIndex = allocateInt(1)
-        val resultAcquire = vkAcquireNextImageKHR(
+        val resultAcquire: Int = vkAcquireNextImageKHR(
             device.vkHandle,
             swapchain.vkHandle,
             Long.MAX_VALUE,

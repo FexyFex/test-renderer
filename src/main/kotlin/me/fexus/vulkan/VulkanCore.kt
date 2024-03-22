@@ -11,6 +11,7 @@ import me.fexus.vulkan.component.queuefamily.QueueFamily
 
 
 class VulkanCore {
+    private var debug: Boolean = false
     private val enabledLayers: List<VulkanLayer> = listOf<VulkanLayer>(ValidationLayer)
     val enabledExtensions = mutableListOf<DeviceExtension>(
         SwapchainKHR,
@@ -27,9 +28,10 @@ class VulkanCore {
     val device = Device()
 
 
-    fun createInstance() {
-        instance.create(enabledLayers)
-        debugMessenger.create(instance)
+    fun createInstance(withDebug: Boolean = false) {
+        instance.create(enabledLayers, withDebug)
+        this.debug = withDebug
+        if (withDebug) debugMessenger.create(instance)
     }
 
     fun createPhysicalDevice() {
@@ -43,7 +45,7 @@ class VulkanCore {
 
     fun destroy() {
         device.destroy()
-        debugMessenger.destroy(instance)
+        if (this.debug) debugMessenger.destroy(instance)
         instance.destroy()
     }
 }

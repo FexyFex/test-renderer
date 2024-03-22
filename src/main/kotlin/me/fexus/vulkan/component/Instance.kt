@@ -14,7 +14,7 @@ class Instance() {
     lateinit var vkHandle: VkInstance
 
 
-    fun create(layers: List<VulkanLayer>): Instance {
+    fun create(layers: List<VulkanLayer>, withDebug: Boolean = false): Instance {
         this.vkHandle = runMemorySafe {
             val appInfo = calloc(VkApplicationInfo::calloc) {
                 sType(VK12.VK_STRUCTURE_TYPE_APPLICATION_INFO)
@@ -32,22 +32,25 @@ class Instance() {
             }
 
             val glfwExtensions = GLFWVulkan.glfwGetRequiredInstanceExtensions() ?: throw Exception()
-            val ppEnabledExtensions = allocatePointer(glfwExtensions.capacity() + 2)
+            val additionalExtensionCount = if (withDebug) 2 else 1
+            val ppEnabledExtensions = allocatePointer(glfwExtensions.capacity() + additionalExtensionCount)
             repeat(glfwExtensions.capacity()) {
                 ppEnabledExtensions.put(it, glfwExtensions[it])
             }
-            ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 2, allocateStringValue("VK_EXT_debug_utils"))
+            if (withDebug) {
+                ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 2, allocateStringValue("VK_EXT_debug_utils"))
+            }
             ppEnabledExtensions.put(ppEnabledExtensions.capacity() - 1, allocateStringValue(PhysicalDeviceProperties2KHR.name))
 
             val debugCreateInfo = DebugUtilsMessenger.getCreateInfo(this)
 
             val instanceCreateInfo = calloc(VkInstanceCreateInfo::calloc) {
                 sType(VK12.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
-                pNext(debugCreateInfo.address())
+                if (withDebug) pNext(debugCreateInfo.address()) else pNext(0L)
                 flags(0)
                 pApplicationInfo(appInfo)
                 ppEnabledExtensionNames(ppEnabledExtensions)
-                ppEnabledLayerNames(ppEnabledLayers)
+                if (withDebug) ppEnabledLayerNames(ppEnabledLayers)
             }
 
             val pInstance = allocatePointer(1)

@@ -1,7 +1,9 @@
 package me.fexus.examples
 
 import me.fexus.vulkan.VulkanRendererBase
+import me.fexus.vulkan.util.FramePreparation
 import me.fexus.window.Window
+import kotlin.system.measureNanoTime
 
 
 interface RenderApplication {
@@ -38,8 +40,7 @@ interface RenderApplication {
 
             // Update logic
             //------------------------------------------------------------------------------------------+
-
-            val prep = renderer.prepareFrame()
+            val prep: FramePreparation = renderer.prepareFrame()
             if (prep.acquireSuccessful) {
                 val frameData = renderer.recordFrame(prep, updateLength)
                 if (frameData.doSubmit)
@@ -55,7 +56,7 @@ interface RenderApplication {
 
             // Frame limiting
             //------------------------------------------------------------------------------------------
-            //continue // use this if you want to set frames to UNLIMITED
+            continue // use this if you want to set frames to UNLIMITED
 
             val nanosPerFrame = 1_000_000_000 / desiredFPS
             val frameEnd = frameStart + nanosPerFrame
