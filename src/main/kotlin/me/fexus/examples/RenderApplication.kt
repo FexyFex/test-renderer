@@ -8,7 +8,8 @@ import kotlin.system.measureNanoTime
 
 interface RenderApplication {
     fun startRenderLoop(window: Window, renderer: VulkanRendererBase) {
-        val desiredFPS = 111
+        val desiredFPS = 200
+        val unlimitedFPS = true
 
         val optimalTime: Double = 1.0 / desiredFPS
 
@@ -58,7 +59,7 @@ interface RenderApplication {
 
             // Frame limiting
             //------------------------------------------------------------------------------------------
-            // continue // use this if you want to set frames to UNLIMITED
+            if (unlimitedFPS) continue
 
             val nanosPerFrame = 1_000_000_000 / desiredFPS
             val frameEnd = frameStart + nanosPerFrame

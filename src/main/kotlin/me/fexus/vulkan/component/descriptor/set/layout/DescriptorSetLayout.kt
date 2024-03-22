@@ -10,9 +10,11 @@ import org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo
 
 
 class DescriptorSetLayout {
+    private lateinit var device: Device
     var vkHandle: Long = 0L; private set
 
     fun create(device: Device, plan: DescriptorSetLayoutPlan) = runMemorySafe {
+        this@DescriptorSetLayout.device = device
         val layoutBindings = calloc(VkDescriptorSetLayoutBinding::calloc, plan.bindings.size)
         plan.bindings.forEachIndexed { index, binding ->
             layoutBindings[index]
@@ -49,7 +51,7 @@ class DescriptorSetLayout {
         return@runMemorySafe this@DescriptorSetLayout
     }
 
-    fun destroy(device: Device) {
+    fun destroy(device: Device = this.device) {
         vkDestroyDescriptorSetLayout(device.vkHandle, vkHandle, null)
     }
 }

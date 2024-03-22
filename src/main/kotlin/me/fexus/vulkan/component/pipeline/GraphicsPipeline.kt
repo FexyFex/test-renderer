@@ -12,6 +12,7 @@ import org.lwjgl.vulkan.VK12.*
 
 
 class GraphicsPipeline: IPipeline {
+    private lateinit var device: Device
     private var vkVertShaderModuleHandle: Long = 0L
     private var vkFragShaderModuleHandle: Long = 0L
     override var vkLayoutHandle: Long = 0L; private set
@@ -19,6 +20,7 @@ class GraphicsPipeline: IPipeline {
 
 
     fun create(device: Device, setLayouts: List<DescriptorSetLayout>, config: GraphicsPipelineConfiguration) = runMemorySafe {
+        this@GraphicsPipeline.device = device
         this@GraphicsPipeline.vkVertShaderModuleHandle = createShaderModule(device, config.vertShaderCode)
         this@GraphicsPipeline.vkFragShaderModuleHandle = createShaderModule(device, config.fragShaderCode)
 
@@ -240,7 +242,7 @@ class GraphicsPipeline: IPipeline {
         this@GraphicsPipeline.vkHandle = pPipelineHandle[0]
     }
 
-    fun destroy(device: Device) {
+    fun destroy(device: Device = this.device) {
         vkDestroyShaderModule(device.vkHandle, vkVertShaderModuleHandle, null)
         vkDestroyShaderModule(device.vkHandle, vkFragShaderModuleHandle, null)
         vkDestroyPipelineLayout(device.vkHandle, vkLayoutHandle, null)

@@ -58,6 +58,7 @@ import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_K
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.absoluteValue
 
 
 class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscriber {
@@ -88,11 +89,15 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private val meshUploader = MeshUploader(deviceUtil)
     private lateinit var depthAttachment: VulkanImage
     private lateinit var cameraBuffers: Array<VulkanBuffer>
-    private lateinit var sampler: VulkanSampler
+    private lateinit var nearSampler: VulkanSampler
+    private lateinit var cubemapSampler: VulkanSampler
 
     private val textureArray = TextureArray(deviceUtil)
 
     private val chunk = SparseVoxelOctree()
+    private var lod = 1
+
+    private val cubemap = Cubemap(deviceUtil)
 
     private val sidePipeline = GraphicsPipeline()
     private lateinit var sideVertexBuffer: VulkanBuffer
@@ -109,7 +114,6 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
 
     fun start() {
-        window.disableVsync()
         initVulkanCore(withDebug = true)
         initObjects()
         startRenderLoop(window, this)
@@ -122,9 +126,9 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         val middle = windowSize / 2
         val dist = middle - newPosition
 
-        player.viewDirection.x -= dist.y.toFloat() / 10f
-        player.viewDirection.x = player.viewDirection.x.clamp(-90f, 90f)
-        player.viewDirection.y -= dist.x.toFloat() / 10f
+        player.rotation.x -= dist.y.toFloat() / 10f
+        player.rotation.x = player.rotation.x.clamp(-90f, 90f)
+        player.rotation.y -= dist.x.toFloat() / 10f
 
         window.setCursorPos(middle)
     }
@@ -132,11 +136,20 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     override fun onKeyPressed(key: Key) {
         if (key == Key.ESC) trapMouse = !trapMouse
         if (key == Key.P) println(player.position)
+        if (key == Key.ARROW_UP) {
+            lod = (lod shr 1).clamp(1, CHUNK_EXTENT)
+            fillSideBuffer()
+        }
+        if (key == Key.ARROW_DOWN) {
+            lod = (lod shl 1).clamp(1, CHUNK_EXTENT)
+            fillSideBuffer()
+        }
     }
 
     private fun initObjects() {
         VoxelRegistry.init()
         textureArray.init()
+        cubemap.initImageArray()
 
         subscribe(inputHandler)
         player.position.x = (CHUNK_EXTENT shr 1).toFloat()
@@ -159,25 +172,30 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         // -- CAMERA BUFFER --
 
         // -- SAMPLER --
-        val samplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
-        this.sampler = deviceUtil.createSampler(samplerConfig)
+        val nearSamplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
+        this.nearSampler = deviceUtil.createSampler(nearSamplerConfig)
+
+        val linearSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.LINEAR)
+        this.cubemapSampler = deviceUtil.createSampler(linearSamplerConfig)
         // -- SAMPLER --
 
         createDescriptorStuff()
 
         createSidePipeline()
+
+        cubemap.init(descriptorSetLayout)
     }
 
     private fun fillChunk() {
         repeatCubed(CHUNK_EXTENT) { x, y, z ->
             val rand = Math.random()
             val voxel = when {
-                rand > 0.98 -> CoalVoxel
-                rand > 0.95 -> CloudVoxel
-                rand > 0.92 -> StoneVoxel
+                y > 12 -> CloudVoxel
+                y in 0..7 -> if (rand > 0.4) StoneVoxel else CoalVoxel
                 else -> return@repeatCubed
             }
-            chunk.setVoxelAt(x, y, z, voxel)
+            if (rand.mod((((x + 1) * 51.1503f) + ((y + 1) * 12.3533f) + (z - 20f)) / 1002f).absoluteValue > 0.3)
+                chunk.setVoxelAt(x, y, z, voxel)
         }
     }
 
@@ -185,7 +203,35 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         val buf = ByteBuffer.allocate(this.sidePositionsBuffer.config.size.toInt())
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
+        this.sideInstanceCount = 0
         var offset = 0
+        val directions = VoxelSideDirection.values()
+        for (x in 0 until CHUNK_EXTENT step lod) {
+            for (y in 0 until CHUNK_EXTENT step lod) {
+                for (z in 0 until CHUNK_EXTENT step lod) {
+                    val position = IVec3(x, y, z)
+                    val currentVoxel = chunk.getVoxelAt(position)
+                    if (currentVoxel == VoidVoxel) continue
+
+                    for (dir in directions) {
+                        val nextPos = position + (dir.normal * lod)
+                        val nextVoxel: VoxelType = try {
+                            chunk.getVoxelAt(nextPos)
+                        } catch (e: Exception) { VoidVoxel }
+                        if (nextVoxel == VoidVoxel) {
+                            val sidePos = position + (dir.sidePositionOffset * lod)
+                            val side = VoxelSide(sidePos, IVec2(lod), dir, currentVoxel.id - 1)
+                            buf.putInt(offset, side.packToInt())
+                            offset += Int.SIZE_BYTES
+                            this.sideInstanceCount++
+                        }
+                    }
+                }
+            }
+        }
+        this.sidePositionsBuffer.put(0, buf)
+
+        /*
         chunk.forEachVoxel { position, voxel ->
             VoxelSideDirection.values().forEach { dir ->
                 val nextPos = position + dir.normal
@@ -207,6 +253,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             }
         }
         this.sidePositionsBuffer.put(0, buf)
+         */
     }
 
     private fun createSideBuffers() {
@@ -263,7 +310,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.FRAMES_TOTAL),
                 DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16 * Globals.FRAMES_TOTAL),
                 DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16 * Globals.FRAMES_TOTAL),
-                DescriptorPoolSize(DescriptorType.SAMPLER, Globals.FRAMES_TOTAL)
+                DescriptorPoolSize(DescriptorType.SAMPLER, 4 * Globals.FRAMES_TOTAL)
             )
         )
         this.descriptorPool.create(device, poolPlan)
@@ -280,8 +327,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
                     ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
-                    2, 1, DescriptorType.SAMPLER,
-                    ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.NONE
+                    2, 4, DescriptorType.SAMPLER,
+                    ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
                     3, 16, DescriptorType.STORAGE_BUFFER,
@@ -297,20 +344,20 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
             val descWriteCameraBuf = DescriptorBufferWrite(
                 0, DescriptorType.UNIFORM_BUFFER, 1, set, 0,
-                listOf(
-                    DescriptorBufferInfo(cameraBuffers[index].vkBufferHandle, 0L, VK_WHOLE_SIZE)
-                )
+                listOf(DescriptorBufferInfo(cameraBuffers[index].vkBufferHandle, 0L, VK_WHOLE_SIZE))
             )
             val descWriteImages = DescriptorImageWrite(
-                1, DescriptorType.SAMPLED_IMAGE, 1, set, 0,
+                1, DescriptorType.SAMPLED_IMAGE, 2, set, 0,
                 listOf(
                     DescriptorImageInfo(0L, textureArray.image.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
+                    DescriptorImageInfo(0L, cubemap.imageArray.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
                 )
             )
             val descWriteSampler = DescriptorImageWrite(
-                2, DescriptorType.SAMPLER, 1, set, 0,
+                2, DescriptorType.SAMPLER, 2, set, 0,
                 listOf(
-                    DescriptorImageInfo(this.sampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
+                    DescriptorImageInfo(this.nearSampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
+                    DescriptorImageInfo(this.cubemapSampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
                 )
             )
 
@@ -323,31 +370,31 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         }
     }
 
-    private fun handleInput() {
-        val xMove = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
-        val zMove = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
-        val yMove = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
+    private fun handleInput(delta: Float) {
+        val leftRight = inputHandler.isKeyDown(Key.A).toInt() - inputHandler.isKeyDown(Key.D).toInt()
+        val frontBack = inputHandler.isKeyDown(Key.W).toInt() - inputHandler.isKeyDown(Key.S).toInt()
+        val upDown = inputHandler.isKeyDown(Key.SPACE).toInt() - inputHandler.isKeyDown(Key.LSHIFT).toInt()
 
-        player.position.y += yMove * 0.1f
+        val moveSpeed = delta * 10f
 
-        if (xMove == 0 && zMove == 0) return
+        player.position.y += upDown * moveSpeed
 
-        val moveSpeed = 0.2f
+        if (leftRight == 0 && frontBack == 0) return
 
         val rotM = Mat4(1f)
             .rotate(0f, Vec3(1f, 0f, 0f))
-            .rotate(player.viewDirection.y.rad, Vec3(0f, 1f, 0f))
-            .rotate(player.viewDirection.z.rad, Vec3(0f, 0f, 1f))
-        val transM = Mat4(1f).translate(Vec3(xMove * moveSpeed, 0, zMove * moveSpeed)) / rotM
-        val forward = Vec3(transM[3][0], transM[3][1], transM[3][2]).normalize() / 5f
+            .rotate(player.rotation.y.rad, Vec3(0f, 1f, 0f))
+            .rotate(player.rotation.z.rad, Vec3(0f, 0f, 1f))
+        val transM = Mat4(1f).translate(Vec3(leftRight, 0, frontBack)) / rotM
+        val forward = Vec3(transM[3][0], transM[3][1], transM[3][2]).normalize() * moveSpeed
 
-        player.position.x -= forward.x * 0.35f
-        player.position.z -= forward.z * 0.35f
+        player.position.x -= forward.x
+        player.position.z -= forward.z
     }
 
     private fun updateBuffers() {
         camera.position = -player.position
-        camera.rotation = player.viewDirection
+        camera.rotation = player.rotation
 
         val view = camera.calculateView()
         val proj = camera.calculateReverseZProjection()
@@ -362,7 +409,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     override fun recordFrame(preparation: FramePreparation, delta: Float): FrameSubmitData = runMemorySafe {
         time += delta
-        handleInput()
+        handleInput(delta)
         updateBuffers()
 
         val width: Int = swapchain.imageExtent.width
@@ -473,11 +520,10 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             val pDescriptorSets = allocateLong(1)
             pDescriptorSets.put(0, descriptorSets[currentFrame].vkHandle)
 
-            val pVertexBuffers = allocateLongValues(sideVertexBuffer.vkBufferHandle)
+            val pVertexBuffers = allocateLong(1)
             val pOffsets = allocateLongValues(0L)
 
             val pPushConstants = allocate(128)
-            pPushConstants.putInt(0, 0)
 
             val bindPointGraphics = VK_PIPELINE_BIND_POINT_GRAPHICS
 
@@ -489,6 +535,17 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
                 0, pDescriptorSets, null
             )
 
+            // cubemap skybox
+            pPushConstants.putInt(0, 1)
+            pVertexBuffers.put(0, cubemap.vertexBuffer.vkBufferHandle)
+            vkCmdBindPipeline(commandBuffer.vkHandle, bindPointGraphics, cubemap.pipeline.vkHandle)
+            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+            vkCmdPushConstants(commandBuffer.vkHandle, cubemap.pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
+            vkCmdDraw(commandBuffer.vkHandle, cubemap.vertexCount, 1, 0, 0)
+
+            // chunks
+            pPushConstants.putInt(0, 0)
+            pVertexBuffers.put(0, sideVertexBuffer.vkBufferHandle)
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPointGraphics, sidePipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
             vkCmdPushConstants(commandBuffer.vkHandle, sidePipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
@@ -538,17 +595,20 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     override fun destroy() {
         device.waitIdle()
-        sampler.destroy(device)
+        nearSampler.destroy()
+        cubemapSampler.destroy()
         cameraBuffers.forEach(VulkanBuffer::destroy)
         depthAttachment.destroy()
-        descriptorPool.destroy(device)
-        descriptorSetLayout.destroy(device)
+        descriptorPool.destroy()
+        descriptorSetLayout.destroy()
 
         sideVertexBuffer.destroy()
-        sidePipeline.destroy(device)
+        sidePipeline.destroy()
         sidePositionsBuffer.destroy()
 
         textureArray.destroy()
+
+        cubemap.destroy()
 
         super.destroy()
     }

@@ -159,6 +159,6 @@ class VulkanImageFactory: DescriptorFactory {
         val pSamplerHandle = allocateLong(1)
         vkCreateSampler(device.vkHandle, createInfo, null, pSamplerHandle)
 
-        return@runMemorySafe VulkanSampler(pSamplerHandle[0], samplerConfig)
+        return@runMemorySafe VulkanSampler(device, pSamplerHandle[0], samplerConfig)
     }
 }

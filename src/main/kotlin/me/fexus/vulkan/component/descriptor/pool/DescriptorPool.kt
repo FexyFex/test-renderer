@@ -8,9 +8,11 @@ import org.lwjgl.vulkan.VkDescriptorPoolSize
 
 
 class DescriptorPool {
+    private lateinit var device: Device
     var vkHandle: Long = 0L; private set
 
     fun create(device: Device, plan: DescriptorPoolPlan) = runMemorySafe {
+        this@DescriptorPool.device = device
         val poolSizes = calloc(VkDescriptorPoolSize::calloc, plan.sizes.size)
         plan.sizes.forEachIndexed { index, poolSize ->
             poolSizes[index]
@@ -31,7 +33,7 @@ class DescriptorPool {
         this@DescriptorPool.vkHandle = pPoolHandle[0]
     }
 
-    fun destroy(device: Device) {
+    fun destroy(device: Device = this.device) {
         vkDestroyDescriptorPool(device.vkHandle, vkHandle, null)
     }
 }

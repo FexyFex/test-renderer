@@ -4,8 +4,8 @@ import me.fexus.vulkan.component.Device
 import org.lwjgl.vulkan.VK12.*
 
 
-class VulkanSampler(val vkHandle: Long, val layout: VulkanSamplerConfiguration) {
-    fun destroy(device: Device) {
+class VulkanSampler(private val device: Device, val vkHandle: Long, val layout: VulkanSamplerConfiguration) {
+    fun destroy(device: Device = this.device) {
         vkDestroySampler(device.vkHandle, vkHandle, null)
     }
 }

@@ -59,12 +59,14 @@ void main() {
     vec3 normal = dirs[side.dirIndex];
 
     vec3 rotatedPos = inPosition;
+    vec3 scaledPos = clamp(normal, vec3(0), vec3(1));
     vec3 scaling = vec3(1.0);
     if (normal.x != 0.0) {
         rotatedPos.z = rotatedPos.x;
         rotatedPos.x = 0.0;
         scaling.z = side.scaling.x;
         scaling.y = side.scaling.y;
+        scaledPos.x *= side.scaling.x;
         if (normal.x > 0.0) {
             rotatedPos.x = 1.0 - rotatedPos.x - 1.0;
             rotatedPos.z = 1.0 - rotatedPos.z;
@@ -74,20 +76,22 @@ void main() {
         rotatedPos.y = 0.0;
         scaling.z = side.scaling.y;
         scaling.x = side.scaling.x;
+        scaledPos.y *= side.scaling.y;
         if (normal.y > 0.0) {
             rotatedPos.z = rotatedPos.z;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     } else {
-        scaling.x = scaling.x;
-        scaling.y = scaling.y;
+        scaling.x = side.scaling.x;
+        scaling.y = side.scaling.y;
+        scaledPos.z *= side.scaling.x;
         if (normal.z < 0.0) {
             rotatedPos.y = rotatedPos.y;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     }
 
-    vec3 position = rotatedPos * scaling + side.position;
+    vec3 position = (rotatedPos * scaling) + side.position;
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 
