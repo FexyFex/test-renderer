@@ -109,6 +109,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
 
     fun start() {
+        window.disableVsync()
         initVulkanCore(withDebug = true)
         initObjects()
         startRenderLoop(window, this)

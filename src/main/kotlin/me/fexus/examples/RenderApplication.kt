@@ -40,11 +40,13 @@ interface RenderApplication {
 
             // Update logic
             //------------------------------------------------------------------------------------------+
-            val prep: FramePreparation = renderer.prepareFrame()
-            if (prep.acquireSuccessful) {
-                val frameData = renderer.recordFrame(prep, updateLength)
-                if (frameData.doSubmit)
-                    renderer.submitFrame(frameData)
+            val toime = measureNanoTime {
+                val prep: FramePreparation = renderer.prepareFrame()
+                if (prep.acquireSuccessful) {
+                    val frameData = renderer.recordFrame(prep, updateLength)
+                    if (frameData.doSubmit)
+                        renderer.submitFrame(frameData)
+                }
             }
 
             window.pollEvents()
@@ -56,7 +58,7 @@ interface RenderApplication {
 
             // Frame limiting
             //------------------------------------------------------------------------------------------
-            continue // use this if you want to set frames to UNLIMITED
+            // continue // use this if you want to set frames to UNLIMITED
 
             val nanosPerFrame = 1_000_000_000 / desiredFPS
             val frameEnd = frameStart + nanosPerFrame
