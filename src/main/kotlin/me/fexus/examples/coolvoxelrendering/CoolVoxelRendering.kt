@@ -7,7 +7,6 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.rad
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec2
-import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
@@ -95,7 +94,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private val textureArray = TextureArray(deviceUtil)
 
     private val chunk = SparseVoxelOctree()
-    private var lod = 1
+    private var lod = SparseVoxelOctree.MAX_MIP_LEVEL
 
     private val cubemap = Cubemap(deviceUtil)
 
@@ -137,11 +136,11 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         if (key == Key.ESC) trapMouse = !trapMouse
         if (key == Key.P) println(player.position)
         if (key == Key.ARROW_UP) {
-            lod = (lod shr 1).clamp(1, CHUNK_EXTENT)
+            lod = (lod + 1).clamp(1, SparseVoxelOctree.MAX_MIP_LEVEL)
             fillSideBuffer()
         }
         if (key == Key.ARROW_DOWN) {
-            lod = (lod shl 1).clamp(1, CHUNK_EXTENT)
+            lod = (lod - 1).clamp(1, SparseVoxelOctree.MAX_MIP_LEVEL)
             fillSideBuffer()
         }
     }
@@ -200,49 +199,30 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     }
 
     private fun fillSideBuffer() {
+        val start = System.nanoTime()
+
         val buf = ByteBuffer.allocate(this.sidePositionsBuffer.config.size.toInt())
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
         this.sideInstanceCount = 0
         var offset = 0
         val directions = VoxelSideDirection.values()
-        for (x in 0 until CHUNK_EXTENT step lod) {
-            for (y in 0 until CHUNK_EXTENT step lod) {
-                for (z in 0 until CHUNK_EXTENT step lod) {
-                    val position = IVec3(x, y, z)
-                    val currentVoxel = chunk.getVoxelAt(position)
-                    if (currentVoxel == VoidVoxel) continue
 
-                    for (dir in directions) {
-                        val nextPos = position + (dir.normal * lod)
-                        val nextVoxel: VoxelType = try {
-                            chunk.getVoxelAt(nextPos)
-                        } catch (e: Exception) { VoidVoxel }
-                        if (nextVoxel == VoidVoxel) {
-                            val sidePos = position + (dir.sidePositionOffset * lod)
-                            val side = VoxelSide(sidePos, IVec2(lod), dir, currentVoxel.id - 1)
-                            buf.putInt(offset, side.packToInt())
-                            offset += Int.SIZE_BYTES
-                            this.sideInstanceCount++
-                        }
-                    }
-                }
-            }
-        }
-        this.sidePositionsBuffer.put(0, buf)
+        // Don't ask what this means pls
+        val maxMip= lod
+        val scaling = SparseVoxelOctree.EXTENT shr (maxMip + 1)
 
-        /*
-        chunk.forEachVoxel { position, voxel ->
-            VoxelSideDirection.values().forEach { dir ->
-                val nextPos = position + dir.normal
+        chunk.forEachVoxel(maxMip) { position, voxel ->
+            directions.forEach { dir ->
+                val nextPos = position + (dir.normal * scaling)
                 val nextVoxel: VoxelType = try {
-                    chunk.getVoxelAt(nextPos)
+                    chunk.getVoxelAt(nextPos, maxMip)
                 } catch (e: Exception) {
                     VoidVoxel
                 }
                 if (nextVoxel == VoidVoxel) {
-                    val sidePos = position + dir.sidePositionOffset
-                    val side = VoxelSide(sidePos, IVec2(1), dir, voxel.id - 1)
+                    val sidePos = position + (dir.sidePositionOffset * scaling)
+                    val side = VoxelSide(sidePos, IVec2(scaling), dir, voxel.id - 1)
                     val packed = side.packToInt()
 
                     buf.putInt(offset, packed)
@@ -253,7 +233,9 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             }
         }
         this.sidePositionsBuffer.put(0, buf)
-         */
+
+        val end = System.nanoTime()
+        //println("Meshing Time: ${end - start}")
     }
 
     private fun createSideBuffers() {

@@ -17,14 +17,13 @@ class SparseVoxelOctree {
         insertIntoOctreeRec(pos, voxelType, octree, 0)
     }
     private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int) {
-        assertCoords(pos)
-        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
+        val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
-                    if (mipLevel == maxMipLevel) {
+                    if (mipLevel == MAX_MIP_LEVEL) {
                         OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
                         val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))
@@ -37,31 +36,35 @@ class SparseVoxelOctree {
             } else {
                 if (voxelType == VoidVoxel)
                     parentNode.children[posIndex] = null
-                else
+                if (!parentNode.hasChildren) parentNode.nodeData = OctreeNodeDataVoxelType(VoidVoxel)
+                else {
                     targetNode.nodeData = OctreeNodeDataVoxelType(voxelType)
+                    parentNode.nodeData = OctreeNodeDataVoxelType(voxelType)
+                }
             }
         }
     }
 
 
-    fun getVoxelAt(x: Int, y: Int, z: Int) = getVoxelAt(IVec3(x,y,z))
-    fun getVoxelAt(pos: IVec3): VoxelType {
+    fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int = MAX_MIP_LEVEL) = getVoxelAt(IVec3(x,y,z), maxMipLevel)
+    fun getVoxelAt(pos: IVec3, maxMipLevel: Int = MAX_MIP_LEVEL): VoxelType {
         assertCoords(pos)
         return if (!octree.hasChildren)
             octree.nodeData.voxelType
         else
-            getVoxelAtRec(pos, octree, 0)
+            getVoxelAtRec(pos, octree, maxMipLevel, 0)
     }
-    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int): VoxelType {
-        val posIndex = getOctantIndexOfGlobalPositionInMipLevel(pos, mipLevel)
+    private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, maxMipLevel: Int, mipLevel: Int): VoxelType {
+        val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, mipLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (targetNode == null) {
             return VoidVoxel
         } else {
+            if (mipLevel >= maxMipLevel) return targetNode.nodeData.voxelType
             return if (targetNode is IOctreeParentNode) {
                 return if (targetNode.hasChildren)
-                    getVoxelAtRec(pos, targetNode, mipLevel + 1)
+                    getVoxelAtRec(pos, targetNode, maxMipLevel, mipLevel + 1)
                 else
                     targetNode.nodeData.voxelType
             }
@@ -73,7 +76,7 @@ class SparseVoxelOctree {
         octree.children.fill(null)
     }
 
-    private fun getOctantIndexOfGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
+    private fun getOctantIndexByGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
         val mipExtent = EXTENT shr mipLevel
         val rel = (Vec3(globalPosition) / mipExtent).floor()
         val mid = (rel * mipExtent) + (mipExtent / 2f)
@@ -83,33 +86,25 @@ class SparseVoxelOctree {
         return x or (y shl 1) or (z shl 2)
     }
 
-    fun forEachVoxel(action: (position: IVec3, voxel: VoxelType) -> Unit) {
-        val extent = EXTENT ushr 1
-
-        octree.children.forEachIndexed { octantIndex, node ->
-            if (node == null) return@forEachIndexed
-
-            val position = localOctPositionFromIndex(octantIndex) * extent
-            if (node is IOctreeParentNode && node.hasChildren) {
-                forEachVoxelRec(node, position, 2, action)
-                return@forEachIndexed
-            }
-            action(position, node.nodeData.voxelType)
-        }
+    fun forEachVoxel(maxMipLevel: Int, action: (position: IVec3, voxel: VoxelType) -> Unit) {
+        forEachVoxelRec(octree, IVec3(0), maxMipLevel, 1, action)
     }
 
     private fun forEachVoxelRec(
         parent: IOctreeParentNode<OctreeNodeDataVoxelType>,
         parentPos: IVec3,
+        maxMipLevel: Int,
         mipLevel: Int,
         action: (position: IVec3, voxel: VoxelType) -> Unit
     ) {
+        val extent = EXTENT ushr mipLevel
+        val isFinalMipLevel = mipLevel > maxMipLevel
         parent.children.forEachIndexed { octantIndex, node ->
             if (node == null) return@forEachIndexed
 
-            val position = localOctPositionFromIndex(octantIndex) * (EXTENT ushr mipLevel)
-            if (node is IOctreeParentNode && node.hasChildren) {
-                forEachVoxelRec(node, parentPos + position, mipLevel + 1, action)
+            val position = localOctPositionFromIndex(octantIndex) * extent
+            if (node is IOctreeParentNode && node.hasChildren && !isFinalMipLevel) {
+                forEachVoxelRec(node, parentPos + position, maxMipLevel, mipLevel + 1, action)
                 return@forEachIndexed
             }
             action(parentPos + position, node.nodeData.voxelType)
@@ -137,7 +132,7 @@ class SparseVoxelOctree {
         const val EXTENT = 16
         const val VOXEL_COUNT = EXTENT * EXTENT * EXTENT
         private val bounds = 0 until EXTENT
-        private val maxMipLevel = log2(EXTENT.toFloat()).roundToInt() - 1
+        val MAX_MIP_LEVEL = log2(EXTENT.toFloat()).roundToInt() - 1
 
         private fun Boolean.toInt() = if(this) 1 else 0
     }
