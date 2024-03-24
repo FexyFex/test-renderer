@@ -1,5 +1,7 @@
-package me.fexus.examples.coolvoxelrendering
+package me.fexus.examples.coolvoxelrendering.world
 
+import me.fexus.examples.coolvoxelrendering.util.MeshUploader
+import me.fexus.examples.coolvoxelrendering.util.TextureUploader
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubemapModel
 import me.fexus.texture.TextureLoader

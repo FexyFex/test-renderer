@@ -13,8 +13,12 @@ class DescriptorSetLayout {
     private lateinit var device: Device
     var vkHandle: Long = 0L; private set
 
+    lateinit var plan: DescriptorSetLayoutPlan
+
+
     fun create(device: Device, plan: DescriptorSetLayoutPlan) = runMemorySafe {
         this@DescriptorSetLayout.device = device
+        this@DescriptorSetLayout.plan = plan
         val layoutBindings = calloc(VkDescriptorSetLayoutBinding::calloc, plan.bindings.size)
         plan.bindings.forEachIndexed { index, binding ->
             layoutBindings[index]

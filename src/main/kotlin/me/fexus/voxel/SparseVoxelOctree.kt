@@ -5,14 +5,13 @@ import me.fexus.voxel.type.VoxelType
 import me.fexus.math.vec.IVec3
 import me.fexus.math.vec.Vec3
 import me.fexus.voxel.octree.*
-import kotlin.math.*
 
 
-class SparseVoxelOctree {
+open class SparseVoxelOctree: VoxelOctree {
     val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
-    fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType) = setVoxelAt(IVec3(x,y,z), voxelType)
-    fun setVoxelAt(pos: IVec3, voxelType: VoxelType) {
+    override fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType) = setVoxelAt(IVec3(x,y,z), voxelType)
+    override fun setVoxelAt(pos: IVec3, voxelType: VoxelType) {
         assertCoords(pos)
         insertIntoOctreeRec(pos, voxelType, octree, 0)
     }
@@ -23,7 +22,7 @@ class SparseVoxelOctree {
         if (targetNode == null) {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
-                    if (mipLevel == MAX_MIP_LEVEL) {
+                    if (mipLevel == VoxelOctree.MAX_MIP_LEVEL) {
                         OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
                         val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))
@@ -46,8 +45,8 @@ class SparseVoxelOctree {
     }
 
 
-    fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int = MAX_MIP_LEVEL) = getVoxelAt(IVec3(x,y,z), maxMipLevel)
-    fun getVoxelAt(pos: IVec3, maxMipLevel: Int = MAX_MIP_LEVEL): VoxelType {
+    override fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int) = getVoxelAt(IVec3(x,y,z), maxMipLevel)
+    override fun getVoxelAt(pos: IVec3, maxMipLevel: Int): VoxelType {
         assertCoords(pos)
         return if (!octree.hasChildren)
             octree.nodeData.voxelType
@@ -77,7 +76,7 @@ class SparseVoxelOctree {
     }
 
     private fun getOctantIndexByGlobalPositionInMipLevel(globalPosition: IVec3, mipLevel: Int): Int {
-        val mipExtent = EXTENT shr mipLevel
+        val mipExtent = VoxelOctree.EXTENT shr mipLevel
         val rel = (Vec3(globalPosition) / mipExtent).floor()
         val mid = (rel * mipExtent) + (mipExtent / 2f)
         val x = (globalPosition.x >= mid.x).toInt()
@@ -86,7 +85,7 @@ class SparseVoxelOctree {
         return x or (y shl 1) or (z shl 2)
     }
 
-    fun forEachVoxel(maxMipLevel: Int, action: (position: IVec3, voxel: VoxelType) -> Unit) {
+    override fun forEachVoxel(maxMipLevel: Int, action: (position: IVec3, voxel: VoxelType) -> Unit) {
         forEachVoxelRec(octree, IVec3(0), maxMipLevel, 1, action)
     }
 
@@ -97,7 +96,7 @@ class SparseVoxelOctree {
         mipLevel: Int,
         action: (position: IVec3, voxel: VoxelType) -> Unit
     ) {
-        val extent = EXTENT ushr mipLevel
+        val extent = VoxelOctree.EXTENT ushr mipLevel
         val isFinalMipLevel = mipLevel > maxMipLevel
         parent.children.forEachIndexed { octantIndex, node ->
             if (node == null) return@forEachIndexed
@@ -123,17 +122,12 @@ class SparseVoxelOctree {
 
     private fun assertCoords(pos: IVec3) = assertCoords(pos.x, pos.y, pos.z)
     private fun assertCoords(x: Int, y: Int, z: Int) {
-        if (x !in bounds || y !in bounds || z !in bounds)
+        if (x !in VoxelOctree.BOUNDS || y !in VoxelOctree.BOUNDS || z !in VoxelOctree.BOUNDS)
             throw Exception("Out of bounds $x, $y, $z")
     }
 
 
     companion object {
-        const val EXTENT = 16
-        const val VOXEL_COUNT = EXTENT * EXTENT * EXTENT
-        private val bounds = 0 until EXTENT
-        val MAX_MIP_LEVEL = log2(EXTENT.toFloat()).roundToInt() - 1
-
         private fun Boolean.toInt() = if(this) 1 else 0
     }
 }
