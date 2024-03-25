@@ -37,5 +37,7 @@ data class VoxelSide(
         private const val BIT_OFFSET_SCALING_Y = 20
         private const val BIT_OFFSET_DIRECTION = 25
         private const val BIT_OFFSET_TEXTURE_INDEX = 28
+
+        const val SIZE_BYTES = Int.SIZE_BYTES
     }
 }

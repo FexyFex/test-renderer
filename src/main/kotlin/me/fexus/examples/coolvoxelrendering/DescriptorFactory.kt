@@ -15,7 +15,6 @@ import me.fexus.vulkan.descriptors.image.VulkanImage
 import me.fexus.vulkan.descriptors.image.VulkanImageConfiguration
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
-import org.lwjgl.vulkan.VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 import org.lwjgl.vulkan.VK10.VK_WHOLE_SIZE
 
 
@@ -27,18 +26,17 @@ class DescriptorFactory(
     private val descriptorTypeIndices = mutableMapOf<DescriptorType, Int>()
     private val descriptors = mutableMapOf<DescriptorType, MutableList<DescriptorInfo>>()
 
-    lateinit var descriptorSets: Array<DescriptorSet>; private set
+    val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
+    var updateRequired: Boolean = true; private set
 
 
-    init {
+    fun init() {
         descriptorSetLayout.plan.bindings.forEach { binding ->
             descriptorTypeIndices[binding.descriptorType] = binding.dstBinding
         }
-    }
 
-    fun init() {
-        descriptorSets = Array(Globals.FRAMES_TOTAL) {
-            DescriptorSet().create(deviceUtil.device, descriptorPool, descriptorSetLayout)
+        descriptorSets.forEach {
+            it.create(deviceUtil.device, descriptorPool, descriptorSetLayout)
         }
     }
 
@@ -55,6 +53,8 @@ class DescriptorFactory(
         val list = descriptors.getOrPut(descriptorType) { mutableListOf() }
         list.add(DescriptorInfo(longArrayOf(buffer.vkBufferHandle), arrayOf(buffer::index.setter)))
 
+        updateRequired = true
+
         return buffer
     }
 
@@ -70,6 +70,8 @@ class DescriptorFactory(
         val list = descriptors.getOrPut(descriptorType) { mutableListOf() }
         list.add(DescriptorInfo(buffers.map { it.vkBufferHandle }.toLongArray(), buffers.map { it::index.setter }.toTypedArray()))
 
+        updateRequired = true
+
         return buffers
     }
 
@@ -78,6 +80,8 @@ class DescriptorFactory(
 
         val list = descriptors.getOrPut(DescriptorType.SAMPLED_IMAGE) { mutableListOf() }
         list.add(DescriptorInfo(longArrayOf(image.vkImageViewHandle), arrayOf(image::index.setter)))
+
+        updateRequired = true
 
         return image
     }
@@ -88,17 +92,19 @@ class DescriptorFactory(
         val list = descriptors.getOrPut(DescriptorType.SAMPLER) { mutableListOf() }
         list.add(DescriptorInfo(longArrayOf(sampler.vkHandle), arrayOf(sampler::index.setter)))
 
+        updateRequired = true
+
         return sampler
     }
 
 
-    fun updateDescriptorSet() {
+    fun updateDescriptorSets() {
        descriptorSets.forEachIndexed { descriptorSetIndex, descriptorSet ->
            val descriptorWrites = mutableListOf<DescriptorWrite>()
 
             for (descriptorBindingIndex in descriptorTypeIndices) {
                 val (descriptorType, dstBinding) = descriptorBindingIndex
-                val descriptorsToBind: List<DescriptorInfo> = descriptors[descriptorType]!!
+                val descriptorsToBind: List<DescriptorInfo> = descriptors[descriptorType] ?: continue
 
                 for ((descriptorIndex, descriptor) in descriptorsToBind.withIndex()) {
                     val descWrite: DescriptorWrite = when (descriptorType) {
@@ -137,6 +143,8 @@ class DescriptorFactory(
             }
            descriptorSet.update(deviceUtil.device, descriptorWrites)
         }
+
+        updateRequired = false
     }
 
 

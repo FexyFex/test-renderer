@@ -11,12 +11,12 @@ class ChunkHullFactory {
     private val greedyHullBuilder = ChunkMeshBuilderGreedy()
 
 
-    fun buildSimple(chunk: Chunk, lod: Int): ChunkHullData {
-        return simpleHullBuilder.build(chunk, lod)
+    fun buildSimple(chunk: Chunk, maxDepth: Int): ChunkHullData {
+        return simpleHullBuilder.build(chunk, maxDepth)
     }
 
 
-    fun buildGreedy(chunk: Chunk, lod: Int): ChunkHullData {
-        return greedyHullBuilder.build(chunk, lod)
+    fun buildGreedy(chunk: Chunk, maxDepth: Int): ChunkHullData {
+        return greedyHullBuilder.build(chunk, maxDepth)
     }
 }

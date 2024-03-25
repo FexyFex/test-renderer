@@ -4,7 +4,7 @@ import me.fexus.examples.coolvoxelrendering.world.Chunk
 
 
 class ChunkMeshBuilderGreedy: ChunkHullBuilder {
-    override fun build(chunk: Chunk, lod: Int): ChunkHullData {
+    override fun build(chunk: Chunk, maxDepth: Int): ChunkHullData {
         TODO("Not yet implemented")
     }
 }

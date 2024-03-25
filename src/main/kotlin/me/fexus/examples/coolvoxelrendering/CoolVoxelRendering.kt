@@ -3,14 +3,12 @@ package me.fexus.examples.coolvoxelrendering
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.Globals
 import me.fexus.examples.coolvoxelrendering.world.Cubemap
-import me.fexus.examples.coolvoxelrendering.world.rendering.WorldRenderer
 import me.fexus.math.clamp
 import me.fexus.math.mat.Mat4
 import me.fexus.math.rad
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
-import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.VoxelRegistry
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -19,16 +17,11 @@ import me.fexus.vulkan.component.descriptor.pool.DescriptorPool
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolPlan
 import me.fexus.vulkan.component.descriptor.pool.DescriptorPoolSize
 import me.fexus.vulkan.component.descriptor.pool.flags.DescriptorPoolCreateFlag
-import me.fexus.vulkan.component.descriptor.set.DescriptorSet
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutBinding
 import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayoutPlan
 import me.fexus.vulkan.component.descriptor.set.layout.bindingflags.DescriptorSetLayoutBindingFlag
 import me.fexus.vulkan.component.descriptor.set.layout.createflags.DescriptorSetLayoutCreateFlag
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorBufferWrite
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageInfo
-import me.fexus.vulkan.component.descriptor.write.DescriptorImageWrite
 import me.fexus.vulkan.descriptors.DescriptorType
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
@@ -80,7 +73,6 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         }
 
         private fun Boolean.toInt(): Int = if (this) 1 else 0
-        const val CHUNK_EXTENT = VoxelOctree.EXTENT
     }
 
     private var time: Double = 0.0
@@ -88,20 +80,19 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private val camera = CameraPerspective(window.aspect)
     private val player = Player()
 
-    private val cubemap = Cubemap(deviceUtil)
+    private val descriptorPool = DescriptorPool()
+    private val descriptorSetLayout = DescriptorSetLayout()
+    private val descriptorFactory = DescriptorFactory(deviceUtil, descriptorPool, descriptorSetLayout)
+
+    private val cubemap = Cubemap(deviceUtil, descriptorFactory)
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var cameraBuffers: Array<VulkanBuffer>
     private lateinit var nearSampler: VulkanSampler
-    private lateinit var cubemapSampler: VulkanSampler
 
-    private val textureArray = TextureArray(deviceUtil)
+    private val textureArray = TextureArray(deviceUtil, descriptorFactory)
 
-    private val worldRenderer = WorldRenderer(deviceUtil)
-
-    private val descriptorPool = DescriptorPool()
-    private val descriptorSetLayout = DescriptorSetLayout()
-    private val descriptorSets = Array(Globals.FRAMES_TOTAL) { DescriptorSet() }
+    private val world = World(deviceUtil, descriptorFactory)
 
     private val inputHandler = InputHandler(window)
 
@@ -135,11 +126,15 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     private fun initObjects() {
         VoxelRegistry.init()
-        textureArray.init()
-
         subscribe(inputHandler)
 
-        cubemap.initImageArray()
+        createDescriptorPool()
+        createDescriptorSetLayout()
+        descriptorFactory.init()
+
+        textureArray.init()
+        cubemap.init()
+        world.init()
 
         createAttachments()
 
@@ -149,20 +144,13 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )
-        this.cameraBuffers = Array(Globals.FRAMES_TOTAL) { deviceUtil.createBuffer(cameraBufferConfig) }
+        this.cameraBuffers = descriptorFactory.createNBuffers(cameraBufferConfig)
         // -- CAMERA BUFFER --
 
-        // -- SAMPLER --
+        // -- SAMPLERS --
         val nearSamplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
-        this.nearSampler = deviceUtil.createSampler(nearSamplerConfig)
-
-        val linearSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.LINEAR)
-        this.cubemapSampler = deviceUtil.createSampler(linearSamplerConfig)
-        // -- SAMPLER --
-
-        createDescriptorStuff()
-
-        cubemap.init(descriptorSetLayout)
+        this.nearSampler = descriptorFactory.createSampler(nearSamplerConfig)
+        // -- SAMPLERS --
     }
 
     private fun createAttachments() {
@@ -177,72 +165,43 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         this.depthAttachment = imageFactory.createImage(depthAttachmentImageLayout)
     }
 
-    private fun createDescriptorStuff() {
+    private fun createDescriptorPool() {
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
             Globals.FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
-                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, Globals.FRAMES_TOTAL),
-                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16 * Globals.FRAMES_TOTAL),
+                DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4 * Globals.FRAMES_TOTAL),
                 DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16 * Globals.FRAMES_TOTAL),
-                DescriptorPoolSize(DescriptorType.SAMPLER, 4 * Globals.FRAMES_TOTAL)
+                DescriptorPoolSize(DescriptorType.SAMPLER, 8 * Globals.FRAMES_TOTAL),
+                DescriptorPoolSize(DescriptorType.STORAGE_BUFFER, 16 * Globals.FRAMES_TOTAL),
             )
         )
         this.descriptorPool.create(device, poolPlan)
+    }
 
+    fun createDescriptorSetLayout() {
         val setLayoutPlan = DescriptorSetLayoutPlan(
             DescriptorSetLayoutCreateFlag.NONE,
             listOf(
                 DescriptorSetLayoutBinding(
-                    0, 1, DescriptorType.UNIFORM_BUFFER,
-                    ShaderStage.VERTEX, DescriptorSetLayoutBindingFlag.NONE
+                    0, 4, DescriptorType.UNIFORM_BUFFER,
+                    ShaderStage.VERTEX, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
                     1, 16, DescriptorType.SAMPLED_IMAGE,
                     ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
-                    2, 4, DescriptorType.SAMPLER,
+                    2, 8, DescriptorType.SAMPLER,
                     ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
                     3, 16, DescriptorType.STORAGE_BUFFER,
-                    ShaderStage.VERTEX, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.VERTEX + ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 )
             )
         )
         this.descriptorSetLayout.create(device, setLayoutPlan)
-
-        // Update Descrfiptor Sets
-        descriptorSets.forEachIndexed { index, set ->
-            set.create(device, descriptorPool, descriptorSetLayout)
-
-            val descWriteCameraBuf = DescriptorBufferWrite(
-                0, DescriptorType.UNIFORM_BUFFER, 1, set, 0,
-                listOf(DescriptorBufferInfo(cameraBuffers[index].vkBufferHandle, 0L, VK_WHOLE_SIZE))
-            )
-            val descWriteImages = DescriptorImageWrite(
-                1, DescriptorType.SAMPLED_IMAGE, 2, set, 0,
-                listOf(
-                    DescriptorImageInfo(0L, textureArray.image.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
-                    DescriptorImageInfo(0L, cubemap.imageArray.vkImageViewHandle, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
-                )
-            )
-            val descWriteSampler = DescriptorImageWrite(
-                2, DescriptorType.SAMPLER, 2, set, 0,
-                listOf(
-                    DescriptorImageInfo(this.nearSampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL),
-                    DescriptorImageInfo(this.cubemapSampler.vkHandle, 0L, ImageLayout.SHADER_READ_ONLY_OPTIMAL)
-                )
-            )
-
-            val descWriteStorageBuffers = DescriptorBufferWrite(
-                3, DescriptorType.STORAGE_BUFFER, 1, set, 0,
-                listOf(DescriptorBufferInfo(worldRenderer.hullPositionBuffers.vkBufferHandle, 0L, VK_WHOLE_SIZE))
-            )
-
-            set.update(device, descWriteCameraBuf, descWriteImages, descWriteSampler, descWriteStorageBuffers)
-        }
     }
 
     private fun handleInput(delta: Float) {
@@ -288,6 +247,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         time += delta
         handleInput(delta)
         updateBuffers()
+
+        if (descriptorFactory.updateRequired) descriptorFactory.updateDescriptorSets()
 
         val width: Int = swapchain.imageExtent.width
         val height: Int = swapchain.imageExtent.height
@@ -360,6 +321,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
+        world.recordComputeCommands(commandBuffer, currentFrame)
+
         val swapToRenderingBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
         with(swapToRenderingBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
@@ -394,31 +357,18 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
 
-            val pDescriptorSets = allocateLong(1)
-            pDescriptorSets.put(0, descriptorSets[currentFrame].vkHandle)
-
-            val pVertexBuffers = allocateLong(1)
-            val pOffsets = allocateLongValues(0L)
-
-            val pPushConstants = allocate(128)
-
-            val bindPointGraphics = VK_PIPELINE_BIND_POINT_GRAPHICS
+            val pDescriptorSets = allocateLongValues(descriptorFactory.descriptorSets[currentFrame].vkHandle)
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
 
             vkCmdBindDescriptorSets(
-                commandBuffer.vkHandle, bindPointGraphics, cubemap.pipeline.vkLayoutHandle,
+                commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, cubemap.pipeline.vkLayoutHandle,
                 0, pDescriptorSets, null
             )
 
-            // cubemap skybox
-            pPushConstants.putInt(0, 1)
-            pVertexBuffers.put(0, cubemap.vertexBuffer.vkBufferHandle)
-            vkCmdBindPipeline(commandBuffer.vkHandle, bindPointGraphics, cubemap.pipeline.vkHandle)
-            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-            vkCmdPushConstants(commandBuffer.vkHandle, cubemap.pipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
-            vkCmdDraw(commandBuffer.vkHandle, cubemap.vertexCount, 1, 0, 0)
+            cubemap.recordRenderCommands(commandBuffer, currentFrame)
+            world.recordGraphicsCommands(commandBuffer, currentFrame)
         }
 
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
@@ -465,13 +415,12 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     override fun destroy() {
         device.waitIdle()
         nearSampler.destroy()
-        cubemapSampler.destroy()
         cameraBuffers.forEach(VulkanBuffer::destroy)
         depthAttachment.destroy()
         descriptorPool.destroy()
         descriptorSetLayout.destroy()
 
-        worldRenderer.destroy()
+        world.destroy()
 
         textureArray.destroy()
 

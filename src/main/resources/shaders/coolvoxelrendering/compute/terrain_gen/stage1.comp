@@ -1,0 +1,56 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../simplex_noise.glsl"
+
+
+// Supply a high default value because we can only go lower when used to supply array sizes...
+layout (constant_id = 0) const uint BUFFER_COUNT = 512;
+layout (constant_id = 1) const uint BYTES_PER_VOXEL = 4;
+const uint VOXELS_PER_CHUNK = 16 * 16 * 16;
+const int heightmapMultiplier = 128;
+const int heightmapAddition = 10;
+const int terrainMultiplier = 96;
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout (set = 0, binding = 3) writeonly buffer ChunkDataBuffer { int data[]; } chunkDataBuffer[BUFFER_COUNT];
+
+
+layout (push_constant) uniform PushConstants {
+    uint chunkBufferIndex;
+    uint chunkIndex;
+    uint chunkX;
+    uint chunkY;
+    uint chunkZ;
+};
+
+
+void outputBlock(uint index, int id) {
+    chunkDataBuffer[chunkBufferIndex].data[index] = id;
+}
+
+void main() {
+    uint chunkFirstBlock = (BYTES_PER_VOXEL * VOXELS_PER_CHUNK * chunkIndex) / 4;
+
+    ivec3 chunkPosition = ivec3(chunkX, chunkY, chunkZ);
+
+    ivec3 blockLocalPos = ivec3(gl_GlobalInvocationID.zxy); // Don't even ask pls...
+    uint blockIndex = blockLocalPos.x + (blockLocalPos.y * 16) + (blockLocalPos.z * 16 * 16);
+    ivec3 blockGlobalPos = (chunkPosition * 16) + blockLocalPos;
+
+    uint blockGlobalOffset = chunkFirstBlock + blockIndex;
+
+    // Terrain gen here
+    vec3 pos = vec3(blockGlobalPos);
+    float heightmap = snoise(pos.xy) * heightmapMultiplier + heightmapAddition;
+    float terrainValue = snoise(pos) * terrainMultiplier;
+    float mixValue = snoise(pos.xy * 2.1313);
+    float mixedValue = mix(heightmap, terrainValue, clamp(mixValue + 0.5, 0.0, 1.0));
+    float scaledY;
+    if (pos.y < 0) { scaledY = pos.y * 3.0; } else { scaledY = pos.y; }
+    if (mixedValue - scaledY > 0.0) {
+        outputBlock(blockGlobalOffset, 1);
+    }
+}

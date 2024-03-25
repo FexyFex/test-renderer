@@ -1,49 +1,72 @@
 package me.fexus.examples.coolvoxelrendering.world
 
+import me.fexus.examples.coolvoxelrendering.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.util.MeshUploader
 import me.fexus.examples.coolvoxelrendering.util.TextureUploader
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubemapModel
 import me.fexus.texture.TextureLoader
 import me.fexus.vulkan.VulkanDeviceUtil
-import me.fexus.vulkan.component.descriptor.set.layout.DescriptorSetLayout
+import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.pipeline.*
+import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.image.*
 import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
+import me.fexus.vulkan.descriptors.image.sampler.AddressMode
+import me.fexus.vulkan.descriptors.image.sampler.Filtering
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
+import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.util.ImageExtent3D
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkCommandBuffer
-import org.lwjgl.vulkan.VkImageCopy
-import org.lwjgl.vulkan.VkImageMemoryBarrier
-import org.lwjgl.vulkan.VkImageSubresourceLayers
-import org.lwjgl.vulkan.VkImageSubresourceRange
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
+class Cubemap(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory) {
     private val meshUploader = MeshUploader(deviceUtil)
     private val textureUploader = TextureUploader(deviceUtil)
     val pipeline = GraphicsPipeline()
-    lateinit var vertexBuffer: VulkanBuffer; private set
-    var vertexCount = -1
+    private lateinit var vertexBuffer: VulkanBuffer
+    private lateinit var sampler: VulkanSampler
+    private var vertexCount = -1
 
     private val cubemapTexture = TextureLoader("textures/coolvoxelrendering/cubemap.jpg")
     lateinit var imageArray: VulkanImage; private set
 
 
-    fun initImageArray() {
+    fun init() {
+        val linearSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_EDGE, 1, Filtering.LINEAR)
+        this.sampler = descriptorFactory.createSampler(linearSamplerConfig)
+
         createImageArray()
+        createMeshBuffers()
+        createPipeline()
     }
 
-    fun init(descriptorSetLayout: DescriptorSetLayout) {
-        createMeshBuffers()
-        createPipeline(descriptorSetLayout)
+    fun recordRenderCommands(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
+        val pVertexBuffers = allocateLongValues(vertexBuffer.vkBufferHandle)
+        val pOffsets = allocateLongValues(0L)
+
+        val pPushConstants = allocate(128)
+        pPushConstants.putInt(0, imageArray.index)
+
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.vkHandle)
+        vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+        vkCmdPushConstants(
+            commandBuffer.vkHandle,
+            pipeline.vkLayoutHandle,
+            ShaderStage.BOTH.vkBits,
+            0,
+            pPushConstants
+        )
+        vkCmdDraw(commandBuffer.vkHandle, vertexCount, 1, 0, 0)
     }
+
 
     private fun createMeshBuffers() {
         val vertexBufferSize = CubemapModel.vertices.size * CubemapModel.Vertex.SIZE_BYTES
@@ -73,7 +96,7 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
             ImageTiling.OPTIMAL, ImageAspect.COLOR, ImageUsage.TRANSFER_DST + ImageUsage.SAMPLED,
             MemoryPropertyFlag.DEVICE_LOCAL
         )
-        this.imageArray = deviceUtil.createImage(imageArrayConfig)
+        this.imageArray = descriptorFactory.createImage(imageArrayConfig)
 
         val helperImage = textureUploader.uploadTexture(cubemapTexture, ImageUsage.TRANSFER_SRC + ImageUsage.TRANSFER_DST + ImageUsage.SAMPLED)
 
@@ -193,7 +216,7 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
         helperImage.destroy()
     }
 
-    private fun createPipeline(descriptorSetLayout: DescriptorSetLayout) {
+    private fun createPipeline() {
         val vertexShader = ClassLoader.getSystemResource("shaders/coolvoxelrendering/cubemap/cubemap_vert.spv").readBytes()
         val fragmentShader = ClassLoader.getSystemResource("shaders/coolvoxelrendering/cubemap/cubemap_frag.spv").readBytes()
         val pipelineConfig = GraphicsPipelineConfiguration(
@@ -207,7 +230,7 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
             cullMode = CullMode.FRONTFACE, depthTest = false, depthWrite = false
         )
-        this.pipeline.create(deviceUtil.device, listOf(descriptorSetLayout), pipelineConfig)
+        this.pipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), pipelineConfig)
     }
 
 
@@ -251,5 +274,6 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil) {
         this.vertexBuffer.destroy()
         this.imageArray.destroy()
         this.pipeline.destroy()
+        this.sampler.destroy()
     }
 }

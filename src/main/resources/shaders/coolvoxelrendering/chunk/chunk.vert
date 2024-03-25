@@ -33,6 +33,10 @@ layout (set = 0, binding = 3) buffer PositionBuffer { uint positions[]; } positi
 
 layout (push_constant) uniform PushConstants {
     uint positionsBufferIndex;
+    uint firstInstance;
+    uint chunkX;
+    uint chunkY;
+    uint chunkZ;
 };
 
 layout (location = 0) out vec2 outTexCoords;
@@ -53,22 +57,20 @@ SideInfo unpack(uint packed) {
 
 void main() {
     WorldInfo world = cameraBuffer.info;
-    uint packedInt = positionBuffer[positionsBufferIndex].positions[gl_InstanceIndex];
+    uint packedInt = positionBuffer[positionsBufferIndex].positions[firstInstance + gl_InstanceIndex];
 
     SideInfo side = unpack(packedInt);
     vec3 normal = dirs[side.dirIndex];
 
     vec3 rotatedPos = inPosition;
-    vec3 scaledPos = clamp(normal, vec3(0), vec3(1));
     vec3 scaling = vec3(1.0);
     if (normal.x != 0.0) {
         rotatedPos.z = rotatedPos.x;
         rotatedPos.x = 0.0;
         scaling.z = side.scaling.x;
         scaling.y = side.scaling.y;
-        scaledPos.x *= side.scaling.x;
         if (normal.x > 0.0) {
-            rotatedPos.x = 1.0 - rotatedPos.x - 1.0;
+            //rotatedPos.x = 1.0 - rotatedPos.x - 1.0;
             rotatedPos.z = 1.0 - rotatedPos.z;
         }
     } else if (normal.y != 0.0) {
@@ -76,7 +78,6 @@ void main() {
         rotatedPos.y = 0.0;
         scaling.z = side.scaling.y;
         scaling.x = side.scaling.x;
-        scaledPos.y *= side.scaling.y;
         if (normal.y > 0.0) {
             rotatedPos.z = rotatedPos.z;
             rotatedPos.x = 1.0 - rotatedPos.x;
@@ -84,14 +85,13 @@ void main() {
     } else {
         scaling.x = side.scaling.x;
         scaling.y = side.scaling.y;
-        scaledPos.z *= side.scaling.x;
         if (normal.z < 0.0) {
             rotatedPos.y = rotatedPos.y;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     }
 
-    vec3 position = (rotatedPos * scaling) + side.position;
+    vec3 position = (rotatedPos * scaling) + side.position + (vec3(chunkX, chunkY, chunkZ) * 16.0);
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 

@@ -4,5 +4,5 @@ import me.fexus.examples.coolvoxelrendering.world.Chunk
 
 
 interface ChunkHullBuilder {
-    fun build(chunk: Chunk, lod: Int): ChunkHullData
+    fun build(chunk: Chunk, maxDepth: Int): ChunkHullData
 }

@@ -1,3 +1,4 @@
-glslangValidator -V .\terrain_gen.comp -o terrain_gen_comp.spv
+glslangValidator -V .\stage1.comp -o stage1_comp.spv
+glslangValidator -V .\stage2.comp -o stage2_comp.spv
 
 pause

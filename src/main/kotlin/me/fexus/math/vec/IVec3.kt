@@ -55,7 +55,7 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
     }
 
 
-    fun toByteBuffer(buf: ByteBuffer, offset: Int) {
+    fun intoByteBuffer(buf: ByteBuffer, offset: Int) {
         buf.putInt(offset, x)
         buf.putInt(offset + 4, y)
         buf.putInt(offset + 8, z)

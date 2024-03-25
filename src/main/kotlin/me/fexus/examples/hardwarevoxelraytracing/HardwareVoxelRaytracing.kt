@@ -8,6 +8,7 @@ import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.texture.TextureLoader
 import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.octree.buffer.buildSVOBuffer
 import me.fexus.voxel.octree.buffer.createIndexedOctree
 import me.fexus.voxel.octree.buffer.createIndexedOctreeNodeList
@@ -436,7 +437,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private fun writeOctreeBuffer() = runMemorySafe {
         chunk.clear()
-        repeat(SparseVoxelOctree.EXTENT) {
+        repeat(VoxelOctree.EXTENT) {
             chunk.setVoxelAt(it, it, it, CoalVoxel)
         }
 

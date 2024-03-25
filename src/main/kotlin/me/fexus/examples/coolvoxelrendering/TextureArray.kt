@@ -17,7 +17,7 @@ import org.lwjgl.vulkan.VkImageMemoryBarrier
 import org.lwjgl.vulkan.VkImageSubresourceRange
 
 
-class TextureArray(private val deviceUtil: VulkanDeviceUtil) {
+class TextureArray(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory) {
     lateinit var image: VulkanImage
 
 
@@ -33,7 +33,7 @@ class TextureArray(private val deviceUtil: VulkanDeviceUtil) {
             1, 1, layerCount, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
-        this.image = deviceUtil.createImage(imageConfig)
+        this.image = descriptorFactory.createImage(imageConfig)
 
         val stagingBufferConfig = VulkanBufferConfiguration(
             coalTex.imageSize * layerCount, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,

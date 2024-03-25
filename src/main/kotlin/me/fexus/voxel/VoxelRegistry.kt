@@ -35,5 +35,6 @@ object VoxelRegistry {
     }
 
 
-    fun getVoxelByID(id: Int): VoxelType = registeredVoxels[id]!!
+    fun getVoxelByIDAssert(id: Int): VoxelType = registeredVoxels[id]!!
+    fun getVoxelByID(id: Int) = registeredVoxels[id]
 }

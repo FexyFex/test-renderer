@@ -1,0 +1,33 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../simplex_noise.glsl"
+
+
+// Supply a high default value because we can only go lower when used to supply array sizes...
+layout (constant_id = 0) const uint BUFFER_COUNT = 512;
+layout (constant_id = 1) const uint BYTES_PER_VOXEL = 4;
+const uint VOXELS_PER_CHUNK = 16 * 16 * 16;
+
+// local_size_x_id = 1 means that the workgroup size is supplied through the specialization constant that has id = 1
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 16) in;
+
+
+layout (set = 0, binding = 3) buffer ChunkDataBuffer { uint data[]; } chunkDataBuffer[BUFFER_COUNT];
+
+
+layout (push_constant) uniform PushConstants {
+    uint chunkBufferIndex;
+    uint chunkIndex;
+};
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    uint byteOffset = (BYTES_PER_VOXEL * VOXELS_PER_CHUNK);
+    // 4 bytes = 1 (u)int. The starting index will always be perfectly aligned to 4 bytes due to (((math)))...
+    uint index = byteOffset / 4;
+
+    
+}

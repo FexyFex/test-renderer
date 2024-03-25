@@ -10,6 +10,7 @@ import me.fexus.math.vec.Vec4
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.type.CoalVoxel
 import me.fexus.vulkan.util.FramePreparation
 import me.fexus.vulkan.util.FrameSubmitData
@@ -99,7 +100,7 @@ class InstancedRendering: VulkanRendererBase(createWindow()) {
     private fun initObjects() {
         camera.position = Vec3(-8f, -8f, -20f)
 
-        repeatCubed(SparseVoxelOctree.EXTENT) { x, y, z ->
+        repeatCubed(VoxelOctree.EXTENT) { x, y, z ->
             if (Math.random() > 0.5)
                 randomChunk.setVoxelAt(x, y, z, CoalVoxel)
         }

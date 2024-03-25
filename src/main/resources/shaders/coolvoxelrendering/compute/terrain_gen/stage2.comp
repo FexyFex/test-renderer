@@ -1,5 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../simplex_noise.glsl"
 
 
 // Supply a high default value because we can only go lower when used to supply array sizes...
@@ -8,8 +11,7 @@ layout (constant_id = 0) const int BUFFER_COUNT = 512;
 // local_size_x_id = 1 means that the workgroup size is supplied through the specialization constant that has id = 1
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (set = 0, binding = 0) uniform UBO { WorldInfo info; } worldInfoBuffer;
-layout (set = 0, binding = 1) buffer ChunkDataBuffer { float data[]; } bulletDataBuffer[BUFFER_COUNT];
+layout (set = 0, binding = 3) buffer ChunkDataBuffer { float data[]; } bulletDataBuffer[BUFFER_COUNT];
 
 layout (push_constant) uniform PushConstants {
 };

@@ -7,6 +7,7 @@ import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
 import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.VoxelRegistry
 import me.fexus.voxel.octree.buffer.buildSVOBuffer
 import me.fexus.voxel.octree.buffer.createIndexedOctree
@@ -408,12 +409,12 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
             pOffsets.put(0, 0L)
 
             val pPushConstants = allocate(128)
-            pPushConstants.putInt(0, SparseVoxelOctree.EXTENT)
+            pPushConstants.putInt(0, VoxelOctree.EXTENT)
 
             val bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
             val indexCount = CubeModelZeroToOne.indices.size
             val wireframeIndexCount = CubeModelZeroToOne.wireframeIndices.size
-            val instanceCount = SparseVoxelOctree.VOXEL_COUNT
+            val instanceCount = VoxelOctree.VOXEL_COUNT
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
@@ -426,7 +427,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
             vkCmdBindPipeline(commandBuffer.vkHandle, bindPoint, wireframePipeline.vkHandle)
             Mat4(1f)
-                .scale(Vec3(SparseVoxelOctree.EXTENT.toFloat()))
+                .scale(Vec3(VoxelOctree.EXTENT.toFloat()))
                 .toByteBufferColumnMajor(pPushConstants, 0)
             vkCmdPushConstants(commandBuffer.vkHandle, wireframePipeline.vkLayoutHandle, ShaderStage.BOTH.vkBits, 0, pPushConstants)
             vkCmdBindIndexBuffer(commandBuffer.vkHandle, wireframeIndexBuffer.vkBufferHandle, 0L, VK_INDEX_TYPE_UINT32)

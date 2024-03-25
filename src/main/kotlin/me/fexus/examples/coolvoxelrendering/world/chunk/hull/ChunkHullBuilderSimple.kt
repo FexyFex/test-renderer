@@ -4,6 +4,7 @@ import me.fexus.examples.coolvoxelrendering.world.Chunk
 import me.fexus.examples.coolvoxelrendering.VoxelSide
 import me.fexus.examples.coolvoxelrendering.VoxelSideDirection
 import me.fexus.math.vec.IVec2
+import me.fexus.voxel.SparseVoxelOctree
 import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.type.VoidVoxel
 import me.fexus.voxel.type.VoxelType
@@ -14,20 +15,20 @@ import java.nio.ByteOrder
 class ChunkHullBuilderSimple: ChunkHullBuilder {
     private val directions = VoxelSideDirection.values()
 
-    override fun build(chunk: Chunk, lod: Int): ChunkHullData {
-        val buf = ByteBuffer.allocate(VoxelOctree.VOXEL_COUNT * 6)
+    override fun build(chunk: Chunk, maxDepth: Int): ChunkHullData {
+        val buf = ByteBuffer.allocate(VoxelOctree.VOXEL_COUNT * 6 * Int.SIZE_BYTES)
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
-        val scaling = VoxelOctree.EXTENT shr (lod + 1)
+        val scaling = VoxelOctree.EXTENT shr (maxDepth + 1)
 
         var instanceCount = 0
         var offset = 0
 
-        chunk.forEachVoxel(lod) { position, voxel ->
+        chunk.forEachVoxel(maxDepth) { position, voxel ->
             directions.forEach { dir ->
                 val nextPos = position + (dir.normal * scaling)
                 val nextVoxel: VoxelType = try {
-                    chunk.getVoxelAt(nextPos, lod)
+                    chunk.getVoxelAt(nextPos, maxDepth)
                 } catch (e: Exception) {
                     VoidVoxel
                 }

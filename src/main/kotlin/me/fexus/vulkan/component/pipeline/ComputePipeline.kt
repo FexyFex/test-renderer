@@ -10,11 +10,14 @@ import org.lwjgl.vulkan.VK12.*
 
 
 class ComputePipeline : IPipeline {
+    private lateinit var device: Device
+
     private var vkShaderModuleHandle: Long = 0L
     override var vkHandle: Long = 0L; private set
     override var vkLayoutHandle: Long = 0L; private set
 
     fun create(device: Device, setLayout: DescriptorSetLayout, config: ComputePipelineConfiguration) = runMemorySafe {
+        this@ComputePipeline.device = device
 
         val pPushConstantRange: VkPushConstantRange.Buffer?
         if (config.pushConstantsLayout != null) {
@@ -85,7 +88,7 @@ class ComputePipeline : IPipeline {
     }
 
 
-    fun destroy(device: Device) {
+    fun destroy(device: Device = this.device) {
         vkDestroyShaderModule(device.vkHandle, vkShaderModuleHandle, null)
         vkDestroyPipelineLayout(device.vkHandle, vkLayoutHandle, null)
         vkDestroyPipeline(device.vkHandle, vkHandle, null)

@@ -22,7 +22,7 @@ open class SparseVoxelOctree: VoxelOctree {
         if (targetNode == null) {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
-                    if (mipLevel == VoxelOctree.MAX_MIP_LEVEL) {
+                    if (mipLevel == VoxelOctree.MAX_DEPTH) {
                         OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
                         val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))
@@ -85,25 +85,25 @@ open class SparseVoxelOctree: VoxelOctree {
         return x or (y shl 1) or (z shl 2)
     }
 
-    override fun forEachVoxel(maxMipLevel: Int, action: (position: IVec3, voxel: VoxelType) -> Unit) {
-        forEachVoxelRec(octree, IVec3(0), maxMipLevel, 1, action)
+    override fun forEachVoxel(maxDepth: Int, action: (position: IVec3, voxel: VoxelType) -> Unit) {
+        forEachVoxelRec(octree, IVec3(0), maxDepth, 1, action)
     }
 
     private fun forEachVoxelRec(
         parent: IOctreeParentNode<OctreeNodeDataVoxelType>,
         parentPos: IVec3,
-        maxMipLevel: Int,
+        maxDepth: Int,
         mipLevel: Int,
         action: (position: IVec3, voxel: VoxelType) -> Unit
     ) {
         val extent = VoxelOctree.EXTENT ushr mipLevel
-        val isFinalMipLevel = mipLevel > maxMipLevel
+        val isFinalMipLevel = mipLevel > maxDepth
         parent.children.forEachIndexed { octantIndex, node ->
             if (node == null) return@forEachIndexed
 
             val position = localOctPositionFromIndex(octantIndex) * extent
             if (node is IOctreeParentNode && node.hasChildren && !isFinalMipLevel) {
-                forEachVoxelRec(node, parentPos + position, maxMipLevel, mipLevel + 1, action)
+                forEachVoxelRec(node, parentPos + position, maxDepth, mipLevel + 1, action)
                 return@forEachIndexed
             }
             action(parentPos + position, node.nodeData.voxelType)
