@@ -11,7 +11,7 @@ layout (constant_id = 0) const uint BUFFER_COUNT = 512;
 layout (constant_id = 1) const uint BYTES_PER_VOXEL = 4;
 const uint VOXELS_PER_CHUNK = 16 * 16 * 16;
 
-const int SOIL_DEPTH = 3;
+const int SOIL_DEPTH = 4;
 
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;

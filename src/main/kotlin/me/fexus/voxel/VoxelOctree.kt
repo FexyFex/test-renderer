@@ -1,7 +1,6 @@
 package me.fexus.voxel
 
 import me.fexus.math.vec.IVec3
-import me.fexus.voxel.type.VoxelType
 import kotlin.math.log2
 import kotlin.math.roundToInt
 
@@ -19,6 +18,6 @@ interface VoxelOctree<T> {
         const val EXTENT = 16
         const val VOXEL_COUNT = EXTENT * EXTENT * EXTENT
         val BOUNDS = 0 until EXTENT
-        val MAX_DEPTH = log2(EXTENT.toFloat()).roundToInt() - 1
+        val MAX_DEPTH = log2(EXTENT.toFloat()).roundToInt()
     }
 }

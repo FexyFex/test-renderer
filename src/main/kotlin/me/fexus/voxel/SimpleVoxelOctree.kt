@@ -22,7 +22,7 @@ open class SimpleVoxelOctree: VoxelOctree<VoxelType> {
         if (targetNode == null) {
             if (voxelType != VoidVoxel)
                 parentNode.children[posIndex] =
-                    if (mipLevel == VoxelOctree.MAX_DEPTH) {
+                    if (mipLevel == (VoxelOctree.MAX_DEPTH - 1)) {
                         OctreeLeafNode(pos, OctreeNodeDataVoxelType(voxelType))
                     } else {
                         val newNode = OctreeForkNode(pos, OctreeNodeDataVoxelType(voxelType))

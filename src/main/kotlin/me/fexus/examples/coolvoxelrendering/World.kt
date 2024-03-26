@@ -57,7 +57,7 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
                 surroundingChunks.add(nextChunk)
             }
             it.submittedForHulling = true
-            val depth = if (it.position.length > 16) VoxelOctree.MAX_DEPTH - 1 else VoxelOctree.MAX_DEPTH
+            val depth = VoxelOctree.MAX_DEPTH - 2//if (it.position.length > 16) VoxelOctree.MAX_DEPTH - 1 else VoxelOctree.MAX_DEPTH
             chunkHullingInputQueue.add(ChunkHullingPacket(it, surroundingChunks, depth))
         }
 
