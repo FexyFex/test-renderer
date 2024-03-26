@@ -1,10 +1,10 @@
 package me.fexus.examples.coolvoxelrendering.world.chunk.hull
 
-import me.fexus.examples.coolvoxelrendering.world.Chunk
+import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
 
 
 class ChunkMeshBuilderGreedy: ChunkHullBuilder {
-    override fun build(chunk: Chunk, maxDepth: Int): ChunkHullData {
+    override fun build(chunkHullingPacket: ChunkHullingPacket): ChunkHullData {
         TODO("Not yet implemented")
     }
 }

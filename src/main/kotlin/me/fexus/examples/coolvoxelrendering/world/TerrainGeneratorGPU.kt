@@ -19,19 +19,20 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
-import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkBufferMemoryBarrier
-import java.lang.Exception
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 
 
-class TerrainGenerator(
+class TerrainGeneratorGPU(
     private val deviceUtil: VulkanDeviceUtil,
     private val descriptorFactory: DescriptorFactory,
 ): CommandRecorder {
     private val basicTerrainGenPipeline = ComputePipeline()
+    private val blockTypeGenPipeline = ComputePipeline()
+    private val caveGenPipeline = ComputePipeline()
     private lateinit var chunkDataBuffers: Array<VulkanBuffer>
     private val currentChunkPositions = Array(Globals.FRAMES_TOTAL) { mutableListOf<IVec3>() }
 
@@ -42,6 +43,9 @@ class TerrainGenerator(
 
 
     fun init() {
+        val device = deviceUtil.device
+        val descriptorSetLayout = descriptorFactory.descriptorSetLayout
+
         val basicTerrainGenPipelineConfig = ComputePipelineConfiguration(
             ClassLoader.getSystemResource("shaders/coolvoxelrendering/compute/terrain_gen/stage1_comp.spv").readBytes(),
             PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
@@ -50,7 +54,27 @@ class TerrainGenerator(
                 SpecializationConstantInt(1, BYTES_PER_VOXEL)
             )
         )
-        this.basicTerrainGenPipeline.create(deviceUtil.device, descriptorFactory.descriptorSetLayout, basicTerrainGenPipelineConfig)
+        this.basicTerrainGenPipeline.create(device, descriptorSetLayout, basicTerrainGenPipelineConfig)
+
+        val blockTypeGenPipelineConfig = ComputePipelineConfiguration(
+            ClassLoader.getSystemResource("shaders/coolvoxelrendering/compute/terrain_gen/stage2_comp.spv").readBytes(),
+            PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
+            listOf(
+                SpecializationConstantInt(0, 16),
+                SpecializationConstantInt(1, BYTES_PER_VOXEL)
+            )
+        )
+        this.blockTypeGenPipeline.create(device, descriptorSetLayout, blockTypeGenPipelineConfig)
+
+        val caveGenPipelineConfig = ComputePipelineConfiguration(
+            ClassLoader.getSystemResource("shaders/coolvoxelrendering/compute/terrain_gen/stage3_comp.spv").readBytes(),
+            PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE),
+            listOf(
+                SpecializationConstantInt(0, 16),
+                SpecializationConstantInt(1, BYTES_PER_VOXEL)
+            )
+        )
+        this.caveGenPipeline.create(device, descriptorSetLayout, caveGenPipelineConfig)
 
         val chunkDataBufferConfig = VulkanBufferConfiguration(
             MAX_CHUNKS_PER_SUBMIT * Chunk.VOXELS_PER_CHUNK * BYTES_PER_VOXEL.toLong(),
@@ -111,9 +135,9 @@ class TerrainGenerator(
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, basicTerrainGenPipeline.vkHandle)
         pPushConstants.putInt(0, targetBuffer.index)
 
-        targetChunks.forEachIndexed { index, iVec3 ->
+        targetChunks.forEachIndexed { index, pos ->
             pPushConstants.putInt(4, index)
-            iVec3.intoByteBuffer(pPushConstants, 8)
+            pos.intoByteBuffer(pPushConstants, 8)
             vkCmdPushConstants(
                 commandBuffer.vkHandle, basicTerrainGenPipeline.vkLayoutHandle,
                 VK_SHADER_STAGE_COMPUTE_BIT, 0, pPushConstants
@@ -132,12 +156,38 @@ class TerrainGenerator(
         // BARRIER 2: WAITING FOR STAGE 1 TO COMPLETE
 
         // STAGE 2: REPLACING THE STONE BLOCKS WITH OTHER VARIANTS
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, blockTypeGenPipeline.vkHandle)
+        targetChunks.forEachIndexed { index, pos ->
+            pPushConstants.putInt(4, index)
+            pos.intoByteBuffer(pPushConstants, 8)
+            vkCmdPushConstants(
+                commandBuffer.vkHandle, blockTypeGenPipeline.vkLayoutHandle,
+                VK_SHADER_STAGE_COMPUTE_BIT, 0, pPushConstants
+            )
+            vkCmdDispatch(commandBuffer.vkHandle, WORK_GROUP_COUNT, WORK_GROUP_COUNT, WORK_GROUP_COUNT)
+        }
         // STAGE 2: REPLACING THE STONE BLOCKS WITH OTHER VARIANTS
 
         // BARRIER 3: WAITING FOR STAGE 2 TO COMPLETE
+        barrier.srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
+        barrier.dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
+        vkCmdPipelineBarrier(commandBuffer.vkHandle,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            0, null, barrier, null
+        )
         // BARRIER 3: WAITING FOR STAGE 2 TO COMPLETE
 
         // STAGE 3: CARVING CAVES
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, caveGenPipeline.vkHandle)
+        targetChunks.forEachIndexed { index, pos ->
+            pPushConstants.putInt(4, index)
+            pos.intoByteBuffer(pPushConstants, 8)
+            vkCmdPushConstants(
+                commandBuffer.vkHandle, caveGenPipeline.vkLayoutHandle,
+                VK_SHADER_STAGE_COMPUTE_BIT, 0, pPushConstants
+            )
+            vkCmdDispatch(commandBuffer.vkHandle, WORK_GROUP_COUNT, WORK_GROUP_COUNT, WORK_GROUP_COUNT)
+        }
         // STAGE 3: CARVING CAVES
 
         // BARRIER 4: WAITING FOR STAGE 3 TO COMPLETE
@@ -163,14 +213,17 @@ class TerrainGenerator(
             Callable {
                 val chunk = Chunk(position)
                 val chunkOffset = index * BYTES_PER_CHUNK
+                var isChunkFull = true
 
                 repeatCubed(Chunk.EXTENT) { x, y, z ->
                     val offset = (x + (y * Chunk.EXTENT) + (z * Chunk.EXTENT * Chunk.EXTENT)) * BYTES_PER_VOXEL
                     val voxelID = buffer.getInt(chunkOffset + offset)
                     val voxel = VoxelRegistry.getVoxelByID(voxelID) ?: VoidVoxel
+                    if (voxel == VoidVoxel) isChunkFull = false
                     chunk.setVoxelAt(x, y, z, voxel)
                 }
 
+                chunk.isFull = isChunkFull
                 finishedChunks.add(chunk)
             }
         }
@@ -193,12 +246,14 @@ class TerrainGenerator(
         threadPool.shutdown()
 
         basicTerrainGenPipeline.destroy()
+        blockTypeGenPipeline.destroy()
+        caveGenPipeline.destroy()
         chunkDataBuffers.forEach(VulkanBuffer::destroy)
     }
 
 
     companion object {
-        private const val MAX_CHUNKS_PER_SUBMIT = 16
+        private const val MAX_CHUNKS_PER_SUBMIT = 12
         private const val BYTES_PER_VOXEL = 4
         private const val BYTES_PER_CHUNK = BYTES_PER_VOXEL * Chunk.VOXELS_PER_CHUNK
 

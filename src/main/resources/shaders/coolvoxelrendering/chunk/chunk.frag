@@ -3,6 +3,7 @@
 
 layout (location = 0) in vec2 inTexCoords;
 layout (location = 1) flat in uint textureIndex;
+layout (location = 2) flat in float inSideLight;
 
 
 layout (set = 0, binding = 1) uniform texture2DArray textures[16];
@@ -14,4 +15,5 @@ layout (location = 0) out vec4 outColor;
 void main() {
     //outColor = vec4(inTexCoords.x, 0.0, inTexCoords.y, 1.0);
     outColor = texture(sampler2DArray(textures[0], samplers[1]), vec3(inTexCoords, float(textureIndex)));
+    outColor.xyz *= inSideLight;
 }

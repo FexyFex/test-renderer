@@ -128,6 +128,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         VoxelRegistry.init()
         subscribe(inputHandler)
 
+        player.position.y = 100f
+
         createDescriptorPool()
         createDescriptorSetLayout()
         descriptorFactory.init()

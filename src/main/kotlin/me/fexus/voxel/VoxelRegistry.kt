@@ -1,18 +1,22 @@
 package me.fexus.voxel
 
+import me.fexus.voxel.type.StoneVoxel
 import me.fexus.voxel.type.VoidVoxel
 import me.fexus.voxel.type.VoxelType
 
 
 object VoxelRegistry {
     private val registeredVoxels = Array<VoxelType?>(63) { null }
-    private var nextID = 1 // 0 is empty, hence why we start at 1
+    private var nextID = 0
     var voxelCount: Int = 0; private set
 
 
     fun init() {
+        registerVoxel(VoidVoxel)
+        registerVoxel(StoneVoxel)
+
         val voxelTypes = VoxelType::class.sealedSubclasses
-            .filter { it != VoidVoxel::class }
+            .filter { it != VoidVoxel::class && it != StoneVoxel::class }
             .flatMap { it.sealedSubclasses + it }
             .mapNotNull { it.objectInstance }
 

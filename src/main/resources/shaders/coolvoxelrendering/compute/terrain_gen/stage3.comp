@@ -2,32 +2,111 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "../simplex_noise.glsl"
+#include "../noise.glsl"
 
 
 // Supply a high default value because we can only go lower when used to supply array sizes...
 layout (constant_id = 0) const uint BUFFER_COUNT = 512;
 layout (constant_id = 1) const uint BYTES_PER_VOXEL = 4;
 const uint VOXELS_PER_CHUNK = 16 * 16 * 16;
+const float fractalBounding = 1.0 / 1.75;
+const float weightedStrength = 0.0;
+const float lacunarity = 2.0;
+const float gain = 0.5;
 
-// local_size_x_id = 1 means that the workgroup size is supplied through the specialization constant that has id = 1
-layout (local_size_x = 16, local_size_y = 16, local_size_z = 16) in;
+const float mid = 0.2;
+const float dist = 0.1;
+const float start = mid - (2 * dist);
+const float end = mid + (2 * dist);
+
+const float caveTunnel3DFrequency = 0.02;
+const float caveSpeleotherms2DFrequency = 1.0 / 48.0;
+const float caveSpeleotherms3DFrequency = 1.0 / 64.0;
+const float caveRooms3DFrequency = 1.0 / 184.0;
 
 
-layout (set = 0, binding = 3) buffer ChunkDataBuffer { uint data[]; } chunkDataBuffer[BUFFER_COUNT];
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+layout (set = 0, binding = 3) buffer ChunkDataBuffer { int data[]; } chunkDataBuffer[BUFFER_COUNT];
 
 
 layout (push_constant) uniform PushConstants {
     uint chunkBufferIndex;
     uint chunkIndex;
+    int chunkX;
+    int chunkY;
+    int chunkZ;
 };
 
+
+void outputVoxel(uint index, int id) {
+    chunkDataBuffer[chunkBufferIndex].data[index] = id;
+}
+
+float caveNoise3D(vec3 pos) {
+    return simplex_noise3D(
+        pos,
+        gain, lacunarity, fractalBounding, weightedStrength,
+        caveTunnel3DFrequency, 3
+    );
+}
+
+float caveSpeleothermsNoise2D(vec2 pos) {
+    return simplex_noise2D(
+            pos,
+            gain, lacunarity, fractalBounding, weightedStrength,
+            caveSpeleotherms2DFrequency, 3
+    );
+}
+
+float caveSpeleothermsNoise3D(vec3 pos) {
+    return simplex_noise3D(
+        pos,
+        gain, lacunarity, fractalBounding, weightedStrength,
+        caveSpeleotherms3DFrequency, 3
+    );
+}
+
+float caveRoomsNoise3D(vec3 pos) {
+    return simplex_noise3D(
+        pos,
+        gain, lacunarity, fractalBounding, weightedStrength,
+        caveRooms3DFrequency, 3
+    );
+}
+
+
 void main() {
-    uint index = gl_GlobalInvocationID.x;
+    uint chunkFirstBlock = (BYTES_PER_VOXEL * VOXELS_PER_CHUNK * chunkIndex) / 4;
 
-    uint byteOffset = (BYTES_PER_VOXEL * VOXELS_PER_CHUNK);
-    // 4 bytes = 1 (u)int. The starting index will always be perfectly aligned to 4 bytes due to (((math)))...
-    uint index = byteOffset / 4;
+    ivec3 chunkPosition = ivec3(chunkX, chunkY, chunkZ);
 
-    
+    ivec3 blockLocalPos = ivec3(gl_GlobalInvocationID.zxy); // Don't even ask pls...
+    uint blockIndex = blockLocalPos.x + (blockLocalPos.y * 16) + (blockLocalPos.z * 16 * 16);
+    ivec3 blockGlobalPos = (chunkPosition * 16) + blockLocalPos;
+
+    uint blockGlobalOffset = chunkFirstBlock + blockIndex;
+
+    // Terrain gen here
+    vec3 pos = vec3(blockGlobalPos);
+
+    float cave1 = caveNoise3D(pos);
+    cave1 = float(cave1 > start && cave1 < end) * ((dist - abs(cave1 - mid)) / dist);
+    cave1 = clamp(cave1, 0.0, 1.0);
+
+    float cave2 = caveNoise3D(pos.zyx);
+    cave2 = float(cave2 > start && cave2 < end) * ((dist - abs(cave2 - mid)) / dist);
+    cave2 = clamp(cave2, 0.0, 1.0);
+
+    bool cave = (cave1 * cave2) >= 0.01;
+
+    float speleo2D = caveSpeleothermsNoise2D(pos.xz);
+    speleo2D = float(speleo2D >= 0.5) * (8.0 * speleo2D - 6.0);
+    float speleo3D = caveSpeleothermsNoise3D(pos * vec3(1.0, 2.0, 1.0));
+    float speleo = float((speleo2D + speleo3D) < 0.0);
+    float rooms = caveRoomsNoise3D(pos);
+    float transformedY = clamp((pos.y + 500.0) * 0.001, 0.0, 0.087) + 0.25;
+    float t = mix(transformedY, speleo, rooms);
+    if (t < 0 || cave) outputVoxel(blockGlobalOffset, 0);
 }

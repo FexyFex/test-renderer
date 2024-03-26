@@ -1,11 +1,15 @@
 package me.fexus.math.vec
 
+import me.fexus.math.clamp
 import java.nio.ByteBuffer
+import kotlin.math.absoluteValue
 
 data class IVec3(override var x: Int, override var y: Int, override var z: Int): TVec3<Int>() {
     constructor(s: Int): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toInt(), y.toInt(), z.toInt())
     constructor(v2: IVec2, z: Int): this(v2.x, v2.y, z)
+
+    val abs: IVec3; get() = IVec3(x.absoluteValue, y.absoluteValue, z.absoluteValue)
 
     val xy: IVec2; get() = IVec2(x, y)
 
@@ -55,10 +59,35 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
     }
 
 
+    fun clamp(min: IVec3, max: IVec3) = IVec3(
+        x.clamp(min.x, max.x),
+        y.clamp(min.y, max.y),
+        z.clamp(min.z, max.z)
+    )
+
+    fun clamp(min: Int, max: Int) = IVec3(
+        x.clamp(min, max),
+        y.clamp(min, max),
+        z.clamp(min, max)
+    )
+
+
     fun intoByteBuffer(buf: ByteBuffer, offset: Int) {
         buf.putInt(offset, x)
         buf.putInt(offset + 4, y)
         buf.putInt(offset + 8, z)
+    }
+
+
+    fun any(predicate: (Int) -> Boolean) = predicate(x) || predicate(y) || predicate(z)
+
+    fun all(predicate: (Int) -> Boolean) = predicate(x) && predicate(y) && predicate(z)
+
+    fun indexOfFirst(predicate: (Int) -> Boolean): Int {
+        if (predicate(x)) return 0
+        if (predicate(y)) return 1
+        if (predicate(z)) return 2
+        throw Exception()
     }
 
 

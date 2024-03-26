@@ -24,19 +24,19 @@ class TextureArray(private val deviceUtil: VulkanDeviceUtil, private val descrip
     fun init() {
         val layerCount = VoxelRegistry.voxelCount
         val cloudTex = TextureLoader("textures/coolvoxelrendering/cloud.png")
-        val coalTex = TextureLoader("textures/coolvoxelrendering/coal.png")
+        val grass = TextureLoader("textures/coolvoxelrendering/grass.png")
         val stoneTex = TextureLoader("textures/coolvoxelrendering/stone.png")
-        val textures = arrayOf(cloudTex, coalTex, stoneTex)
+        val textures = arrayOf(cloudTex, stoneTex, grass)
 
         val imageConfig = VulkanImageConfiguration(
-            ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(coalTex.width, coalTex.height, 1),
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(grass.width, grass.height, 1),
             1, 1, layerCount, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.image = descriptorFactory.createImage(imageConfig)
 
         val stagingBufferConfig = VulkanBufferConfiguration(
-            coalTex.imageSize * layerCount, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
+            grass.imageSize * layerCount, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingBuffer = deviceUtil.createBuffer(stagingBufferConfig)
@@ -76,7 +76,7 @@ class TextureArray(private val deviceUtil: VulkanDeviceUtil, private val descrip
             val copyRegion = calloc(VkBufferImageCopy::calloc, 1)
             with(copyRegion[0]) {
                 bufferOffset(0L)
-                imageExtent().width(coalTex.width).height(coalTex.height).depth(1)
+                imageExtent().width(grass.width).height(grass.height).depth(1)
                 imageOffset().x(0).y(0).z(0)
                 imageSubresource()
                     .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)

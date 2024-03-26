@@ -35,9 +35,7 @@ class WorldRenderer(private val deviceUtil: VulkanDeviceUtil, private val descri
     }
 
 
-    fun recordComputeCommands(commandBuffer: CommandBuffer) = runMemorySafe {
-
-    }
+    fun recordComputeCommands(commandBuffer: CommandBuffer) {}
 
     fun recordRenderCommands(commandBuffer: CommandBuffer) = runMemorySafe {
         val pVertexBuffers = allocateLongValues(hullVertexBuffer.vkBufferHandle)
@@ -89,7 +87,7 @@ class WorldRenderer(private val deviceUtil: VulkanDeviceUtil, private val descri
         this.hullVertexBuffer = meshUploader.uploadBuffer(buf, BufferUsage.VERTEX_BUFFER)
 
         val positionsBufferConfig = VulkanBufferConfiguration(
-            256_000_000L,
+            1_000_000_000L,
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )

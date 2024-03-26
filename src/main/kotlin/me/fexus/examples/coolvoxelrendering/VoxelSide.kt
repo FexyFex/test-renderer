@@ -7,7 +7,7 @@ import me.fexus.math.vec.IVec3
 data class VoxelSide(
     val position: IVec3,
     val scale: IVec2,
-    val direction: VoxelSideDirection,
+    val direction: Direction,
     val textureIndex: Int
 ) {
 
