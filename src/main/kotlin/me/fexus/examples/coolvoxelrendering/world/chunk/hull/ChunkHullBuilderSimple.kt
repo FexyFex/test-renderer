@@ -1,13 +1,11 @@
 package me.fexus.examples.coolvoxelrendering.world.chunk.hull
 
-import me.fexus.examples.coolvoxelrendering.VoxelSide
-import me.fexus.examples.coolvoxelrendering.Direction
+import me.fexus.examples.coolvoxelrendering.world.VoxelSide
+import me.fexus.examples.coolvoxelrendering.world.Direction
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
 import me.fexus.math.vec.IVec2
 import me.fexus.math.vec.IVec3
 import me.fexus.voxel.VoxelOctree
-import me.fexus.voxel.type.VoidVoxel
-import me.fexus.voxel.type.VoxelType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -30,7 +28,7 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
             if (chunk.isFull && position.all { it in 1..14 }) return@forEachVoxel
             directions.forEach { dir ->
                 val nextPos = position + (dir.normal * scaling)
-                val nextVoxel: VoxelType
+                val nextVoxel: Int
                 if (nextPos.any { it < 0 || it > 15 }) {
                     val index = nextPos.indexOfFirst { it < 0 || it > 15 }
                     val nextChunk = if (nextPos[index] > 15) {
@@ -43,9 +41,9 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
                 } else {
                     nextVoxel = chunk.getVoxelAt(nextPos, maxDepth)
                 }
-                if (nextVoxel == VoidVoxel) {
+                if (nextVoxel == 0) {
                     val sidePos = position + (dir.sidePositionOffset * scaling)
-                    val side = VoxelSide(sidePos, IVec2(scaling), dir, voxel.id)
+                    val side = VoxelSide(sidePos, IVec2(scaling), dir, voxel)
                     val packed = side.packToInt()
 
                     buf.putInt(offset, packed)

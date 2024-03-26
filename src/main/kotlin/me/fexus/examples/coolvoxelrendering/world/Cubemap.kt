@@ -1,6 +1,6 @@
 package me.fexus.examples.coolvoxelrendering.world
 
-import me.fexus.examples.coolvoxelrendering.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.util.MeshUploader
 import me.fexus.examples.coolvoxelrendering.util.TextureUploader
 import me.fexus.memory.runMemorySafe

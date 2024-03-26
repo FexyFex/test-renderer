@@ -1,13 +1,12 @@
 package me.fexus.examples.coolvoxelrendering.world.rendering
 
-import me.fexus.examples.coolvoxelrendering.DescriptorFactory
-import me.fexus.examples.coolvoxelrendering.VoxelSide
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.world.VoxelSide
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.surroundsound.MeshUploader
 import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
-import me.fexus.voxel.VoxelOctree
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.pipeline.*

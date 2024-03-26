@@ -2,6 +2,8 @@ package me.fexus.examples.coolvoxelrendering
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.Globals
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.misc.TextureArray
 import me.fexus.examples.coolvoxelrendering.world.Cubemap
 import me.fexus.math.clamp
 import me.fexus.math.mat.Mat4

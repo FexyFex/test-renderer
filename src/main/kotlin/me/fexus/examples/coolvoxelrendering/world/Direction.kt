@@ -1,4 +1,4 @@
-package me.fexus.examples.coolvoxelrendering
+package me.fexus.examples.coolvoxelrendering.world
 
 import me.fexus.math.vec.IVec3
 

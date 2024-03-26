@@ -1,13 +1,11 @@
 package me.fexus.examples.coolvoxelrendering.world
 
 import me.fexus.examples.Globals
-import me.fexus.examples.coolvoxelrendering.CommandRecorder
-import me.fexus.examples.coolvoxelrendering.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.misc.CommandRecorder
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
-import me.fexus.voxel.VoxelRegistry
-import me.fexus.voxel.type.VoidVoxel
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.pipeline.ComputePipeline
@@ -218,9 +216,8 @@ class TerrainGeneratorGPU(
                 repeatCubed(Chunk.EXTENT) { x, y, z ->
                     val offset = (x + (y * Chunk.EXTENT) + (z * Chunk.EXTENT * Chunk.EXTENT)) * BYTES_PER_VOXEL
                     val voxelID = buffer.getInt(chunkOffset + offset)
-                    val voxel = VoxelRegistry.getVoxelByID(voxelID) ?: VoidVoxel
-                    if (voxel == VoidVoxel) isChunkFull = false
-                    chunk.setVoxelAt(x, y, z, voxel)
+                    if (voxelID == 0) isChunkFull = false
+                    chunk.setVoxelAt(x, y, z, voxelID)
                 }
 
                 chunk.isFull = isChunkFull

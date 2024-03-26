@@ -1,4 +1,4 @@
-package me.fexus.examples.coolvoxelrendering
+package me.fexus.examples.coolvoxelrendering.misc
 
 import me.fexus.memory.runMemorySafe
 import me.fexus.texture.TextureLoader

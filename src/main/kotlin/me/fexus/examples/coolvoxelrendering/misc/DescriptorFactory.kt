@@ -1,4 +1,4 @@
-package me.fexus.examples.coolvoxelrendering
+package me.fexus.examples.coolvoxelrendering.misc
 
 import me.fexus.examples.Globals
 import me.fexus.vulkan.VulkanDeviceUtil

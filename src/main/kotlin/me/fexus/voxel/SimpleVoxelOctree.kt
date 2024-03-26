@@ -7,13 +7,13 @@ import me.fexus.math.vec.Vec3
 import me.fexus.voxel.octree.*
 
 
-open class SparseVoxelOctree: VoxelOctree {
+open class SimpleVoxelOctree: VoxelOctree<VoxelType> {
     val octree = OctreeRootNode(IVec3(0), OctreeNodeDataVoxelType(VoidVoxel))
 
-    override fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType) = setVoxelAt(IVec3(x,y,z), voxelType)
-    override fun setVoxelAt(pos: IVec3, voxelType: VoxelType) {
+    override fun setVoxelAt(x: Int, y: Int, z: Int, value: VoxelType) = setVoxelAt(IVec3(x,y,z), value)
+    override fun setVoxelAt(pos: IVec3, value: VoxelType) {
         assertCoords(pos)
-        insertIntoOctreeRec(pos, voxelType, octree, 0)
+        insertIntoOctreeRec(pos, value, octree, 0)
     }
     private fun insertIntoOctreeRec(pos: IVec3, voxelType: VoxelType, parentNode: IOctreeParentNode<OctreeNodeDataVoxelType>, mipLevel: Int) {
         val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, mipLevel)

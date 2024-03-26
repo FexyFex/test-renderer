@@ -6,7 +6,7 @@ import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelZeroToOne
-import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.SimpleVoxelOctree
 import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.VoxelRegistry
 import me.fexus.voxel.octree.buffer.buildSVOBuffer
@@ -75,7 +75,7 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
 
     private val camera = CameraPerspective(window.aspect)
 
-    private val randomChunk = SparseVoxelOctree()
+    private val randomChunk = SimpleVoxelOctree()
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer

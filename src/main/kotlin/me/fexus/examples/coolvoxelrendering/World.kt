@@ -1,13 +1,15 @@
 package me.fexus.examples.coolvoxelrendering
 
+import me.fexus.examples.coolvoxelrendering.misc.CommandRecorder
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.world.Chunk
 import me.fexus.examples.coolvoxelrendering.world.ChunkHullingThread
+import me.fexus.examples.coolvoxelrendering.world.Direction
 import me.fexus.examples.coolvoxelrendering.world.TerrainGeneratorGPU
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
 import me.fexus.examples.coolvoxelrendering.world.rendering.WorldRenderer
 import me.fexus.math.repeat3D
-import me.fexus.math.repeatCubed
 import me.fexus.math.vec.IVec3
 import me.fexus.voxel.VoxelOctree
 import me.fexus.vulkan.VulkanDeviceUtil
@@ -15,7 +17,8 @@ import me.fexus.vulkan.component.CommandBuffer
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
-class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory): CommandRecorder {
+class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory):
+    CommandRecorder {
     private val terrainGenerator = TerrainGeneratorGPU(deviceUtil, descriptorFactory)
     private val chunks = mutableMapOf<IVec3, Chunk>()
 

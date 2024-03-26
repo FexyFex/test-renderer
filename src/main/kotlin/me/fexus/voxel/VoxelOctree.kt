@@ -6,14 +6,14 @@ import kotlin.math.log2
 import kotlin.math.roundToInt
 
 
-interface VoxelOctree {
-    fun setVoxelAt(x: Int, y: Int, z: Int, voxelType: VoxelType)
-    fun setVoxelAt(pos: IVec3, voxelType: VoxelType)
+interface VoxelOctree<T> {
+    fun setVoxelAt(x: Int, y: Int, z: Int, value: T)
+    fun setVoxelAt(pos: IVec3, value: T)
 
-    fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int = MAX_DEPTH): VoxelType
-    fun getVoxelAt(pos: IVec3, maxMipLevel: Int = MAX_DEPTH): VoxelType
+    fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int = MAX_DEPTH): T
+    fun getVoxelAt(pos: IVec3, maxMipLevel: Int = MAX_DEPTH): T
 
-    fun forEachVoxel(maxDepth: Int, action: (position: IVec3, voxel: VoxelType) -> Unit)
+    fun forEachVoxel(maxDepth: Int, action: (position: IVec3, voxel: T) -> Unit)
 
     companion object {
         const val EXTENT = 16

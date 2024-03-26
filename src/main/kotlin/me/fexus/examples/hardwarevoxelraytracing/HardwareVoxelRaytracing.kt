@@ -7,7 +7,7 @@ import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.CubeModelPositionsOnly
 import me.fexus.texture.TextureLoader
-import me.fexus.voxel.SparseVoxelOctree
+import me.fexus.voxel.SimpleVoxelOctree
 import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.octree.buffer.buildSVOBuffer
 import me.fexus.voxel.octree.buffer.createIndexedOctree
@@ -84,7 +84,7 @@ class HardwareVoxelRaytracing: VulkanRendererBase(createWindow()) {
 
     private val camera = CameraPerspective(window.aspect)
 
-    private val chunk = SparseVoxelOctree()
+    private val chunk = SimpleVoxelOctree()
 
     private lateinit var depthAttachment: VulkanImage
     private lateinit var vertexBuffer: VulkanBuffer
