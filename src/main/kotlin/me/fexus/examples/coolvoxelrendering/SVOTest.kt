@@ -9,20 +9,23 @@ import me.fexus.voxel.VoxelOctree
 fun main() {
     val svo = Chunk(IVec3(0))
 
-    repeatCubed(6) { x, y, z ->
-        svo.setVoxelAt(IVec3(x, y, z) * 2, 1)
+    repeatCubed(4) { x, y, z ->
+        svo.setVoxelAt(IVec3(x, y, z), 1)
     }
-
-    println(svo.getVoxelAt(2,2,2))
-
+    repeatCubed(4) { x, y, z ->
+        svo.setVoxelAt(IVec3(x, y, z) + 1, 0)
+    }
+    svo.setVoxelAt(1,1,1, 0)
 
     println("----------------")
 
     var count = 0
     svo.forEachVoxel(VoxelOctree.MAX_DEPTH) { position, voxel ->
-        println("Voxel $voxel at position $position")
+        println(position)
+        if (svo.getVoxelAt(position) != 1) println("MISTAKE AT $position")
         count ++
     }
-
     println(count)
+
+    println("----------------")
 }

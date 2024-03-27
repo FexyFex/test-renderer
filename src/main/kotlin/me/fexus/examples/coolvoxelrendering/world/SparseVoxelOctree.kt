@@ -13,28 +13,28 @@ open class SparseVoxelOctree: VoxelOctree<Int> {
     override fun setVoxelAt(x: Int, y: Int, z: Int, value: Int) = setVoxelAt(IVec3(x,y,z), value)
     override fun setVoxelAt(pos: IVec3, value: Int) {
         assertCoords(pos)
-        insertIntoOctreeRec(pos, value, octree, 1)
+        insertIntoOctreeRec(pos, value, octree, 0)
     }
-    private fun insertIntoOctreeRec(pos: IVec3, value: Int, parentNode: IOctreeParentNode<Int>, mipLevel: Int) {
+    private fun insertIntoOctreeRec(pos: IVec3, value: Int, parentNode: IOctreeParentNode<Int>, depthLevel: Int) {
         if (value != 0 && parentNode.nodeData == value) return
-        val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, mipLevel)
+        val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, depthLevel)
 
         val targetNode = parentNode.children[posIndex]
         if (value != 0 && targetNode != null && targetNode.nodeData == value) return
         if (targetNode == null) {
             if (value != 0) {
                 parentNode.children[posIndex] =
-                    if (mipLevel >= VoxelOctree.MAX_DEPTH) {
+                    if (depthLevel >= (VoxelOctree.MAX_DEPTH - 1)) {
                         OctreeLeafNode(pos, value)
                     } else {
                         val newNode = OctreeForkNode(pos, 0)
-                        insertIntoOctreeRec(pos, value, newNode, mipLevel + 1)
+                        insertIntoOctreeRec(pos, value, newNode, depthLevel + 1)
                         newNode
                     }
             }
         } else {
             if (targetNode is IOctreeParentNode) {
-                insertIntoOctreeRec(pos, value, targetNode, mipLevel + 1)
+                insertIntoOctreeRec(pos, value, targetNode, depthLevel + 1)
             } else {
                 if (value == 0)
                     parentNode.children[posIndex] = null
@@ -44,20 +44,23 @@ open class SparseVoxelOctree: VoxelOctree<Int> {
         }
 
         // Clear children if they are all the same
-        if (parentNode.children.count { it == null || it.nodeData == 0 } < 8) {
-            parentNode.nodeData = 0
-        }
+        //if (parentNode.children.count { it == null || it.nodeData == 0 } in 1..7) {
+        //    parentNode.nodeData = 0
+        //}
 
-        if (value != 0 && parentNode.children.all { it != null && it.nodeData == value }) {
-            parentNode.children.fill(null)
-            parentNode.nodeData = value
-        }
+        //if (value != 0 && parentNode.children.all { it != null && it.nodeData == value }) {
+        //    parentNode.children.fill(null)
+        //    parentNode.nodeData = value
+        //}
+    }
+    private fun splitNodesRec() {
+
     }
 
     override fun getVoxelAt(x: Int, y: Int, z: Int, maxMipLevel: Int) = getVoxelAt(IVec3(x,y,z), maxMipLevel)
     override fun getVoxelAt(pos: IVec3, maxMipLevel: Int): Int {
         assertCoords(pos)
-        return getVoxelAtRec(pos, octree, maxMipLevel, 1)
+        return getVoxelAtRec(pos, octree, maxMipLevel, 0)
     }
     private fun getVoxelAtRec(pos: IVec3, parentNode: IOctreeParentNode<Int>, maxMipLevel: Int, mipLevel: Int): Int {
         val posIndex = getOctantIndexByGlobalPositionInMipLevel(pos, mipLevel)
@@ -66,7 +69,7 @@ open class SparseVoxelOctree: VoxelOctree<Int> {
 
         val targetNode = parentNode.children[posIndex] ?: return 0
 
-        if (mipLevel >= maxMipLevel) return targetNode.nodeData
+        if (mipLevel >= maxMipLevel - 1) return targetNode.nodeData
 
         return if (targetNode is IOctreeParentNode) {
             getVoxelAtRec(pos, targetNode, maxMipLevel, mipLevel + 1)
@@ -106,8 +109,9 @@ open class SparseVoxelOctree: VoxelOctree<Int> {
         if (!parent.hasChildren || isFinalDepthLevel) {
             if (parent.nodeData != 0) {
                 val times = parentExtent ushr (VoxelOctree.MAX_DEPTH - maxDepth)
+                val mult = VoxelOctree.EXTENT ushr maxDepth
                 repeatCubed(times) { x, y, z ->
-                    val offset = IVec3(x,y,z)
+                    val offset = IVec3(x,y,z) * mult
                     action(parentPos + offset, parent.nodeData)
                 }
             }
@@ -149,7 +153,7 @@ open class SparseVoxelOctree: VoxelOctree<Int> {
 
 
     companion object {
-        private fun Boolean.toInt() = if(this) 1 else 0
+        private fun Boolean.toInt() = if (this) 1 else 0
 
         private val IOctreeParentNode<Int>.hasSubVoxels: Boolean
             get() = this.children.any { it != null && it.nodeData != 0 }

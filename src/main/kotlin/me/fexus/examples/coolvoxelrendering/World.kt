@@ -36,8 +36,8 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<IVec3>()
-        repeat3D(24, 12, 24) { x, y, z ->
-            chunksToGenerate.add(IVec3(x,y,z) - IVec3(12, 6, 12))
+        repeat3D(4,4,4) { x, y, z ->
+            chunksToGenerate.add(IVec3(x,y,z) - IVec3(2, 4, 2))
         }
         terrainGenerator.submitChunksForGeneration(chunksToGenerate)
     }
@@ -57,7 +57,7 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
                 surroundingChunks.add(nextChunk)
             }
             it.submittedForHulling = true
-            val depth = VoxelOctree.MAX_DEPTH - 2//if (it.position.length > 16) VoxelOctree.MAX_DEPTH - 1 else VoxelOctree.MAX_DEPTH
+            val depth = VoxelOctree.MAX_DEPTH//if (it.position.length > 16) VoxelOctree.MAX_DEPTH - 1 else VoxelOctree.MAX_DEPTH
             chunkHullingInputQueue.add(ChunkHullingPacket(it, surroundingChunks, depth))
         }
 
