@@ -1,5 +1,6 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 
 
 struct WorldInfo {
@@ -28,15 +29,16 @@ const vec3 dirs[6] = vec3[6](
 layout (location = 0) in vec3 inPosition;
 layout (location = 1) in vec2 inTexCoords;
 
-layout (set = 0, binding = 0) uniform UBO { WorldInfo info; } cameraBuffer;
-layout (set = 0, binding = 3) buffer PositionBuffer { uint positions[]; } positionBuffer[16];
+layout (set = 0, binding = 0) uniform UBO { WorldInfo info; } cameraBuffer[];
+layout (set = 0, binding = 3) buffer ChunkBuffer { ivec4 chunkPos[]; } chunkPosBuf[];
+layout (set = 0, binding = 3) buffer PositionBuffer { uint positions[]; } sidePosBuffer[];
 
 layout (push_constant) uniform PushConstants {
-    uint positionsBufferIndex;
-    uint firstInstance;
-    int chunkX;
-    int chunkY;
-    int chunkZ;
+    uint cameraBufferIndex;
+    uint objInfoBufferIndex;
+    uint commandBufferIndex;
+    uint chunkPosBufferIndex;
+    uint sidePosBufferIndex;
 };
 
 layout (location = 0) out vec2 outTexCoords;
@@ -57,8 +59,10 @@ SideInfo unpack(uint packed) {
 }
 
 void main() {
-    WorldInfo world = cameraBuffer.info;
-    uint packedInt = positionBuffer[positionsBufferIndex].positions[firstInstance + gl_InstanceIndex];
+    ivec4 chunkPos = chunkPosBuf[chunkPosBufferIndex].chunkPos[gl_DrawID];
+
+    WorldInfo world = cameraBuffer[cameraBufferIndex].info;
+    uint packedInt = sidePosBuffer[sidePosBufferIndex].positions[gl_InstanceIndex];
 
     SideInfo side = unpack(packedInt);
     vec3 normal = dirs[side.dirIndex];
@@ -72,7 +76,6 @@ void main() {
         scaling.y = side.scaling.y;
         outSideLight = 1.5;
         if (normal.x > 0.0) {
-            //rotatedPos.x = 1.0 - rotatedPos.x - 1.0;
             rotatedPos.z = 1.0 - rotatedPos.z;
         }
     } else if (normal.y != 0.0) {
@@ -96,7 +99,7 @@ void main() {
         }
     }
 
-    vec3 position = (rotatedPos * scaling) + side.position + (vec3(chunkX, chunkY, chunkZ) * 16.0);
+    vec3 position = (rotatedPos * scaling) + side.position + (chunkPos.xyz);
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 

@@ -73,10 +73,17 @@ class Device {
                 dynamicRenderingFeatures.pNext(rayTracingFeatures.address())
             }
 
+            val features1 = calloc(VkPhysicalDeviceVulkan11Features::calloc) {
+                sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES)
+                pNext(dynamicRenderingFeatures.address())
+                shaderDrawParameters(true)
+            }
+
             val features2 = calloc(VkPhysicalDeviceVulkan12Features::calloc) {
                 sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
-                pNext(dynamicRenderingFeatures.address())
+                pNext(features1.address())
                 bufferDeviceAddress(BufferDeviceAddressKHR in extensions)
+                runtimeDescriptorArray(true)
                 if (DescriptorIndexingEXT in extensions) {
                     descriptorIndexing(true)
                     descriptorBindingPartiallyBound(true)

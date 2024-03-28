@@ -1,5 +1,6 @@
 package me.fexus.examples.coolvoxelrendering
 
+import me.fexus.camera.CameraPerspective
 import me.fexus.examples.coolvoxelrendering.misc.CommandRecorder
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.world.Chunk
@@ -10,7 +11,7 @@ import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
 import me.fexus.examples.coolvoxelrendering.world.generation.BlockTypePlacementVerifier
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
-import me.fexus.examples.coolvoxelrendering.world.rendering.WorldRenderer
+import me.fexus.examples.coolvoxelrendering.world.WorldRenderer
 import me.fexus.math.repeat3D
 import me.fexus.math.vec.IVec3
 import me.fexus.voxel.VoxelOctree
@@ -23,7 +24,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class World(
     private val deviceUtil: VulkanDeviceUtil,
     private val descriptorFactory: DescriptorFactory,
-    private val voxelRegistry: VoxelRegistry
+    private val voxelRegistry: VoxelRegistry,
+    private val camera: CameraPerspective,
 ): CommandRecorder {
     private val terrainGenerator = TerrainGeneratorGPU(deviceUtil, descriptorFactory)
     private val allChunks = mutableMapOf<ChunkPosition, Chunk>()
@@ -35,7 +37,7 @@ class World(
     private val chunkHullingOutputQueue = ConcurrentLinkedQueue<ChunkHull>()
     private val hullingThreads = Array(1) { ChunkHullingThread(chunkHullingInputQueue, chunkHullingOutputQueue) }
 
-    private val renderer = WorldRenderer(deviceUtil, descriptorFactory)
+    private val renderer = WorldRenderer(deviceUtil, descriptorFactory, camera)
 
 
     fun init() {
@@ -45,7 +47,7 @@ class World(
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
-        val horizontal = 16
+        val horizontal = 34
         val vertical = 9
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
             chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))
@@ -54,14 +56,29 @@ class World(
     }
 
 
+    private var previousChunksForHullingSize = 0
+    private var waitUntil: Long = 0L
     override fun recordComputeCommands(commandBuffer: CommandBuffer, frameIndex: Int) {
-        renderer.recordComputeCommands(commandBuffer)
+        renderer.recordComputeCommands(commandBuffer, frameIndex)
         terrainGenerator.recordComputeCommands(commandBuffer, frameIndex)
 
         terrainGenerator.getFinishedChunks().forEach {
             allChunks[it.position] = it
             candidateChunksForHulling[it.position] = it
         }
+
+        val newlyHulledChunks: List<ChunkHull> = List(chunkHullingOutputQueue.size) { chunkHullingOutputQueue.poll() }
+        newlyHulledChunks.forEach { if (it.data.instanceCount > 0) renderer.submitChunkHull(it) }
+
+        // --- Heuristically scan for a possible pause in case some chunks cannot be hulled
+        if (System.nanoTime() < waitUntil) return
+
+        val size = candidateChunksForHulling.size
+        if (this.previousChunksForHullingSize == size) {
+            waitUntil = System.nanoTime() + 500_000_000
+        }
+        this.previousChunksForHullingSize = size
+        // --- Heuristically scan for a possible pause in case some chunks cannot be hulled
 
         val chunksToSubmit = mutableListOf<ChunkHullingPacket>()
         val chunksToVerify = mutableMapOf<ChunkPosition, Chunk>()
@@ -82,13 +99,10 @@ class World(
             chunkHullingInputQueue.add(it)
             candidateChunksForHulling.remove(it.chunk.position)
         }
-
-        val newlyHulledChunks: List<ChunkHull> = List(chunkHullingOutputQueue.size) { chunkHullingOutputQueue.poll() }
-        newlyHulledChunks.forEach { if (it.data.instanceCount > 0) renderer.submitChunkHull(it) }
     }
 
     override fun recordGraphicsCommands(commandBuffer: CommandBuffer, frameIndex: Int) {
-        renderer.recordRenderCommands(commandBuffer)
+        renderer.recordRenderCommands(commandBuffer, frameIndex)
     }
 
 

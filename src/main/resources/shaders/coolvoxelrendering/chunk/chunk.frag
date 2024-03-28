@@ -13,7 +13,7 @@ layout (location = 0) out vec4 outColor;
 
 
 void main() {
-    outColor = texture(sampler2DArray(textures[0], samplers[1]), vec3(inTexCoords, float(textureIndex)));
+    outColor = texture(sampler2DArray(textures[0], samplers[0]), vec3(inTexCoords, float(textureIndex)));
     outColor.xyz *= inSideLight;
 
 }

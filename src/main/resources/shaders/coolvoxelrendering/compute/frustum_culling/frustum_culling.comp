@@ -5,16 +5,15 @@
 struct GeneralInfo {
     mat4 view;
     mat4 proj;
-    ivec3 cameraChunkPos;
 };
 
 struct ObjectInfo {
     ivec3 pos;
-    int extent;
-    int indexCount;
-    int firstIndex;
-    int firstVertex;
-    int dummy; // 32 byte alignment. Hope it works.
+    int instanceCount;
+    int firstInstance;
+    int dum1;
+    int dum2;
+    int dum3;
 };
 
 struct Plane {
@@ -36,37 +35,28 @@ struct AABB {
     vec3 extents;
 };
 
-struct DrawIndexedIndirectCommand {
-    int indexCount;
+struct DrawIndirectCommand {
+    int vertexCount;
     int instanceCount;
-    int firstIndex;
     int firstVertex;
     int firstInstance;
 };
 
-struct ChunkPos {
-    ivec4 chunkPos;
-    ivec4 dummy;
-};
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } uniformBuffers[];
-layout (set = 1, binding = 0) uniform texture2D textures[];
-layout (set = 2, binding = 0) uniform sampler samplers[];
-layout (set = 3, binding = 0) buffer InSBO { ObjectInfo objInfo[]; } inBuf[];
-layout (set = 3, binding = 0) buffer OutSBO { DrawIndexedIndirectCommand commands[]; } outBuf[];
-layout (set = 3, binding = 0) buffer PosSBO { ChunkPos chunkPos[]; } posBuf[];
+layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } cameraBuffer[];
+layout (set = 0, binding = 3) buffer InSBO { ObjectInfo objInfos[]; } objInfoBuf[];
+layout (set = 0, binding = 3) buffer OutSBO { ivec4 commands[]; } outBuf[];
+layout (set = 0, binding = 3) buffer PosSBO { ivec4 chunkPos[]; } posBuf[];
 
 layout(push_constant) uniform PushConstants{
-    uint indices;
+    uint cameraBufferIndex;
+    uint objInfoBufferIndex;
+    uint commandBufferIndex;
+    uint chunkPosBufferIndex;
+    uint sidePosBufferIndex;
 };
-
-
-uint getIndex(int indexSlot) {
-    int shift = (8 * indexSlot);
-    return (indices & (255 << shift)) >> shift;
-}
 
 vec3 unproject(vec3 sp, mat4 invView, mat4 invProj) {
     vec4 vp = invProj * vec4(sp, 1.0);
@@ -81,7 +71,7 @@ vec4 plane(vec3 p0, vec3 p1, vec3 p2) {
 Frustum createFrustum() {
     Frustum frustum;
 
-    GeneralInfo cam = uniformBuffers[getIndex(0)].info;
+    GeneralInfo cam = cameraBuffer[cameraBufferIndex].info;
 
     mat4 invView = inverse(cam.view);
     mat4 invProj = inverse(cam.proj);
@@ -114,9 +104,9 @@ Frustum createFrustum() {
 
 AABB createAABB(ObjectInfo obj, ivec3 cameraPos) {
     AABB aabb;
-    vec3 pos = obj.pos - cameraPos;
-    aabb.center = vec3(pos.x + (obj.extent / 2.0), pos.y + (obj.extent / 2.0), pos.z +(obj.extent / 2.0));
-    aabb.extents = vec3(obj.extent / 2.0, obj.extent / 2.0, obj.extent / 2.0);
+    vec3 pos = obj.pos;// - cameraPos;
+    aabb.center = vec3(pos.x + 8.0, pos.y + 8.0, pos.z + 8.0);
+    aabb.extents = vec3(8.0, 8.0, 8.0);
     return aabb;
 }
 
@@ -132,23 +122,13 @@ bool isInFrontOfPlane(AABB aabb, vec4 plane) {
 void main() {
     uint gID = gl_GlobalInvocationID.x;
 
-    ObjectInfo objInfo = inBuf[getIndex(1)].objInfo[gID];
-
-    DrawIndexedIndirectCommand drawCommand;
-    drawCommand.indexCount = objInfo.indexCount;
-    drawCommand.instanceCount = 0;
-    drawCommand.firstInstance = 0;
-    drawCommand.firstIndex = objInfo.firstIndex;
-    drawCommand.firstVertex = objInfo.firstVertex;
+    ObjectInfo objInfo = objInfoBuf[objInfoBufferIndex].objInfos[gID];
+    objInfo.pos *= 16;
 
     // calculation for frustum culling
-    GeneralInfo cam = uniformBuffers[getIndex(0)].info;
+    GeneralInfo cam = cameraBuffer[cameraBufferIndex].info;
     Frustum frustum = createFrustum();
-    AABB aabb = createAABB(objInfo, cam.cameraChunkPos * 16);
-
-    //vec3 right = vec3(aabb.extents.x, 0.0, 0.0);
-    //vec3 up = vec3(0.0, aabb.extents.y, 0.0);
-    //vec3 forward = vec3(0.0, 0.0, aabb.extents.z);
+    AABB aabb = createAABB(objInfo, /*cam.cameraChunkPos * 16*/ ivec3(0));
 
     bool isInView =
         isInFrontOfPlane(aabb, frustum.leftFace) &&
@@ -158,14 +138,8 @@ void main() {
         isInFrontOfPlane(aabb, frustum.nearFace) &&
         isInFrontOfPlane(aabb, frustum.farFace);
 
-    if (isInView) {
-        drawCommand.instanceCount = 1;
-        drawCommand.firstInstance = int(gID);
-    }
+    int instanceCount = int(isInView) * objInfo.instanceCount;
 
-    ChunkPos chunkThingy;
-    chunkThingy.chunkPos = ivec4(objInfo.pos, 0);
-    posBuf[getIndex(3)].chunkPos[gID] = chunkThingy;
-
-    outBuf[getIndex(2)].commands[gID] = drawCommand;
+    outBuf[commandBufferIndex].commands[gID] = ivec4(4, instanceCount, 0, objInfo.firstInstance);
+    posBuf[chunkPosBufferIndex].chunkPos[gID] = ivec4(objInfo.pos, 0);
 }

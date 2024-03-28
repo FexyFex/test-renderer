@@ -26,7 +26,6 @@ class BlockTypePlacementVerifier {
 
     private fun placeSoil(chunkPair: ChunkSoilReplacementPair) {
         val (lowerChunk, upperChunk) = chunkPair
-        if (lowerChunk.position == ChunkPosition(-4, -1, -7)) println("is being worked on")
 
         for (x in 0 until Chunk.EXTENT) {
             for (z in 0 until Chunk.EXTENT) {

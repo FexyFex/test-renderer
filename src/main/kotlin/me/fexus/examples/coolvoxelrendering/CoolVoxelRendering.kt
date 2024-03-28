@@ -97,7 +97,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     private val textureArray = VoxelTextureArray(deviceUtil, descriptorFactory, voxelRegistry)
 
-    private val world = World(deviceUtil, descriptorFactory, voxelRegistry)
+    private val world = World(deviceUtil, descriptorFactory, voxelRegistry, camera)
 
     private val inputHandler = InputHandler(window)
 
@@ -139,12 +139,6 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         createDescriptorSetLayout()
         descriptorFactory.init()
 
-        textureArray.init()
-        cubemap.init()
-        world.init()
-
-        createAttachments()
-
         // -- CAMERA BUFFER --
         val cameraBufferConfig = VulkanBufferConfiguration(
             144L,
@@ -158,6 +152,12 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         val nearSamplerConfig = VulkanSamplerConfiguration(AddressMode.REPEAT, 1, Filtering.NEAREST)
         this.nearSampler = descriptorFactory.createSampler(nearSamplerConfig)
         // -- SAMPLERS --
+
+        textureArray.init()
+        cubemap.init()
+        world.init()
+
+        createAttachments()
     }
 
     private fun createAttachments() {
@@ -192,7 +192,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             listOf(
                 DescriptorSetLayoutBinding(
                     0, 4, DescriptorType.UNIFORM_BUFFER,
-                    ShaderStage.VERTEX, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.VERTEX + ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
                     1, 16, DescriptorType.SAMPLED_IMAGE,
@@ -328,6 +328,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
         vkBeginCommandBuffer(commandBuffer.vkHandle, cmdBeginInfo)
 
+        val pDescriptorSets = allocateLongValues(descriptorFactory.descriptorSets[currentFrame].vkHandle)
+
         world.recordComputeCommands(commandBuffer, currentFrame)
 
         val swapToRenderingBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
@@ -363,8 +365,6 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
             val scissor = calloc(VkRect2D::calloc, 1)
             scissor[0].offset().x(0).y(0)
             scissor[0].extent().width(width).height(height)
-
-            val pDescriptorSets = allocateLongValues(descriptorFactory.descriptorSets[currentFrame].vkHandle)
 
             vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
             vkCmdSetScissor(commandBuffer.vkHandle, 0, scissor)
