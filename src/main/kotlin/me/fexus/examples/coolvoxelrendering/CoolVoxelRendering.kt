@@ -3,7 +3,7 @@ package me.fexus.examples.coolvoxelrendering
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.Globals
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
-import me.fexus.examples.coolvoxelrendering.misc.TextureArray
+import me.fexus.examples.coolvoxelrendering.misc.VoxelTextureArray
 import me.fexus.examples.coolvoxelrendering.world.Cubemap
 import me.fexus.math.clamp
 import me.fexus.math.mat.Mat4
@@ -57,6 +57,7 @@ import java.nio.ByteOrder
  * visible side. I dubbed this a "hull" instead of a "mesh" in an ettempt to avoid confusion.
  * The algorithm for creating the hull is much the same as in the traditional meshing approach except for the fact
  * that we compress the data for each side into a single integer instead of writing vertices for a mesh.
+ * This saves a good amount of memory (typically between 40% - 80%) over meshing but is limited to only full blocks.
  */
 class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscriber {
     companion object {
@@ -82,6 +83,8 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private val camera = CameraPerspective(window.aspect)
     private val player = Player()
 
+    private val voxelRegistry = VoxelRegistry()
+
     private val descriptorPool = DescriptorPool()
     private val descriptorSetLayout = DescriptorSetLayout()
     private val descriptorFactory = DescriptorFactory(deviceUtil, descriptorPool, descriptorSetLayout)
@@ -92,9 +95,9 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private lateinit var cameraBuffers: Array<VulkanBuffer>
     private lateinit var nearSampler: VulkanSampler
 
-    private val textureArray = TextureArray(deviceUtil, descriptorFactory)
+    private val textureArray = VoxelTextureArray(deviceUtil, descriptorFactory, voxelRegistry)
 
-    private val world = World(deviceUtil, descriptorFactory)
+    private val world = World(deviceUtil, descriptorFactory, voxelRegistry)
 
     private val inputHandler = InputHandler(window)
 
@@ -127,7 +130,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     }
 
     private fun initObjects() {
-        VoxelRegistry.init()
+        voxelRegistry.init()
         subscribe(inputHandler)
 
         player.position.y = 100f

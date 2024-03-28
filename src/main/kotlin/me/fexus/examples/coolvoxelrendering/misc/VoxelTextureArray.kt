@@ -17,12 +17,16 @@ import org.lwjgl.vulkan.VkImageMemoryBarrier
 import org.lwjgl.vulkan.VkImageSubresourceRange
 
 
-class TextureArray(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory) {
+class VoxelTextureArray(
+    private val deviceUtil: VulkanDeviceUtil,
+    private val descriptorFactory: DescriptorFactory,
+    private val voxelRegistry: VoxelRegistry
+) {
     lateinit var image: VulkanImage
 
 
     fun init() {
-        val layerCount = VoxelRegistry.voxelCount
+        val layerCount = voxelRegistry.voxelCount
         val cloudTex = TextureLoader("textures/coolvoxelrendering/cloud.png")
         val grass = TextureLoader("textures/coolvoxelrendering/grass.png")
         val stoneTex = TextureLoader("textures/coolvoxelrendering/stone.png")

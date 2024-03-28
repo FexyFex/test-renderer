@@ -92,7 +92,7 @@ class VulkanDeviceUtil(
         )
 
         val stagingBuffer = bufferFactory.createBuffer(stagingLayout)
-        assignName(stagingBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "staging_buffer_for_copy")
+        //assignName(stagingBuffer.vkBufferHandle, VK_OBJECT_TYPE_BUFFER, "staging_buffer_for_copy")
 
         stagingBuffer.put(srcOffset.toInt(), srcData)
 

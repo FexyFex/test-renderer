@@ -5,7 +5,7 @@ import me.fexus.voxel.type.VoidVoxel
 import me.fexus.voxel.type.VoxelType
 
 
-object VoxelRegistry {
+class VoxelRegistry {
     private val registeredVoxels = Array<VoxelType?>(63) { null }
     private var nextID = 0
     var voxelCount: Int = 0; private set
@@ -20,7 +20,7 @@ object VoxelRegistry {
             .flatMap { it.sealedSubclasses + it }
             .mapNotNull { it.objectInstance }
 
-        voxelTypes.forEach(VoxelRegistry::registerVoxel)
+        voxelTypes.forEach(this::registerVoxel)
     }
 
 

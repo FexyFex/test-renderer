@@ -1,3 +1,8 @@
 #define VOID_VOXEL_INDEX 0
 #define STONE_VOXEL_INDEX 1
 #define GRASS_VOXEL_INDEX 2
+#define DIRT_VOXEL_INDEX 3
+
+#define VOXEL_FLAG_SOIL 1
+#define VOXEL_FLAG_CAVE 2
+

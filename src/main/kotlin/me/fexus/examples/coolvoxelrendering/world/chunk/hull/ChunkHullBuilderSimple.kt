@@ -24,11 +24,15 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
         var instanceCount = 0
         var offset = 0
 
-        chunk.forEachVoxel(maxDepth) { position, voxel ->
+        chunk.forEachVoxel(maxDepth) { position, value ->
+            val voxel = value and 65535
+            val flags = value ushr 16
+            if (voxel == 0) return@forEachVoxel
+
             if (chunk.isFull && position.all { it in 1..14 }) return@forEachVoxel
             directions.forEach { dir ->
                 val nextPos = position + (dir.normal * scaling)
-                val nextVoxel: Int
+                val nextValue: Int
                 if (nextPos.any { it < 0 || it > 15 }) {
                     val index = nextPos.indexOfFirst { it < 0 || it > 15 }
                     val nextChunk = if (nextPos[index] > 15) {
@@ -37,10 +41,11 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
                         surroundingChunks[index + 3]
                     }
                     val transformedPos = nextPos.floorMod(IVec3(16))
-                    nextVoxel = nextChunk.getVoxelAt(transformedPos, maxDepth)
+                    nextValue = nextChunk.getVoxelAt(transformedPos, maxDepth)
                 } else {
-                    nextVoxel = chunk.getVoxelAt(nextPos, maxDepth)
+                    nextValue = chunk.getVoxelAt(nextPos, maxDepth)
                 }
+                val nextVoxel = nextValue and 65535
                 if (nextVoxel == 0) {
                     val sidePos = position + (dir.sidePositionOffset * scaling)
                     val side = VoxelSide(sidePos, IVec2(scaling), dir, voxel)

@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../noise.glsl"
+#include "./voxel_list.glsl"
 
 
 // Supply a high default value because we can only go lower when used to supply array sizes...
@@ -44,6 +45,10 @@ void outputVoxel(uint index, int id) {
     chunkDataBuffer[chunkBufferIndex].data[index] = id;
 }
 
+int getVoxelAt(uint index) {
+    return chunkDataBuffer[chunkBufferIndex].data[index];
+}
+
 float caveNoise3D(vec3 pos) {
     return simplex_noise3D(
         pos,
@@ -76,7 +81,6 @@ float caveRoomsNoise3D(vec3 pos) {
     );
 }
 
-
 void main() {
     uint chunkFirstBlock = (BYTES_PER_VOXEL * VOXELS_PER_CHUNK * chunkIndex) / 4;
 
@@ -90,6 +94,8 @@ void main() {
 
     // Terrain gen here
     vec3 pos = vec3(blockGlobalPos);
+    uint currentBlock = getVoxelAt(blockGlobalOffset);
+    if ((currentBlock & 65535) == 0) return; // no need to carve a cave into nothing
 
     float cave1 = caveNoise3D(pos);
     cave1 = float(cave1 > start && cave1 < end) * ((dist - abs(cave1 - mid)) / dist);
@@ -108,5 +114,5 @@ void main() {
     float rooms = caveRoomsNoise3D(pos);
     float transformedY = clamp((pos.y + 500.0) * 0.001, 0.0, 0.087) + 0.25;
     float t = mix(transformedY, speleo, rooms);
-    if (t < 0 || cave) outputVoxel(blockGlobalOffset, 0);
+    if (t < 0 || cave) outputVoxel(blockGlobalOffset, (VOXEL_FLAG_CAVE << 16));
 }

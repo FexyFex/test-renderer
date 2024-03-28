@@ -61,7 +61,9 @@ void main() {
         ivec3 nextPos = ivec3(blockLocalPos);
         nextPos.y = int(nextPos.y) + i;
         if (nextPos.y > 15) {
-            //if (i < 2) outputVoxel(); // Flags this voxel so that it will be double checked by the CPU later
+
+            if (i < 2) // Flags this voxel so that it will be double checked by the CPU later
+                outputVoxel(blockGlobalIndex, 1 | (1 << 16));
             break;
         }
         uint nextBlockIndex = nextPos.x + (nextPos.y * 16) + (nextPos.z * 16 * 16);

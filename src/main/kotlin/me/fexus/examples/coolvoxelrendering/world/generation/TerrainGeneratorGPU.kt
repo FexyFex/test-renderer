@@ -1,8 +1,9 @@
-package me.fexus.examples.coolvoxelrendering.world
+package me.fexus.examples.coolvoxelrendering.world.generation
 
 import me.fexus.examples.Globals
 import me.fexus.examples.coolvoxelrendering.misc.CommandRecorder
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.world.Chunk
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.math.repeatCubed
 import me.fexus.memory.runMemorySafe
@@ -215,12 +216,15 @@ class TerrainGeneratorGPU(
 
                 repeatCubed(Chunk.EXTENT) { x, y, z ->
                     val offset = (x + (y * Chunk.EXTENT) + (z * Chunk.EXTENT * Chunk.EXTENT)) * BYTES_PER_VOXEL
-                    val voxelID = buffer.getInt(chunkOffset + offset)
-                    if (voxelID == 0) {
+                    val value = buffer.getInt(chunkOffset + offset)
+                    val voxel = value and 65535
+                    val flags = value ushr 16
+                    if ((flags and 1) == 1) chunk.isSoilFlagged = true
+                    if (value == 0) {
                         isChunkFull = false
                     } else {
-                        chunk.isEmpty = false
-                        chunk.setVoxelAt(x, y, z, voxelID) // Don't need to write zeros at during creation
+                        if (voxel != 0) chunk.isEmpty = false else isChunkFull = false
+                        chunk.setVoxelAt(x, y, z, value)
                     }
                 }
 
@@ -254,7 +258,7 @@ class TerrainGeneratorGPU(
 
 
     companion object {
-        private const val MAX_CHUNKS_PER_SUBMIT = 8
+        private const val MAX_CHUNKS_PER_SUBMIT = 32
         private const val BYTES_PER_VOXEL = 4
         private const val BYTES_PER_CHUNK = BYTES_PER_VOXEL * Chunk.VOXELS_PER_CHUNK
 

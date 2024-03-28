@@ -97,8 +97,6 @@ class InstancedRenderingOctree: VulkanRendererBase(createWindow()) {
     }
 
     private fun initObjects() {
-        VoxelRegistry.init()
-
         camera.position = Vec3(-8f, -8f, -30f)
 
         createAttachmentImages()

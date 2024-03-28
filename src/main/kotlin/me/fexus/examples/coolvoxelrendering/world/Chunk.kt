@@ -10,6 +10,7 @@ class Chunk(val position: ChunkPosition, private val svo: SparseVoxelOctree): Vo
 
     var isFull: Boolean = false
     var isEmpty: Boolean = true
+    var isSoilFlagged: Boolean = false
 
 
     companion object {
