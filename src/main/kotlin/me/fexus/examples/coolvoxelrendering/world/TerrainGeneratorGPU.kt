@@ -3,8 +3,8 @@ package me.fexus.examples.coolvoxelrendering.world
 import me.fexus.examples.Globals
 import me.fexus.examples.coolvoxelrendering.misc.CommandRecorder
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.math.repeatCubed
-import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
@@ -32,9 +32,9 @@ class TerrainGeneratorGPU(
     private val blockTypeGenPipeline = ComputePipeline()
     private val caveGenPipeline = ComputePipeline()
     private lateinit var chunkDataBuffers: Array<VulkanBuffer>
-    private val currentChunkPositions = Array(Globals.FRAMES_TOTAL) { mutableListOf<IVec3>() }
+    private val currentChunkPositions = Array(Globals.FRAMES_TOTAL) { mutableListOf<ChunkPosition>() }
 
-    private val chunksToGenerate = mutableListOf<IVec3>()
+    private val chunksToGenerate = mutableListOf<ChunkPosition>()
     private val finishedChunks = ConcurrentLinkedQueue<Chunk>()
 
     private val threadPool = Executors.newCachedThreadPool()
@@ -233,7 +233,7 @@ class TerrainGeneratorGPU(
         while (futures.any { !it.isDone }) { continue }
     }
 
-    fun submitChunksForGeneration(chunkPositions: List<IVec3>) {
+    fun submitChunksForGeneration(chunkPositions: List<ChunkPosition>) {
         chunksToGenerate.addAll(chunkPositions)
     }
 

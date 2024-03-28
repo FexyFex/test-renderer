@@ -3,7 +3,7 @@ package me.fexus.math.vec
 import kotlin.math.sqrt
 
 
-abstract class TVec4<T: Number>: Vec<T> {
+interface TVec4<T: Number>: Vec<T> {
     abstract var x: T
     abstract var y: T
     abstract var z: T
@@ -46,9 +46,5 @@ abstract class TVec4<T: Number>: Vec<T> {
             3 -> w = value
             else -> throw IndexOutOfBoundsException(index)
         }
-    }
-
-    override fun toString(): String {
-        return "[$x, $y, $z, $w]"
     }
 }

@@ -3,7 +3,7 @@ package me.fexus.math.vec
 import kotlin.math.sqrt
 
 
-abstract class TVec2<T: Number>: Vec<T> {
+interface TVec2<T: Number>: Vec<T> {
     abstract var x: T
     abstract var y: T
 

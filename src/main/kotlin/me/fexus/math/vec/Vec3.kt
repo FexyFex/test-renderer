@@ -4,7 +4,7 @@ import me.fexus.math.inverseSqrt
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
-data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float>() {
+data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float> {
     constructor(s: Float): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toFloat(), y.toFloat(), z.toFloat())
     constructor(vec: TVec3<*>): this(vec.x.toFloat(), vec.y.toFloat(), vec.z.toFloat())

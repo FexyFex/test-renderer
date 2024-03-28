@@ -1,6 +1,6 @@
 package me.fexus.math.vec
 
-data class IVec4(override var x: Int, override var y: Int, override var z: Int, override var w: Int): TVec4<Int>() {
+data class IVec4(override var x: Int, override var y: Int, override var z: Int, override var w: Int): TVec4<Int> {
     constructor(s: Int): this(s,s,s,s)
     constructor(x: Number, y: Number, z: Number, w: Number): this(x.toInt(), y.toInt(), z.toInt(), w.toInt())
 

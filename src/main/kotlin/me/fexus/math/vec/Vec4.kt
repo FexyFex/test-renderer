@@ -2,7 +2,7 @@ package me.fexus.math.vec
 
 import java.nio.ByteBuffer
 
-data class Vec4(override var x: Float, override var y: Float, override var z: Float, override var w: Float): TVec4<Float>() {
+data class Vec4(override var x: Float, override var y: Float, override var z: Float, override var w: Float): TVec4<Float> {
     constructor(): this(0f)
     constructor(s: Float): this(s,s,s,s)
     constructor(x: Number, y: Number, z: Number, w: Number): this(x.toFloat(), y.toFloat(), z.toFloat(), w.toFloat())

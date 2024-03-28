@@ -1,6 +1,6 @@
 package me.fexus.math.vec
 
-data class DVec3(override var x: Double, override var y: Double, override var z: Double): TVec3<Double>() {
+data class DVec3(override var x: Double, override var y: Double, override var z: Double): TVec3<Double> {
     constructor(s: Double): this(s,s,s)
     constructor(vec: TVec3<Number>): this(vec.x.toDouble(), vec.y.toDouble(), vec.z.toDouble())
 

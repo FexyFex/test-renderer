@@ -2,7 +2,7 @@ package me.fexus.math.vec
 
 import java.nio.ByteBuffer
 
-data class Vec2(override var x: Float, override var y: Float): TVec2<Float>() {
+data class Vec2(override var x: Float, override var y: Float): TVec2<Float> {
     constructor(s: Float): this(s,s)
 
     override operator fun plus(other: TVec2<Float>): Vec2 = Vec2(this.x + other.x, this.y + other.y)

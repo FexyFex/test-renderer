@@ -1,9 +1,9 @@
 package me.fexus.math.vec
 
-import me.fexus.math.inverseSqrt
 import kotlin.math.sqrt
 
-abstract class TVec3<T: Number>: Vec<T> {
+
+interface TVec3<T: Number>: Vec<T> {
     abstract var x: T
     abstract var y: T
     abstract var z: T

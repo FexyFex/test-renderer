@@ -1,11 +1,12 @@
 package me.fexus.examples.coolvoxelrendering.world
 
+import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.math.vec.IVec3
 import me.fexus.voxel.VoxelOctree
 
 
-class Chunk(val position: IVec3, private val svo: SparseVoxelOctree): VoxelOctree<Int> by svo {
-    constructor(position: IVec3): this(position, SparseVoxelOctree())
+class Chunk(val position: ChunkPosition, private val svo: SparseVoxelOctree): VoxelOctree<Int> by svo {
+    constructor(position: IVec3): this(ChunkPosition(position), SparseVoxelOctree())
 
     var isFull: Boolean = false
     var isEmpty: Boolean = true

@@ -8,6 +8,7 @@ import me.fexus.examples.coolvoxelrendering.world.Direction
 import me.fexus.examples.coolvoxelrendering.world.TerrainGeneratorGPU
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
+import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.coolvoxelrendering.world.rendering.WorldRenderer
 import me.fexus.math.repeat3D
 import me.fexus.math.vec.IVec3
@@ -19,8 +20,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory): CommandRecorder {
     private val terrainGenerator = TerrainGeneratorGPU(deviceUtil, descriptorFactory)
-    private val unsubmittedChunks = mutableMapOf<IVec3, Chunk>()
-    private val submittedChunks = mutableMapOf<IVec3, Chunk>()
+    private val unsubmittedChunks = mutableMapOf<ChunkPosition, Chunk>()
+    private val submittedChunks = mutableMapOf<ChunkPosition, Chunk>()
 
     private val chunkHullingInputQueue = ConcurrentLinkedQueue<ChunkHullingPacket>()
     private val chunkHullingOutputQueue = ConcurrentLinkedQueue<ChunkHull>()
@@ -35,11 +36,11 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
 
         hullingThreads.forEach(Thread::start)
 
-        val chunksToGenerate = mutableListOf<IVec3>()
-        val horizontal = 20
+        val chunksToGenerate = mutableListOf<ChunkPosition>()
+        val horizontal = 26
         val vertical = 10
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
-            chunksToGenerate.add(IVec3(x,y,z) - (IVec3(horizontal, vertical, horizontal) ushr 1))
+            chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), y - (vertical ushr 1), z - (horizontal ushr 1)))
         }
         terrainGenerator.submitChunksForGeneration(chunksToGenerate)
     }
@@ -55,7 +56,7 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
         unsubmittedChunks.values.forEach {
             val surroundingChunks = mutableListOf<Chunk>()
             for (dir in Direction.DIRECTIONS) {
-                val nextChunk = getChunkAt(it.position + dir.normal) ?: return@forEach
+                val nextChunk = getChunkAt(dir.normal + it.position) ?: return@forEach
                 surroundingChunks.add(nextChunk)
             }
             chunksSubmitted.add(it)
@@ -76,7 +77,8 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
     }
 
 
-    fun getChunkAt(pos: IVec3): Chunk? {
+    fun getChunkAt(pos: IVec3) = getChunkAt(ChunkPosition(pos))
+    fun getChunkAt(pos: ChunkPosition): Chunk? {
         return unsubmittedChunks[pos] ?: submittedChunks[pos]
     }
 

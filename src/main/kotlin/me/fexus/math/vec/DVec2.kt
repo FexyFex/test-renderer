@@ -1,6 +1,6 @@
 package me.fexus.math.vec
 
-data class DVec2(override var x: Double, override var y: Double): TVec2<Double>() {
+data class DVec2(override var x: Double, override var y: Double): TVec2<Double> {
     constructor(s: Double): this(s,s)
 
     override operator fun plus(other: TVec2<Double>): DVec2 = DVec2(this.x + other.x, this.y + other.y)

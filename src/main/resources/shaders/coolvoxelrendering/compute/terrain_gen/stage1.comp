@@ -51,7 +51,7 @@ float heightmapNoise(vec2 pos) {
 }
 
 float terrainNoise(vec3 pos) {
-    return simplex_noise3D(
+    return perlin_noise3D(
         pos,
         gain, lacunarity, fractalBounding, weightedStrength,
         terrainFrequency, 4

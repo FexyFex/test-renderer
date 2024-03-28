@@ -3,8 +3,8 @@ package me.fexus.examples.coolvoxelrendering.world.rendering
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.world.VoxelSide
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
+import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.surroundsound.MeshUploader
-import me.fexus.math.vec.IVec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
 import me.fexus.vulkan.VulkanDeviceUtil
@@ -24,7 +24,7 @@ class WorldRenderer(private val deviceUtil: VulkanDeviceUtil, private val descri
     private val hullPipeline = GraphicsPipeline()
     private lateinit var hullVertexBuffer: VulkanBuffer
     lateinit var hullPositionBuffer: VulkanBuffer
-    private val chunkHulls = HashMap<IVec3, ChunkHull>()
+    private val chunkHulls = HashMap<ChunkPosition, ChunkHull>()
     private var nextHullOffset: Int = 0
 
 

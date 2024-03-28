@@ -2,7 +2,7 @@ package me.fexus.math.vec
 
 import java.nio.ByteBuffer
 
-data class IVec2(override var x: Int, override var y: Int): TVec2<Int>() {
+data class IVec2(override var x: Int, override var y: Int): TVec2<Int> {
     constructor(s: Int): this(s,s)
 
     override operator fun plus(other: TVec2<Int>): IVec2 = IVec2(this.x + other.x, this.y + other.y)

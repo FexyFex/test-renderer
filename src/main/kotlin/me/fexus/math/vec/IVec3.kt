@@ -4,7 +4,8 @@ import me.fexus.math.clamp
 import java.nio.ByteBuffer
 import kotlin.math.absoluteValue
 
-data class IVec3(override var x: Int, override var y: Int, override var z: Int): TVec3<Int>() {
+
+open class IVec3(override var x: Int, override var y: Int, override var z: Int): TVec3<Int> {
     constructor(s: Int): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toInt(), y.toInt(), z.toInt())
     constructor(v2: IVec2, z: Int): this(v2.x, v2.y, z)
@@ -103,5 +104,17 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
 
     override fun toString(): String {
         return "[$x, $y, $z]"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is IVec3) return false
+        return this.x == other.x && this.y == other.y && this.z == other.z
+    }
+
+    override fun hashCode(): Int {
+        var result = x
+        result = 31 * result + y
+        result = 31 * result + z
+        return result
     }
 }
