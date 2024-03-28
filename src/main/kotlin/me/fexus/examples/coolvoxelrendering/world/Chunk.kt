@@ -7,8 +7,8 @@ import me.fexus.voxel.VoxelOctree
 class Chunk(val position: IVec3, private val svo: SparseVoxelOctree): VoxelOctree<Int> by svo {
     constructor(position: IVec3): this(position, SparseVoxelOctree())
 
-    var submittedForHulling: Boolean = false
     var isFull: Boolean = false
+    var isEmpty: Boolean = true
 
 
     companion object {

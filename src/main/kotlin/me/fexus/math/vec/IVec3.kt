@@ -90,6 +90,16 @@ data class IVec3(override var x: Int, override var y: Int, override var z: Int):
         throw Exception()
     }
 
+    infix fun ushr(value: Int): IVec3 {
+        return IVec3(x ushr value, y ushr value, z ushr value)
+    }
+    infix fun shr(value: Int): IVec3 {
+        return IVec3(x shr value, y shr value, z shr value)
+    }
+    infix fun shl(value: Int): IVec3 {
+        return IVec3(x shl value, y shl value, z shl value)
+    }
+
 
     override fun toString(): String {
         return "[$x, $y, $z]"

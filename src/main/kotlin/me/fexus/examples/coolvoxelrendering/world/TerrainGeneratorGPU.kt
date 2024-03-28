@@ -216,8 +216,12 @@ class TerrainGeneratorGPU(
                 repeatCubed(Chunk.EXTENT) { x, y, z ->
                     val offset = (x + (y * Chunk.EXTENT) + (z * Chunk.EXTENT * Chunk.EXTENT)) * BYTES_PER_VOXEL
                     val voxelID = buffer.getInt(chunkOffset + offset)
-                    if (voxelID == 0) isChunkFull = false
-                    chunk.setVoxelAt(x, y, z, voxelID)
+                    if (voxelID == 0) {
+                        isChunkFull = false
+                    } else {
+                        chunk.isEmpty = false
+                        chunk.setVoxelAt(x, y, z, voxelID) // Don't need to write zeros at during creation
+                    }
                 }
 
                 chunk.isFull = isChunkFull

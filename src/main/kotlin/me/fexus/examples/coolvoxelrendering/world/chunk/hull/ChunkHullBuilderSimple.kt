@@ -19,13 +19,12 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
         val buf = ByteBuffer.allocate(VoxelOctree.VOXEL_COUNT * 6 * Int.SIZE_BYTES)
         buf.order(ByteOrder.LITTLE_ENDIAN)
 
-        val scaling = VoxelOctree.EXTENT shr (maxDepth + 1)
+        val scaling = VoxelOctree.EXTENT shr maxDepth
 
         var instanceCount = 0
         var offset = 0
 
         chunk.forEachVoxel(maxDepth) { position, voxel ->
-           // if (chunk.getVoxelAt(position) == 0) println("MISTAKE $position")
             if (chunk.isFull && position.all { it in 1..14 }) return@forEachVoxel
             directions.forEach { dir ->
                 val nextPos = position + (dir.normal * scaling)
@@ -55,7 +54,6 @@ class ChunkHullBuilderSimple: ChunkHullBuilder {
             }
         }
 
-        println(instanceCount)
         return ChunkHullData(buf, instanceCount)
     }
 }

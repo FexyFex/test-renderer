@@ -17,10 +17,10 @@ import me.fexus.vulkan.component.CommandBuffer
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
-class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory):
-    CommandRecorder {
+class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFactory: DescriptorFactory): CommandRecorder {
     private val terrainGenerator = TerrainGeneratorGPU(deviceUtil, descriptorFactory)
-    private val chunks = mutableMapOf<IVec3, Chunk>()
+    private val unsubmittedChunks = mutableMapOf<IVec3, Chunk>()
+    private val submittedChunks = mutableMapOf<IVec3, Chunk>()
 
     private val chunkHullingInputQueue = ConcurrentLinkedQueue<ChunkHullingPacket>()
     private val chunkHullingOutputQueue = ConcurrentLinkedQueue<ChunkHull>()
@@ -36,8 +36,10 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<IVec3>()
-        repeat3D(4,4,4) { x, y, z ->
-            chunksToGenerate.add(IVec3(x,y,z) - IVec3(2, 4, 2))
+        val horizontal = 20
+        val vertical = 10
+        repeat3D(horizontal,vertical,horizontal) { x, y, z ->
+            chunksToGenerate.add(IVec3(x,y,z) - (IVec3(horizontal, vertical, horizontal) ushr 1))
         }
         terrainGenerator.submitChunksForGeneration(chunksToGenerate)
     }
@@ -47,18 +49,22 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
         renderer.recordComputeCommands(commandBuffer)
         terrainGenerator.recordComputeCommands(commandBuffer, frameIndex)
 
-        terrainGenerator.getFinishedChunks().forEach { chunks[it.position] = it }
+        terrainGenerator.getFinishedChunks().forEach { unsubmittedChunks[it.position] = it }
 
-        val submittableChunks = chunks.values.filter { !it.submittedForHulling }
-        submittableChunks.forEach {
+        val chunksSubmitted = mutableListOf<Chunk>()
+        unsubmittedChunks.values.forEach {
             val surroundingChunks = mutableListOf<Chunk>()
             for (dir in Direction.DIRECTIONS) {
-                val nextChunk = chunks[it.position + dir.normal] ?: return@forEach
+                val nextChunk = getChunkAt(it.position + dir.normal) ?: return@forEach
                 surroundingChunks.add(nextChunk)
             }
-            it.submittedForHulling = true
-            val depth = VoxelOctree.MAX_DEPTH//if (it.position.length > 16) VoxelOctree.MAX_DEPTH - 1 else VoxelOctree.MAX_DEPTH
+            chunksSubmitted.add(it)
+            val depth = VoxelOctree.MAX_DEPTH
             chunkHullingInputQueue.add(ChunkHullingPacket(it, surroundingChunks, depth))
+        }
+        chunksSubmitted.forEach {
+            unsubmittedChunks.remove(it.position)
+            submittedChunks[it.position] = it
         }
 
         val newlyHulledChunks: List<ChunkHull> = List(chunkHullingOutputQueue.size) { chunkHullingOutputQueue.poll() }
@@ -67,6 +73,11 @@ class World(private val deviceUtil: VulkanDeviceUtil, private val descriptorFact
 
     override fun recordGraphicsCommands(commandBuffer: CommandBuffer, frameIndex: Int) {
         renderer.recordRenderCommands(commandBuffer)
+    }
+
+
+    fun getChunkAt(pos: IVec3): Chunk? {
+        return unsubmittedChunks[pos] ?: submittedChunks[pos]
     }
 
 
