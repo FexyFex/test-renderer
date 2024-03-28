@@ -57,7 +57,7 @@ import java.nio.ByteOrder
  * visible side. I dubbed this a "hull" instead of a "mesh" in an ettempt to avoid confusion.
  * The algorithm for creating the hull is much the same as in the traditional meshing approach except for the fact
  * that we compress the data for each side into a single integer instead of writing vertices for a mesh.
- * This saves a good amount of memory (typically between 40% - 80%) over meshing but is limited to only full blocks.
+ * This saves a good amount of memory (typically 80% - 90%) over meshing but is limited to only full blocks.
  */
 class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscriber {
     companion object {

@@ -121,16 +121,16 @@ class TerrainGeneratorGPU(
         vkCmdFillBuffer(commandBuffer.vkHandle, targetBuffer.vkBufferHandle, 0L, VK_WHOLE_SIZE, 0)
         // STAGE 0: CLEAR THE BUFFER
 
-        // BARRIER 1: MAKING SURE THE INITIAL WRITE ACCESS IS SAFE
+        // BARRIER 1: MAKING SURE THE INITIAL WRITE ACCESS IN STAGE 1 IS SAFE
         barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
         barrier.dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         vkCmdPipelineBarrier(commandBuffer.vkHandle,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0, null, barrier, null
         )
-        // BARRIER 1: MAKING SURE THE INITIAL WRITE ACCESS IS SAFE
+        // BARRIER 1: MAKING SURE THE INITIAL WRITE ACCESS IN STAGE 1 IS SAFE
 
-        // STAGE 1: GENERATING JUST THE TERRAIN (1 for a block or 0 air)
+        // STAGE 1: GENERATING JUST THE TERRAIN (1 for a voxel or 0 air)
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, basicTerrainGenPipeline.vkHandle)
         pPushConstants.putInt(0, targetBuffer.index)
 
@@ -143,7 +143,7 @@ class TerrainGeneratorGPU(
             )
             vkCmdDispatch(commandBuffer.vkHandle, WORK_GROUP_COUNT, WORK_GROUP_COUNT, WORK_GROUP_COUNT)
         }
-        // STAGE 1: GENERATING JUST THE TERRAIN (1 for a block or 0 air)
+        // STAGE 1: GENERATING JUST THE TERRAIN (1 for a voxel or 0 air)
 
         // BARRIER 2: WAITING FOR STAGE 1 TO COMPLETE
         barrier.srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
@@ -154,7 +154,7 @@ class TerrainGeneratorGPU(
         )
         // BARRIER 2: WAITING FOR STAGE 1 TO COMPLETE
 
-        // STAGE 2: REPLACING THE STONE BLOCKS WITH OTHER VARIANTS
+        // STAGE 2: REPLACING THE STONE VOXELS WITH OTHER VARIANTS
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, blockTypeGenPipeline.vkHandle)
         targetChunks.forEachIndexed { index, pos ->
             pPushConstants.putInt(4, index)
@@ -165,7 +165,7 @@ class TerrainGeneratorGPU(
             )
             vkCmdDispatch(commandBuffer.vkHandle, WORK_GROUP_COUNT, WORK_GROUP_COUNT, WORK_GROUP_COUNT)
         }
-        // STAGE 2: REPLACING THE STONE BLOCKS WITH OTHER VARIANTS
+        // STAGE 2: REPLACING THE STONE VOXELS WITH OTHER VARIANTS
 
         // BARRIER 3: WAITING FOR STAGE 2 TO COMPLETE
         barrier.srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)
@@ -192,8 +192,8 @@ class TerrainGeneratorGPU(
         // BARRIER 4: WAITING FOR STAGE 3 TO COMPLETE
         // BARRIER 4: WAITING FOR STAGE 3 TO COMPLETE
 
-        // STAGE 4: ADDING DETAIL BLOCKS
-        // STAGE 4: ADDING DETAIL BLOCKS
+        // STAGE 4: ADDING DETAILS
+        // STAGE 4: ADDING DETAILS
 
         // BARRIER 5: WAITING FOR STAGE 4 TO COMPLETE. END
         barrier.srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT or VK_ACCESS_SHADER_READ_BIT)

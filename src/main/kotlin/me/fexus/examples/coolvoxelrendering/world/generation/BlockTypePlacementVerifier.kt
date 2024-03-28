@@ -11,9 +11,8 @@ import me.fexus.math.vec.IVec3
 class BlockTypePlacementVerifier {
 
     // Get all chunks that have the chunk above them generated
-    fun verifySoil(allChunks: Map<ChunkPosition, Chunk>) {
+    fun verifySoil(allChunks: Map<ChunkPosition, Chunk>, relevantChunks: Map<ChunkPosition, Chunk>) {
         val up = IVec3(0, 1, 0)
-        val relevantChunks = allChunks.filter { it.value.isSoilFlagged }
         val chunksForReplacing = mutableListOf<ChunkSoilReplacementPair>()
         relevantChunks.forEach { (pos: ChunkPosition, chunk: Chunk) ->
             val upperPos = ChunkPosition(pos + up)

@@ -27,8 +27,7 @@ class World(
 ): CommandRecorder {
     private val terrainGenerator = TerrainGeneratorGPU(deviceUtil, descriptorFactory)
     private val allChunks = mutableMapOf<ChunkPosition, Chunk>()
-    private val unsubmittedChunksForHulling = mutableMapOf<ChunkPosition, Chunk>()
-    private val submittedChunks = mutableMapOf<ChunkPosition, Chunk>()
+    private val candidateChunksForHulling = mutableMapOf<ChunkPosition, Chunk>()
 
     private val blockTypeVerifier = BlockTypePlacementVerifier()
 
@@ -46,10 +45,10 @@ class World(
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
-        val horizontal = 32
+        val horizontal = 16
         val vertical = 9
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
-            chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), y - (vertical ushr 1), z - (horizontal ushr 1)))
+            chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))
         }
         terrainGenerator.submitChunksForGeneration(chunksToGenerate)
     }
@@ -61,23 +60,28 @@ class World(
 
         terrainGenerator.getFinishedChunks().forEach {
             allChunks[it.position] = it
-            unsubmittedChunksForHulling[it.position] = it
+            candidateChunksForHulling[it.position] = it
         }
 
-        blockTypeVerifier.verifySoil(unsubmittedChunksForHulling)
-
-        val chunksSubmitted = mutableListOf<Chunk>()
-        unsubmittedChunksForHulling.values.forEach {
+        val chunksToSubmit = mutableListOf<ChunkHullingPacket>()
+        val chunksToVerify = mutableMapOf<ChunkPosition, Chunk>()
+        candidateChunksForHulling.values.forEach {
             val surroundingChunks = mutableListOf<Chunk>()
             for (dir in Direction.DIRECTIONS) {
                 val nextChunk = getChunkAt(dir.normal + it.position) ?: return@forEach
                 surroundingChunks.add(nextChunk)
             }
-            chunksSubmitted.add(it)
             val depth = VoxelOctree.MAX_DEPTH
-            chunkHullingInputQueue.add(ChunkHullingPacket(it, surroundingChunks, depth))
+            chunksToSubmit.add(ChunkHullingPacket(it, surroundingChunks, depth))
+            if (it.isSoilFlagged) chunksToVerify[it.position] = it
         }
-        chunksSubmitted.forEach { unsubmittedChunksForHulling.remove(it.position) }
+
+        blockTypeVerifier.verifySoil(allChunks, chunksToVerify)
+
+        chunksToSubmit.forEach {
+            chunkHullingInputQueue.add(it)
+            candidateChunksForHulling.remove(it.chunk.position)
+        }
 
         val newlyHulledChunks: List<ChunkHull> = List(chunkHullingOutputQueue.size) { chunkHullingOutputQueue.poll() }
         newlyHulledChunks.forEach { if (it.data.instanceCount > 0) renderer.submitChunkHull(it) }
