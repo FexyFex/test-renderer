@@ -119,7 +119,7 @@ class Swapchain {
     }
 
     private fun choosePresentMode(pPresentModes: IntBuffer): Int {
-        var bestMode = VK_PRESENT_MODE_IMMEDIATE_KHR //VK_PRESENT_MODE_FIFO_KHR
+        var bestMode = VK_PRESENT_MODE_MAILBOX_KHR //VK_PRESENT_MODE_FIFO_KHR
         for (i in 0 until pPresentModes.capacity()) {
             val currentPresentMode = pPresentModes[i]
             // We directly return the preferred mode if we find it

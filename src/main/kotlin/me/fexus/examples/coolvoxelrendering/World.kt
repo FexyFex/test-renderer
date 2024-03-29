@@ -47,7 +47,7 @@ class World(
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
-        val horizontal = 34
+        val horizontal = 32
         val vertical = 9
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
             chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))
@@ -56,8 +56,6 @@ class World(
     }
 
 
-    private var previousChunksForHullingSize = 0
-    private var waitUntil: Long = 0L
     override fun recordComputeCommands(commandBuffer: CommandBuffer, frameIndex: Int) {
         renderer.recordComputeCommands(commandBuffer, frameIndex)
         terrainGenerator.recordComputeCommands(commandBuffer, frameIndex)
@@ -69,16 +67,6 @@ class World(
 
         val newlyHulledChunks: List<ChunkHull> = List(chunkHullingOutputQueue.size) { chunkHullingOutputQueue.poll() }
         newlyHulledChunks.forEach { if (it.data.instanceCount > 0) renderer.submitChunkHull(it) }
-
-        // --- Heuristically scan for a possible pause in case some chunks cannot be hulled
-        if (System.nanoTime() < waitUntil) return
-
-        val size = candidateChunksForHulling.size
-        if (this.previousChunksForHullingSize == size) {
-            waitUntil = System.nanoTime() + 500_000_000
-        }
-        this.previousChunksForHullingSize = size
-        // --- Heuristically scan for a possible pause in case some chunks cannot be hulled
 
         val chunksToSubmit = mutableListOf<ChunkHullingPacket>()
         val chunksToVerify = mutableMapOf<ChunkPosition, Chunk>()

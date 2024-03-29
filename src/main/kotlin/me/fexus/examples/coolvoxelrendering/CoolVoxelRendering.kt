@@ -38,6 +38,8 @@ import me.fexus.vulkan.descriptors.image.sampler.AddressMode
 import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
+import me.fexus.vulkan.extension.DescriptorIndexingEXT
+import me.fexus.vulkan.extension.ShaderTileImageEXT
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window
@@ -105,7 +107,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
 
     fun start() {
-        initVulkanCore(withDebug = true)
+        initVulkanCore(withDebug = true, extensions = listOf(DescriptorIndexingEXT))
         initObjects()
         startRenderLoop(window, this)
     }
@@ -175,7 +177,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private fun createDescriptorPool() {
         // Descriptor Sets and Pipeline
         val poolPlan = DescriptorPoolPlan(
-            Globals.FRAMES_TOTAL, DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
+            Globals.FRAMES_TOTAL, DescriptorPoolCreateFlag.UPDATE_AFTER_BIND + DescriptorPoolCreateFlag.FREE_DESCRIPTOR_SET,
             listOf(
                 DescriptorPoolSize(DescriptorType.UNIFORM_BUFFER, 4 * Globals.FRAMES_TOTAL),
                 DescriptorPoolSize(DescriptorType.SAMPLED_IMAGE, 16 * Globals.FRAMES_TOTAL),
@@ -188,23 +190,27 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     fun createDescriptorSetLayout() {
         val setLayoutPlan = DescriptorSetLayoutPlan(
-            DescriptorSetLayoutCreateFlag.NONE,
+            DescriptorSetLayoutCreateFlag.UPDATE_AFTER_BIND,
             listOf(
                 DescriptorSetLayoutBinding(
                     0, 4, DescriptorType.UNIFORM_BUFFER,
-                    ShaderStage.VERTEX + ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.VERTEX + ShaderStage.COMPUTE,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
                 ),
                 DescriptorSetLayoutBinding(
                     1, 16, DescriptorType.SAMPLED_IMAGE,
-                    ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND + DescriptorSetLayoutBindingFlag.UPDATE_AFTER_BIND
                 ),
                 DescriptorSetLayoutBinding(
                     2, 8, DescriptorType.SAMPLER,
-                    ShaderStage.FRAGMENT, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.FRAGMENT,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND + DescriptorSetLayoutBindingFlag.UPDATE_AFTER_BIND
                 ),
                 DescriptorSetLayoutBinding(
                     3, 16, DescriptorType.STORAGE_BUFFER,
-                    ShaderStage.VERTEX + ShaderStage.COMPUTE, DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND
+                    ShaderStage.VERTEX + ShaderStage.COMPUTE,
+                    DescriptorSetLayoutBindingFlag.PARTIALLY_BOUND + DescriptorSetLayoutBindingFlag.UPDATE_AFTER_BIND
                 )
             )
         )

@@ -5,9 +5,6 @@ import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.surroundsound.MeshUploader
-import me.fexus.math.mat.Mat4
-import me.fexus.math.rad
-import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
 import me.fexus.vulkan.VulkanDeviceUtil
@@ -18,13 +15,16 @@ import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.VK12.*
 import org.lwjgl.vulkan.VkBufferMemoryBarrier
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.Callable
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 
 class WorldRenderer(
@@ -48,38 +48,43 @@ class WorldRenderer(
 
     private val threadPool = Executors.newCachedThreadPool()
     private val processorCount = Runtime.getRuntime().availableProcessors()
-    private lateinit var latch: CountDownLatch
-
 
     fun init() {
         createHullBuffers()
         createHullPipeline()
     }
 
-
     fun recordComputeCommands(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
         val chunkCount = chunkHulls.size
+
         // Begin by loading the chunk data into the cullObjects buffer on other threads
         cullObjectsBuffers[frameIndex].set(0, 0, cullObjectsBuffers[frameIndex].config.size)
-        this@WorldRenderer.latch = CountDownLatch(chunkCount)
-        var chunkedSize = chunkCount / processorCount
+        var chunkedSize = (chunkCount.toFloat() / processorCount.toFloat()).roundToInt()
         if (chunkedSize == 0) chunkedSize = 1
+        val tasks = mutableListOf<Callable<Unit>>()
         chunkHulls.values.chunked(chunkedSize).forEachIndexed { chunkedID, chunkHulls ->
             val hullsOffset = chunkedID * chunkedSize
-            threadPool.execute {
+            val task = Callable {
                 val buf = ByteBuffer.allocate(32)
                 buf.order(ByteOrder.LITTLE_ENDIAN)
                 for ((hullLocalOffset, hull) in chunkHulls.withIndex()) {
-                    val offset = hullsOffset + hullLocalOffset
+                    val offset = (hullsOffset * 32) + (hullLocalOffset * 32)
                     buf.clear()
                     hull.chunkPosition.intoByteBuffer(buf, 0)
                     buf.putInt(12, hull.data.instanceCount)
                     buf.putInt(16, hull.data.firstInstance)
-                    cullObjectsBuffers[frameIndex].put(offset * 32, buf)
-                    latch.countDown()
+                    cullObjectsBuffers[frameIndex].put(offset, buf)
                 }
             }
+            tasks.add(task)
         }
+        val futures = threadPool.invokeAll(tasks)
+
+        val pDescriptorSets = allocateLongValues(descriptorFactory.descriptorSets[frameIndex].vkHandle)
+        vkCmdBindDescriptorSets(
+            commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline.vkLayoutHandle,
+            0, pDescriptorSets, null
+        )
 
         val pPushConstants = allocate(128)
         pPushConstants.putInt(0, cullCameraBuffers[frameIndex].index)
@@ -93,23 +98,18 @@ class WorldRenderer(
             0, pPushConstants
         )
 
-        val pDescriptorSets = allocateLongValues(descriptorFactory.descriptorSets[frameIndex].vkHandle)
-        vkCmdBindDescriptorSets(
-            commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline.vkLayoutHandle,
-            0, pDescriptorSets, null
-        )
-
         val camBuf = allocate(128)
         camBuf.order(ByteOrder.LITTLE_ENDIAN)
         val view = camera.calculateView()
+        view[3][2] += 25f
         val proj = camera.calculateProjection()
         view.toByteBufferColumnMajor(camBuf, 0)
         proj.toByteBufferColumnMajor(camBuf, 64)
         cullCameraBuffers[frameIndex].put(0, camBuf)
 
         // Barrier that ensures that the buffers aren't in use anymore
-        val initBarrier = calloc(VkBufferMemoryBarrier::calloc, 2)
-        with(initBarrier[0]) {
+        val barrier = calloc(VkBufferMemoryBarrier::calloc, 2)
+        with(barrier[0]) {
             sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
             pNext(0)
             srcAccessMask(0)
@@ -120,7 +120,7 @@ class WorldRenderer(
             offset(0L)
             size(VK_WHOLE_SIZE)
         }
-        with(initBarrier[1]) {
+        with(barrier[1]) {
             sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
             pNext(0)
             srcAccessMask(0)
@@ -134,7 +134,7 @@ class WorldRenderer(
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-            0, null, initBarrier, null
+            0, null, barrier, null
         )
 
         // Clear the buffers
@@ -142,23 +142,39 @@ class WorldRenderer(
         vkCmdFillBuffer(commandBuffer.vkHandle, chunkPositionsBuffer.vkBufferHandle, 0L, chunkPositionsBuffer.config.size, 0)
 
         // Barrier to ensure that the clearing has finished
-        with(initBarrier[0]) {
+        with(barrier[0]) {
             srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         }
-        with(initBarrier[1]) {
+        with(barrier[1]) {
             srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            0, null, initBarrier, null
+            0, null, barrier, null
         )
 
         // Run culling compute shader
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_COMPUTE, cullPipeline.vkHandle)
         vkCmdDispatch(commandBuffer.vkHandle, ceil(chunkCount / 256f).toInt(), 1, 1)
+
+        with(barrier[0]) {
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        }
+        with(barrier[1]) {
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+            0, null, barrier, null
+        )
+
+        while (futures.any { !it.isDone }) { continue }
     }
 
     fun recordRenderCommands(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
@@ -184,38 +200,10 @@ class WorldRenderer(
             0, pDescriptorSets, null
         )
 
-        // Barrier that syncs between culling and rendering
-        val computeBarrier = calloc(VkBufferMemoryBarrier::calloc, 2)
-        with(computeBarrier[0]) {
-            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
-            pNext(0)
-            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            buffer(indirectCommandBuffer.vkBufferHandle)
-            offset(0L)
-            size(VK_WHOLE_SIZE)
-        }
-        with(computeBarrier[1]) {
-            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
-            pNext(0)
-            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-            buffer(chunkPositionsBuffer.vkBufferHandle)
-            offset(0L)
-            size(VK_WHOLE_SIZE)
-        }
-
         // Indirect Draw
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, chunkPipeline.vkHandle)
         vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
         vkCmdDrawIndirect(commandBuffer.vkHandle, indirectCommandBuffer.vkBufferHandle, 0L, chunkCount, 16)
-
-        // Wait for the cullObjects buffer to be fully written to
-        this@WorldRenderer.latch.await()
     }
 
 
@@ -270,7 +258,7 @@ class WorldRenderer(
         this.chunkPositionsBuffer = descriptorFactory.createBuffer(chunkPositionsBufferConfig)
 
         val positionsBufferConfig = VulkanBufferConfiguration(
-            1_000_000_000L,
+            900_000_000L,
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.STORAGE_BUFFER
         )

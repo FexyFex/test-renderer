@@ -47,7 +47,7 @@ layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 layout (set = 0, binding = 0) uniform UBO { GeneralInfo info; } cameraBuffer[];
 layout (set = 0, binding = 3) buffer InSBO { ObjectInfo objInfos[]; } objInfoBuf[];
-layout (set = 0, binding = 3) buffer OutSBO { ivec4 commands[]; } outBuf[];
+layout (set = 0, binding = 3) buffer OutSBO { DrawIndirectCommand commands[]; } outBuf[];
 layout (set = 0, binding = 3) buffer PosSBO { ivec4 chunkPos[]; } posBuf[];
 
 layout(push_constant) uniform PushConstants{
@@ -104,7 +104,7 @@ Frustum createFrustum() {
 
 AABB createAABB(ObjectInfo obj, ivec3 cameraPos) {
     AABB aabb;
-    vec3 pos = obj.pos;// - cameraPos;
+    vec3 pos = obj.pos - cameraPos;
     aabb.center = vec3(pos.x + 8.0, pos.y + 8.0, pos.z + 8.0);
     aabb.extents = vec3(8.0, 8.0, 8.0);
     return aabb;
@@ -128,7 +128,7 @@ void main() {
     // calculation for frustum culling
     GeneralInfo cam = cameraBuffer[cameraBufferIndex].info;
     Frustum frustum = createFrustum();
-    AABB aabb = createAABB(objInfo, /*cam.cameraChunkPos * 16*/ ivec3(0));
+    AABB aabb = createAABB(objInfo, ivec3(0));
 
     bool isInView =
         isInFrontOfPlane(aabb, frustum.leftFace) &&
@@ -138,8 +138,12 @@ void main() {
         isInFrontOfPlane(aabb, frustum.nearFace) &&
         isInFrontOfPlane(aabb, frustum.farFace);
 
-    int instanceCount = int(isInView) * objInfo.instanceCount;
+    DrawIndirectCommand command;
+    command.vertexCount = 4;
+    command.firstVertex = 0;
+    command.instanceCount = int(isInView) * objInfo.instanceCount;
+    command.firstInstance = objInfo.firstInstance;
 
-    outBuf[commandBufferIndex].commands[gID] = ivec4(4, instanceCount, 0, objInfo.firstInstance);
+    outBuf[commandBufferIndex].commands[gID] = command;
     posBuf[chunkPosBufferIndex].chunkPos[gID] = ivec4(objInfo.pos, 0);
 }

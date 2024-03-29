@@ -5,6 +5,7 @@ import me.fexus.vulkan.layer.VulkanLayer
 import me.fexus.vulkan.component.queuefamily.QueueFamily
 import me.fexus.vulkan.extension.*
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.EXTShaderTileImage.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_TILE_IMAGE_FEATURES_EXT
 import org.lwjgl.vulkan.KHRAccelerationStructure.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
 import org.lwjgl.vulkan.KHRRayTracingPipeline.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR
 import org.lwjgl.vulkan.VK13.*
@@ -47,6 +48,7 @@ class Device {
                 samplerAnisotropy(true)
                 sampleRateShading(true)
                 multiDrawIndirect(true)
+                drawIndirectFirstInstance(true)
                 robustBufferAccess(true)
             }
 
@@ -84,6 +86,7 @@ class Device {
                 pNext(features1.address())
                 bufferDeviceAddress(BufferDeviceAddressKHR in extensions)
                 runtimeDescriptorArray(true)
+                drawIndirectCount(true)
                 if (DescriptorIndexingEXT in extensions) {
                     descriptorIndexing(true)
                     descriptorBindingPartiallyBound(true)
