@@ -18,6 +18,7 @@ import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.VoxelRegistry
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
+import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import java.util.concurrent.ConcurrentLinkedQueue
 
 
@@ -38,6 +39,8 @@ class World(
     private val hullingThreads = Array(1) { ChunkHullingThread(chunkHullingInputQueue, chunkHullingOutputQueue) }
 
     private val renderer = WorldRenderer(deviceUtil, descriptorFactory, camera)
+
+    val indirectCmdBuf: VulkanBuffer; get() = renderer.indirectCommandBuffer
 
 
     fun init() {

@@ -101,7 +101,7 @@ class WorldRenderer(
         val camBuf = allocate(128)
         camBuf.order(ByteOrder.LITTLE_ENDIAN)
         val view = camera.calculateView()
-        view[3][2] += 25f
+        //view[3][2] -= 1f
         val proj = camera.calculateProjection()
         view.toByteBufferColumnMajor(camBuf, 0)
         proj.toByteBufferColumnMajor(camBuf, 64)
@@ -162,15 +162,15 @@ class WorldRenderer(
 
         with(barrier[0]) {
             srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
         }
         with(barrier[1]) {
             srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
         }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
             0, null, barrier, null
         )
 
