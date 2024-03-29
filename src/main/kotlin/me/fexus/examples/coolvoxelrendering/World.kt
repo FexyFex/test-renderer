@@ -48,7 +48,7 @@ class World(
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
         val horizontal = 32
-        val vertical = 9
+        val vertical = 8
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
             chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))
         }
