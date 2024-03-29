@@ -11,7 +11,8 @@ enum class VoxelColor(val colorVec4: Vec4) {
     GRAY(Vec4(0.5f, 0.5f, 0.5f, 1.0f)),
     DARK_GRAY(Vec4(0.25f, 0.25f, 0.25f, 1f)),
     BROWN(Vec4(0.6f, 0.3f, 0.1f, 1.0f)),
-    DARK_BROWN(Vec4(0.4f, 0.1f, 0.03f, 1.0f));
+    DARK_BROWN(Vec4(0.4f, 0.1f, 0.03f, 1.0f)),
+    GREEN(Vec4(0.2f, 0.6f, 0.3f, 1.0));
 
     val intValue: Int = (colorVec4.x.toInt() * 255) or
                 ((colorVec4.y.toInt() * 255) shl 8) or

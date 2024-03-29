@@ -3,7 +3,6 @@ package me.fexus.examples.coolvoxelrendering
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.Globals
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
-import me.fexus.examples.coolvoxelrendering.misc.VoxelTextureArray
 import me.fexus.examples.coolvoxelrendering.world.Cubemap
 import me.fexus.math.clamp
 import me.fexus.math.mat.Mat4
@@ -39,7 +38,6 @@ import me.fexus.vulkan.descriptors.image.sampler.Filtering
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSampler
 import me.fexus.vulkan.descriptors.image.sampler.VulkanSamplerConfiguration
 import me.fexus.vulkan.extension.DescriptorIndexingEXT
-import me.fexus.vulkan.extension.ShaderTileImageEXT
 import me.fexus.vulkan.util.ImageExtent2D
 import me.fexus.vulkan.util.ImageExtent3D
 import me.fexus.window.Window

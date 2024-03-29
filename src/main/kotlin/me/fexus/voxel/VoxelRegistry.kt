@@ -1,19 +1,20 @@
 package me.fexus.voxel
 
-import me.fexus.voxel.type.StoneVoxel
-import me.fexus.voxel.type.VoidVoxel
-import me.fexus.voxel.type.VoxelType
+import me.fexus.voxel.type.*
 
 
 class VoxelRegistry {
-    private val registeredVoxels = Array<VoxelType?>(63) { null }
+    private val registeredVoxels = Array<VoxelType?>(128) { null }
     private var nextID = 0
     var voxelCount: Int = 0; private set
 
 
     fun init() {
+        // Hardcoding the ids of voxels that are in the GPU worldgen
         registerVoxel(VoidVoxel)
         registerVoxel(StoneVoxel)
+        registerVoxel(GrassVoxel)
+        registerVoxel(DirtVoxel)
 
         val voxelTypes = VoxelType::class.sealedSubclasses
             .filter { it != VoidVoxel::class && it != StoneVoxel::class }

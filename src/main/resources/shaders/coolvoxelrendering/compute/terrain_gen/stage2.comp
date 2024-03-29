@@ -57,11 +57,10 @@ void main() {
 
     if (currentVoxel == 0) return;
 
-    for (int i = 0; i < SOIL_DEPTH; i++) {
+    for (int i = 1; i <= SOIL_DEPTH; i++) {
         ivec3 nextPos = ivec3(blockLocalPos);
-        nextPos.y = int(nextPos.y) + i;
+        nextPos.y = nextPos.y + i;
         if (nextPos.y > 15) {
-
             if (i < 2) // Flags this voxel so that it will be double checked by the CPU later
                 outputVoxel(blockGlobalIndex, 1 | (1 << 16));
             break;
@@ -71,9 +70,8 @@ void main() {
         int voxelID = getVoxelAt(nextBlockGlobalIndex);
 
         // TODO: Fetch voxel ID by index instead of using the index itself
-        if (voxelID == 0) {
-            if (i == 0) { outputVoxel(blockGlobalIndex, GRASS_VOXEL_INDEX); }
-            else { outputVoxel(blockGlobalIndex, GRASS_VOXEL_INDEX); }
+        if (voxelID == VOID_VOXEL_INDEX) {
+            if (i == 1) { outputVoxel(blockGlobalIndex, GRASS_VOXEL_INDEX); } else { outputVoxel(blockGlobalIndex, DIRT_VOXEL_INDEX); }
             break;
         }
     }

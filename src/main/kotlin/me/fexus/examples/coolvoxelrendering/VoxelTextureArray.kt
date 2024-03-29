@@ -1,8 +1,10 @@
-package me.fexus.examples.coolvoxelrendering.misc
+package me.fexus.examples.coolvoxelrendering
 
+import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.memory.runMemorySafe
 import me.fexus.texture.TextureLoader
 import me.fexus.voxel.VoxelRegistry
+import me.fexus.voxel.type.VoidVoxel
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
@@ -27,26 +29,29 @@ class VoxelTextureArray(
 
     fun init() {
         val layerCount = voxelRegistry.voxelCount
-        val cloudTex = TextureLoader("textures/coolvoxelrendering/cloud.png")
-        val grass = TextureLoader("textures/coolvoxelrendering/grass.png")
-        val stoneTex = TextureLoader("textures/coolvoxelrendering/stone.png")
-        val textures = arrayOf(cloudTex, stoneTex, grass)
+        val textureWidth = 4
+        val textureHeight = 4
+        val textureSize = textureWidth * textureHeight * 4L
 
         val imageConfig = VulkanImageConfiguration(
-            ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(grass.width, grass.height, 1),
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D_ARRAY, ImageExtent3D(textureWidth, textureHeight, 1),
             1, 1, layerCount, ImageColorFormat.R8G8B8A8_SRGB, ImageTiling.OPTIMAL,
             ImageAspect.COLOR, ImageUsage.SAMPLED + ImageUsage.TRANSFER_DST, MemoryPropertyFlag.DEVICE_LOCAL
         )
         this.image = descriptorFactory.createImage(imageConfig)
 
         val stagingBufferConfig = VulkanBufferConfiguration(
-            grass.imageSize * layerCount, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
+            textureSize * layerCount, MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.TRANSFER_SRC
         )
         val stagingBuffer = deviceUtil.createBuffer(stagingBufferConfig)
 
-        textures.forEachIndexed { index, tex ->
-            stagingBuffer.put(index * tex.imageSize.toInt(), tex.pixels)
+        var index = 1
+        voxelRegistry.forEachVoxel {
+            if (it == VoidVoxel) return@forEachVoxel
+            val texture = TextureLoader("textures/coolvoxelrendering/voxeltypes/${it.name}.png")
+            stagingBuffer.put(index * texture.imageSize.toInt(), texture.pixels)
+            index ++
         }
 
         runMemorySafe {
@@ -80,7 +85,7 @@ class VoxelTextureArray(
             val copyRegion = calloc(VkBufferImageCopy::calloc, 1)
             with(copyRegion[0]) {
                 bufferOffset(0L)
-                imageExtent().width(grass.width).height(grass.height).depth(1)
+                imageExtent().width(textureWidth).height(textureHeight).depth(1)
                 imageOffset().x(0).y(0).z(0)
                 imageSubresource()
                     .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
@@ -89,9 +94,11 @@ class VoxelTextureArray(
                     .layerCount(1)
             }
 
-            var layer = 0
-            textures.forEach {
-                copyRegion[0].bufferOffset(layer * it.imageSize)
+            var layer = 1 // 0 is Empty
+            voxelRegistry.forEachVoxel {
+                if (it == VoidVoxel) return@forEachVoxel
+
+                copyRegion[0].bufferOffset(layer * textureSize)
                 copyRegion[0].imageSubresource().baseArrayLayer(layer++)
 
                 vkCmdCopyBufferToImage(

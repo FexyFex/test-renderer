@@ -36,16 +36,15 @@ class BlockTypePlacementVerifier {
                 val isCave = (upperFlags and 2) == 2
                 if (!isFree || isCave) continue
 
-                val value = lowerChunk.getVoxelAt(x, 15, z)
-                val flags = value ushr 16
-                val isSoilFlagged = (flags and 1) == 1
-                if (isSoilFlagged) {
-                    lowerChunk.setVoxelAt(x, 15, z, 2)
-
-                    // Do it once more if successful the first time
-                    val value2 = lowerChunk.getVoxelAt(x, 14, z)
-                    val voxel2 = value2 and 65535
-                    if (voxel2 != 0) lowerChunk.setVoxelAt(x, 14, z, 2)
+                var index = 0
+                for (y in 15 downTo 14) {
+                    val value = lowerChunk.getVoxelAt(x, y, z)
+                    val flags = value ushr 16
+                    val isSoilFlagged = (flags and 1) == 1
+                    if (isSoilFlagged) {
+                        lowerChunk.setVoxelAt(x, y, z, 2 + index)
+                    }
+                    index++
                 }
             }
         }

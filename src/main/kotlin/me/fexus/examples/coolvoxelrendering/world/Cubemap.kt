@@ -35,7 +35,7 @@ class Cubemap(private val deviceUtil: VulkanDeviceUtil, private val descriptorFa
     private lateinit var sampler: VulkanSampler
     private var vertexCount = -1
 
-    private val cubemapTexture = TextureLoader("textures/coolvoxelrendering/cubemap.jpg")
+    private val cubemapTexture = TextureLoader("textures/surroundsound/cubemap.jpg")
     lateinit var imageArray: VulkanImage; private set
 
 
