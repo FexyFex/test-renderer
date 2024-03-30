@@ -39,22 +39,9 @@ layout (push_constant) uniform PushConstants {
     uint commandBufferIndex;
     uint chunkPosBufferIndex;
     uint sidePosBufferIndex;
-    uint shadowMapIndex;
-    uint shadowBufferIndex;
-    uint dummy;
-    vec4 viewPos;
-    vec4 lightSourcePos;
 };
 
-layout (location = 0) out vec2 outTexCoords;
-layout (location = 1) flat out uint outTextureIndex;
-layout (location = 2) flat out float outSideLight;
-layout (location = 3) flat out uint outShadowMapIndex;
-layout (location = 4) out vec3 outFragPos;
-layout (location = 5) out vec3 outNormal;
-layout (location = 6) out vec4 outLightSpaceFragPos;
-layout (location = 7) flat out vec3 outLightSourcePos;
-layout (location = 8) flat out vec3 outViewPos;
+layout (location = 0) out vec3 outFragPos;
 
 
 SideInfo unpack(uint packed) {
@@ -85,7 +72,6 @@ void main() {
         rotatedPos.x = 0.0;
         scaling.z = side.scaling.x;
         scaling.y = side.scaling.y;
-        outSideLight = 1.5;
         if (normal.x > 0.0) {
             rotatedPos.z = 1.0 - rotatedPos.z;
         }
@@ -94,35 +80,22 @@ void main() {
         rotatedPos.y = 0.0;
         scaling.z = side.scaling.y;
         scaling.x = side.scaling.x;
-        outSideLight = 0.33;
         if (normal.y > 0.0) {
-            outSideLight = 1.85;
             rotatedPos.z = rotatedPos.z;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     } else {
         scaling.x = side.scaling.x;
         scaling.y = side.scaling.y;
-        outSideLight = 0.5;
         if (normal.z < 0.0) {
             rotatedPos.y = rotatedPos.y;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     }
 
-    WorldInfo lightInfo = cameraBuffer[shadowBufferIndex].info;
-    mat4 lightMatrix = lightInfo.proj * lightInfo.view;
-
     vec3 position = (rotatedPos * scaling) + side.position + (chunkPos.xyz);
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 
-    outTexCoords = inTexCoords * side.scaling;
-    outTextureIndex = side.textureIndex;
-    outShadowMapIndex = shadowMapIndex;
-    outFragPos = position;
-    outNormal = normal;
-    outLightSpaceFragPos = lightMatrix * vec4(outFragPos, 1.0);
-    outLightSourcePos = lightSourcePos.xyz;//lightInfo.view[3].xyz;
-    outViewPos = viewPos.xyz;//world.view[3].xyz;
+    outFragPos = vec3(position.xy, gl_Position.z);
 }

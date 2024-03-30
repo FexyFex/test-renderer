@@ -21,7 +21,7 @@ object QuadModelTriangleStrips {
     data class Vertex(val pos: Vec3, val uv: Vec2) {
         fun writeToByteBuffer(buffer: ByteBuffer, offset: Int) {
             pos.intoByteBuffer(buffer, offset)
-            uv.toByteBuffer(buffer, offset + 12)
+            uv.intoByteBuffer(buffer, offset + 12)
         }
 
         companion object {

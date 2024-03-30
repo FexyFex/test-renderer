@@ -40,8 +40,6 @@ class World(
 
     private val renderer = WorldRenderer(deviceUtil, descriptorFactory, camera)
 
-    val indirectCmdBuf: VulkanBuffer; get() = renderer.indirectCommandBuffer
-
 
     fun init() {
         renderer.init()
@@ -51,7 +49,7 @@ class World(
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
         val horizontal = 32
-        val vertical = 8
+        val vertical = 12
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
             chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))
         }

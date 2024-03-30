@@ -1,7 +1,6 @@
 package me.fexus.examples.compute.bulletlimbo
 
 import me.fexus.examples.Globals
-import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec2
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
@@ -33,8 +32,8 @@ class WorldInfoBuffer {
     fun updateData(camPos: Vec2, camExtent: Vec2, tickCounter: Long, playArea: Area2D, frameIndex: Int) {
         val data = ByteBuffer.allocate(128)
         data.order(ByteOrder.LITTLE_ENDIAN)
-        camPos.toByteBuffer(data, 0)
-        camExtent.toByteBuffer(data, 8)
+        camPos.intoByteBuffer(data, 0)
+        camExtent.intoByteBuffer(data, 8)
         data.putInt(16, tickCounter.toInt())
         playArea.toByteBuffer(data, 20)
         buffers[frameIndex].put(0, data)

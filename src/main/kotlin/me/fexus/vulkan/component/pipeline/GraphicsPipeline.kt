@@ -204,14 +204,14 @@ class GraphicsPipeline: IPipeline {
             pDynamicStates(pDynamicStates)
         }
 
-        val pColorAttachmentFormats = allocateInt(1)
-        pColorAttachmentFormats.put(0, VK_FORMAT_B8G8R8A8_SRGB)
+        val pColorAttachmentFormats = allocateInt(config.colorAttachmentCount)
+        repeat(config.colorAttachmentCount) { pColorAttachmentFormats.put(it, VK_FORMAT_B8G8R8A8_SRGB) }
 
         val renderingInfo = calloc(VkPipelineRenderingCreateInfoKHR::calloc) {
             sType(VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR)
             pNext(0)
             viewMask(0)
-            colorAttachmentCount(1)
+            colorAttachmentCount(config.colorAttachmentCount)
             pColorAttachmentFormats(pColorAttachmentFormats)
             depthAttachmentFormat(VK_FORMAT_D32_SFLOAT)
             stencilAttachmentFormat(VK_FORMAT_UNDEFINED)

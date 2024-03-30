@@ -25,7 +25,9 @@ data class GraphicsPipelineConfiguration(
     val multisampling: Int = 1,
 
     val depthTest: Boolean = true,
-    val depthWrite: Boolean = true
+    val depthWrite: Boolean = true,
+
+    val colorAttachmentCount: Int = 1
 ) {
 
 }

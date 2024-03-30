@@ -25,7 +25,7 @@ object QuadModel {
         fun writeToByteBuffer(buffer: ByteBuffer, offset: Int) {
             pos.intoByteBuffer(buffer, offset)
             buffer.putFloat(offset + 12, 1.0f)
-            uv.toByteBuffer(buffer, offset + 16)
+            uv.intoByteBuffer(buffer, offset + 16)
         }
 
         companion object {

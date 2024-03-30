@@ -2,26 +2,34 @@ package me.fexus.examples.coolvoxelrendering.world
 
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
+import me.fexus.examples.coolvoxelrendering.misc.ImageDebugQuad
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.surroundsound.MeshUploader
+import me.fexus.math.vec.Vec2
+import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
 import me.fexus.model.QuadModelTriangleStrips
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.component.pipeline.*
+import me.fexus.vulkan.component.pipeline.pipelinestage.PipelineStage
 import me.fexus.vulkan.component.pipeline.shaderstage.ShaderStage
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBufferConfiguration
 import me.fexus.vulkan.descriptors.buffer.usage.BufferUsage
+import me.fexus.vulkan.descriptors.image.*
+import me.fexus.vulkan.descriptors.image.aspect.ImageAspect
+import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
-import org.lwjgl.system.MemoryUtil
+import me.fexus.vulkan.util.ImageExtent3D
+import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRDynamicRendering.vkCmdBeginRenderingKHR
+import org.lwjgl.vulkan.KHRDynamicRendering.vkCmdEndRenderingKHR
 import org.lwjgl.vulkan.VK12.*
-import org.lwjgl.vulkan.VkBufferMemoryBarrier
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Callable
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -32,16 +40,28 @@ class WorldRenderer(
     private val descriptorFactory: DescriptorFactory,
     private val camera: CameraPerspective
 ) {
+    companion object {
+        const val SHADOW_MAP_WIDTH = 800
+        const val SHADOW_MAP_HEIGHT = 800
+    }
+
+    private val lightSourceCam = CameraPerspective(16f / 9f)
+
     private val cullPipeline = ComputePipeline()
+    private val shadowPipeline = GraphicsPipeline()
     private val chunkPipeline = GraphicsPipeline()
 
     private lateinit var hullVertexBuffer: VulkanBuffer
 
     lateinit var cullCameraBuffers: Array<VulkanBuffer>
+    lateinit var shadowCameraBuffers: Array<VulkanBuffer>
     lateinit var cullObjectsBuffers: Array<VulkanBuffer>
     lateinit var indirectCommandBuffer: VulkanBuffer
     lateinit var chunkPositionsBuffer: VulkanBuffer
     lateinit var sidePositionsBuffer: VulkanBuffer
+
+    lateinit var shadowDepthAttachment: VulkanImage
+    lateinit var shadowColorAttachment: VulkanImage
 
     private val chunkHulls = HashMap<ChunkPosition, ChunkHull>()
     private var nextHullOffset: Int = 0
@@ -49,9 +69,13 @@ class WorldRenderer(
     private val threadPool = Executors.newCachedThreadPool()
     private val processorCount = Runtime.getRuntime().availableProcessors()
 
+    private val debugQuad = ImageDebugQuad(deviceUtil, descriptorFactory)
+
+
     fun init() {
         createHullBuffers()
         createHullPipeline()
+        debugQuad.init()
     }
 
     fun recordComputeCommands(commandBuffer: CommandBuffer, frameIndex: Int) = runMemorySafe {
@@ -86,6 +110,8 @@ class WorldRenderer(
             0, pDescriptorSets, null
         )
 
+        val pVertexBuffers = allocateLongValues(hullVertexBuffer.vkBufferHandle)
+        val pOffsets = allocateLongValues(0)
         val pPushConstants = allocate(128)
         pPushConstants.putInt(0, cullCameraBuffers[frameIndex].index)
         pPushConstants.putInt(4, cullObjectsBuffers[frameIndex].index)
@@ -106,6 +132,15 @@ class WorldRenderer(
         view.toByteBufferColumnMajor(camBuf, 0)
         proj.toByteBufferColumnMajor(camBuf, 64)
         cullCameraBuffers[frameIndex].put(0, camBuf)
+
+        lightSourceCam.aspect = 1f
+        lightSourceCam.fov = 90f
+        lightSourceCam.zFar = 300f
+        lightSourceCam.position = Vec3(0f, -300f, 0f)
+        lightSourceCam.rotation = Vec3(90f, 0f ,0f)
+        lightSourceCam.calculateView().toByteBufferColumnMajor(camBuf, 0)
+        lightSourceCam.calculateReverseZProjection().toByteBufferColumnMajor(camBuf, 64)
+        shadowCameraBuffers[frameIndex].put(0, camBuf)
 
         // Barrier that ensures that the buffers aren't in use anymore
         val barrier = calloc(VkBufferMemoryBarrier::calloc, 2)
@@ -174,6 +209,127 @@ class WorldRenderer(
             0, null, barrier, null
         )
 
+        // Start a renderpass for the shadow map
+        val clearValues = calloc(VkClearValue::calloc) {
+            color()
+                .float32(0, 0f)
+                .float32(1, 0f)
+                .float32(2, 0f)
+                .float32(3, 0f)
+            depthStencil().depth(0f).stencil(0)
+        }
+
+        val colorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
+        with(colorAttachment[0]) {
+            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            pNext(0)
+            imageLayout(KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            resolveMode(VK_RESOLVE_MODE_NONE)
+            resolveImageView(0)
+            resolveImageLayout(0)
+            loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            clearValue(clearValues)
+            imageView(shadowColorAttachment.vkImageViewHandle)
+        }
+
+        val depthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
+            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            pNext(0)
+            imageLayout(KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            resolveMode(VK_RESOLVE_MODE_NONE)
+            resolveImageView(0)
+            resolveImageLayout(0)
+            loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            clearValue(clearValues)
+            imageView(shadowDepthAttachment.vkImageViewHandle)
+        }
+
+        val renderArea = calloc(VkRect2D::calloc) {
+            extent().width(SHADOW_MAP_WIDTH).height(SHADOW_MAP_HEIGHT)
+        }
+
+        val renderingInfo = calloc(VkRenderingInfoKHR::calloc) {
+            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
+            pNext(0)
+            flags(0)
+            renderArea(renderArea)
+            layerCount(1)
+            viewMask(0)
+            pColorAttachments(colorAttachment)
+            pDepthAttachment(depthAttachment)
+            pStencilAttachment(null)
+        }
+
+        // Make depth image usable for rendering
+        val shadowImageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+        with(shadowImageBarrier[0]) {
+            sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+            pNext(0)
+            srcAccessMask(0)
+            dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+            oldLayout(ImageLayout.UNDEFINED.vkValue)
+            newLayout(ImageLayout.COLOR_ATTACHMENT_OPTIMAL.vkValue)
+            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            image(shadowColorAttachment.vkImageHandle)
+            subresourceRange()
+                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                .baseMipLevel(0)
+                .levelCount(1)
+                .baseArrayLayer(0)
+                .layerCount(1)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            PipelineStage.TOP_OF_PIPE.vkBits, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            0, null, null, shadowImageBarrier
+        )
+
+        vkCmdBeginRenderingKHR(commandBuffer.vkHandle, renderingInfo)
+        runMemorySafe {
+            val viewport = calloc(VkViewport::calloc, 1)
+            viewport[0].set(0f, 0f, SHADOW_MAP_WIDTH.toFloat(), SHADOW_MAP_HEIGHT.toFloat(), 0f, 1f)
+
+            val scissors = calloc(VkRect2D::calloc, 1)
+            scissors[0].offset().x(0).y(0)
+            scissors[0].extent().width(SHADOW_MAP_WIDTH).height(SHADOW_MAP_HEIGHT)
+
+            vkCmdSetViewport(commandBuffer.vkHandle, 0, viewport)
+            vkCmdSetScissor(commandBuffer.vkHandle, 0, scissors)
+
+            vkCmdBindDescriptorSets(
+                commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipeline.vkLayoutHandle,
+                0, pDescriptorSets, null
+            )
+
+            pPushConstants.putInt(0, shadowCameraBuffers[frameIndex].index)
+            vkCmdPushConstants(
+                commandBuffer.vkHandle, shadowPipeline.vkLayoutHandle,
+                (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,
+                0, pPushConstants
+            )
+
+            vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipeline.vkHandle)
+            vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+            vkCmdDrawIndirect(commandBuffer.vkHandle, indirectCommandBuffer.vkBufferHandle, 0L, chunkCount, 16)
+        }
+        vkCmdEndRenderingKHR(commandBuffer.vkHandle)
+
+        // Make shadow depth map readable for the next draw call with color output
+        with(shadowImageBarrier[0]) {
+            srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            oldLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+        }
+        vkCmdPipelineBarrier(
+            commandBuffer.vkHandle,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0, null, null, shadowImageBarrier
+        )
+
         while (futures.any { !it.isDone }) { continue }
     }
 
@@ -183,11 +339,15 @@ class WorldRenderer(
         val pVertexBuffers = allocateLongValues(hullVertexBuffer.vkBufferHandle)
         val pOffsets = allocateLongValues(0)
         val pPushConstants = allocate(128)
-        pPushConstants.putInt(0, 0)//cullCameraBuffers[frameIndex].index)
+        pPushConstants.putInt(0, 0)
         pPushConstants.putInt(4, cullObjectsBuffers[frameIndex].index)
         pPushConstants.putInt(8, indirectCommandBuffer.index)
         pPushConstants.putInt(12, chunkPositionsBuffer.index)
         pPushConstants.putInt(16, sidePositionsBuffer.index)
+        pPushConstants.putInt(20, shadowColorAttachment.index)
+        pPushConstants.putInt(24, shadowCameraBuffers[frameIndex].index)
+        lightSourceCam.position.intoByteBuffer(pPushConstants, 32)
+        camera.position.intoByteBuffer(pPushConstants, 48)
         vkCmdPushConstants(
             commandBuffer.vkHandle, chunkPipeline.vkLayoutHandle,
             (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,
@@ -204,6 +364,21 @@ class WorldRenderer(
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, chunkPipeline.vkHandle)
         vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
         vkCmdDrawIndirect(commandBuffer.vkHandle, indirectCommandBuffer.vkBufferHandle, 0L, chunkCount, 16)
+
+
+        // Debug Quad
+        pVertexBuffers.put(0, debugQuad.vertexBuffer.vkBufferHandle)
+        Vec2(-0.98f).intoByteBuffer(pPushConstants, 0)
+        Vec2(0.8f).intoByteBuffer(pPushConstants, 8)
+        pPushConstants.putInt(16, shadowColorAttachment.index)
+        vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, debugQuad.pipeline.vkHandle)
+        vkCmdPushConstants(
+            commandBuffer.vkHandle, debugQuad.pipeline.vkLayoutHandle,
+            (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,
+            0, pPushConstants
+        )
+        vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
+        vkCmdDraw(commandBuffer.vkHandle, 4, 1, 0, 0)
     }
 
 
@@ -229,12 +404,13 @@ class WorldRenderer(
         }
         this.hullVertexBuffer = meshUploader.uploadBuffer(buf, BufferUsage.VERTEX_BUFFER)
 
-        val cullCameraBuffer = VulkanBufferConfiguration(
+        val cullCameraBufferConfig = VulkanBufferConfiguration(
             128L,
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )
-        this.cullCameraBuffers = descriptorFactory.createNBuffers(cullCameraBuffer)
+        this.cullCameraBuffers = descriptorFactory.createNBuffers(cullCameraBufferConfig)
+        this.shadowCameraBuffers = descriptorFactory.createNBuffers(cullCameraBufferConfig) // same thing
 
         val cullObjectsBufferConfig = VulkanBufferConfiguration(
             16L * 65536L,
@@ -267,6 +443,20 @@ class WorldRenderer(
         // Just to map the buffers in advance
         cullObjectsBuffers.forEach { it.getInt(0) }
         sidePositionsBuffer.getInt(0)
+
+        val shadowMapDepthConfig = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, 1),
+            1, 1, 1, ImageColorFormat.D32_SFLOAT, ImageTiling.OPTIMAL,
+            ImageAspect.DEPTH, ImageUsage.DEPTH_STENCIL_ATTACHMENT + ImageUsage.SAMPLED, MemoryPropertyFlag.DEVICE_LOCAL
+        )
+        this.shadowDepthAttachment = descriptorFactory.createImage(shadowMapDepthConfig)
+
+        val shadowMapColorConfig = VulkanImageConfiguration(
+            ImageType.TYPE_2D, ImageViewType.TYPE_2D, ImageExtent3D(SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, 1),
+            1, 1, 1, ImageColorFormat.B8G8R8A8_SRGB, ImageTiling.OPTIMAL,
+            ImageAspect.COLOR, ImageUsage.COLOR_ATTACHMENT + ImageUsage.SAMPLED, MemoryPropertyFlag.DEVICE_LOCAL
+        )
+        this.shadowColorAttachment = descriptorFactory.createImage(shadowMapColorConfig)
     }
 
     private fun createHullPipeline() {
@@ -284,6 +474,21 @@ class WorldRenderer(
         )
         this.chunkPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), graphicsConfig)
 
+        val shadowPipelineConfig = GraphicsPipelineConfiguration(
+            listOf(
+                VertexAttribute(0, VertexAttributeFormat.VEC3, 0),
+                VertexAttribute(1, VertexAttributeFormat.VEC2, 12)
+            ),
+            PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.FRAGMENT + ShaderStage.VERTEX),
+            ClassLoader.getSystemResource("shaders/coolvoxelrendering/chunk/shadow/chunk_shadow_vert.spv").readBytes(),
+            ClassLoader.getSystemResource("shaders/coolvoxelrendering/chunk/shadow/chunk_shadow_frag.spv").readBytes(),
+            dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
+            primitive = Primitive.TRIANGLE_STRIPS,
+            cullMode = CullMode.BACKFACE,
+            colorAttachmentCount = 0
+        )
+        this.shadowPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), shadowPipelineConfig)
+
         val computeConfig = ComputePipelineConfiguration(
             ClassLoader.getSystemResource("shaders/coolvoxelrendering/compute/frustum_culling/frustum_culling_comp.spv").readBytes(),
             PushConstantsLayout(128, shaderStages = ShaderStage.COMPUTE + ShaderStage.FRAGMENT + ShaderStage.VERTEX),
@@ -294,15 +499,21 @@ class WorldRenderer(
 
     fun destroy() {
         cullPipeline.destroy()
+        shadowPipeline.destroy()
         chunkPipeline.destroy()
 
         hullVertexBuffer.destroy()
 
         cullCameraBuffers.forEach(VulkanBuffer::destroy)
+        shadowCameraBuffers.forEach(VulkanBuffer::destroy)
         cullObjectsBuffers.forEach(VulkanBuffer::destroy)
         indirectCommandBuffer.destroy()
         chunkPositionsBuffer.destroy()
         sidePositionsBuffer.destroy()
+        shadowDepthAttachment.destroy()
+        shadowColorAttachment.destroy()
+
+        debugQuad.destroy()
 
         threadPool.shutdown()
     }
