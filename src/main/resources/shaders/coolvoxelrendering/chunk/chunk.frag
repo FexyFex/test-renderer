@@ -12,7 +12,7 @@ layout (location = 7) flat in vec3 inLightSourcePos;
 layout (location = 8) flat in vec3 inViewPos;
 
 layout (set = 0, binding = 1) uniform texture2DArray texturesOnion[16];
-layout (set = 0, binding = 1) uniform texture2D textureArray[16];
+layout (set = 0, binding = 1) uniform texture2D depthTexture[16];
 layout (set = 0, binding = 2) uniform sampler samplers[4];
 
 layout (location = 0) out vec4 outColor;
@@ -20,7 +20,7 @@ layout (location = 0) out vec4 outColor;
 
 void main() {
     vec3 lightColor = vec3(1.0);
-    vec3 ambient = lightColor * 0.15;
+    vec3 ambient = lightColor * 0.25;
     vec3 lightDir = normalize(inLightSourcePos - inFragPos);
     float diff = max(dot(lightDir, inNormal), 0.0);
     vec3 diffuse = lightColor * diff;
@@ -32,14 +32,17 @@ void main() {
     vec4 worldColor = texture(sampler2DArray(texturesOnion[0], samplers[0]), vec3(inTexCoords, float(textureIndex)));
 
     // SHADOW CALC
-    vec3 projCoords = inLightSpaceFragPos.xyz / inLightSpaceFragPos.w;
+    vec4 fragPosLightSpace = inLightSpaceFragPos;
+
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float shadowDepth = texture(sampler2D(textureArray[inShadowMapIndex], samplers[1]), projCoords.xy, 1.0).r;
+    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
     float currentDepth = projCoords.z;
-    float shadow = currentDepth < shadowDepth ? 1.0 : 0.0;
+    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
     vec3 lighting = (ambient + (1.0 - shadow)) * (diff + specular) * worldColor.xyz;
 
-    outColor = worldColor;
+    //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);
+    outColor = vec4(lighting, 1.0);
     //outColor.xyz *= inSideLight;
 }

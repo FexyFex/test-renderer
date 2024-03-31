@@ -48,7 +48,7 @@ class World(
         hullingThreads.forEach(Thread::start)
 
         val chunksToGenerate = mutableListOf<ChunkPosition>()
-        val horizontal = 32
+        val horizontal = 20
         val vertical = 12
         repeat3D(horizontal,vertical,horizontal) { x, y, z ->
             chunksToGenerate.add(ChunkPosition(x - (horizontal ushr 1), (y - (vertical ushr 1)) * -1, z - (horizontal ushr 1)))

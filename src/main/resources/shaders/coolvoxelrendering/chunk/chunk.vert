@@ -115,8 +115,6 @@ void main() {
 
     vec3 position = (rotatedPos * scaling) + side.position + (chunkPos.xyz);
 
-    gl_Position  = world.proj * world.view * vec4(position, 1.0);
-
     outTexCoords = inTexCoords * side.scaling;
     outTextureIndex = side.textureIndex;
     outShadowMapIndex = shadowMapIndex;
@@ -125,4 +123,6 @@ void main() {
     outLightSpaceFragPos = lightMatrix * vec4(outFragPos, 1.0);
     outLightSourcePos = lightSourcePos.xyz;//lightInfo.view[3].xyz;
     outViewPos = viewPos.xyz;//world.view[3].xyz;
+
+    gl_Position  = world.proj * world.view * vec4(position, 1.0);
 }

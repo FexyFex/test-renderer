@@ -42,6 +42,9 @@ layout (push_constant) uniform PushConstants {
 };
 
 layout (location = 0) out vec3 outFragPos;
+layout (location = 1) out vec2 outTexCoords;
+layout (location = 2) flat out uint outTextureIndex;
+layout (location = 3) flat out float outSideLight;
 
 
 SideInfo unpack(uint packed) {
@@ -72,6 +75,7 @@ void main() {
         rotatedPos.x = 0.0;
         scaling.z = side.scaling.x;
         scaling.y = side.scaling.y;
+        outSideLight = 1.5;
         if (normal.x > 0.0) {
             rotatedPos.z = 1.0 - rotatedPos.z;
         }
@@ -80,13 +84,16 @@ void main() {
         rotatedPos.y = 0.0;
         scaling.z = side.scaling.y;
         scaling.x = side.scaling.x;
+        outSideLight = 0.33;
         if (normal.y > 0.0) {
+            outSideLight = 1.85;
             rotatedPos.z = rotatedPos.z;
             rotatedPos.x = 1.0 - rotatedPos.x;
         }
     } else {
         scaling.x = side.scaling.x;
         scaling.y = side.scaling.y;
+        outSideLight = 0.5;
         if (normal.z < 0.0) {
             rotatedPos.y = rotatedPos.y;
             rotatedPos.x = 1.0 - rotatedPos.x;
@@ -97,5 +104,7 @@ void main() {
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 
-    outFragPos = vec3(position.xy, gl_Position.z);
+    outFragPos = position;
+    outTexCoords = inTexCoords;
+    outTextureIndex = side.textureIndex;
 }

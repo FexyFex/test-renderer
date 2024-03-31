@@ -24,8 +24,8 @@ import me.fexus.vulkan.descriptors.image.usage.ImageUsage
 import me.fexus.vulkan.descriptors.memorypropertyflags.MemoryPropertyFlag
 import me.fexus.vulkan.util.ImageExtent3D
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRDynamicRendering.vkCmdBeginRenderingKHR
-import org.lwjgl.vulkan.KHRDynamicRendering.vkCmdEndRenderingKHR
+import org.lwjgl.vulkan.KHRDynamicRendering.*
+import org.lwjgl.vulkan.KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR
 import org.lwjgl.vulkan.VK12.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -41,8 +41,8 @@ class WorldRenderer(
     private val camera: CameraPerspective
 ) {
     companion object {
-        const val SHADOW_MAP_WIDTH = 800
-        const val SHADOW_MAP_HEIGHT = 800
+        const val SHADOW_MAP_WIDTH = 600
+        const val SHADOW_MAP_HEIGHT = 600
     }
 
     private val lightSourceCam = CameraPerspective(16f / 9f)
@@ -135,11 +135,12 @@ class WorldRenderer(
 
         lightSourceCam.aspect = 1f
         lightSourceCam.fov = 90f
-        lightSourceCam.zFar = 300f
-        lightSourceCam.position = Vec3(0f, -300f, 0f)
+        lightSourceCam.zNear = camera.zNear
+        lightSourceCam.zFar = camera.zFar
+        lightSourceCam.position = Vec3(0f, -200f, 0f)
         lightSourceCam.rotation = Vec3(90f, 0f ,0f)
         lightSourceCam.calculateView().toByteBufferColumnMajor(camBuf, 0)
-        lightSourceCam.calculateReverseZProjection().toByteBufferColumnMajor(camBuf, 64)
+        lightSourceCam.calculateProjection().toByteBufferColumnMajor(camBuf, 64)
         shadowCameraBuffers[frameIndex].put(0, camBuf)
 
         // Barrier that ensures that the buffers aren't in use anymore
@@ -210,39 +211,43 @@ class WorldRenderer(
         )
 
         // Start a renderpass for the shadow map
-        val clearValues = calloc(VkClearValue::calloc) {
+        val clearValueColor = calloc(VkClearValue::calloc) {
             color()
-                .float32(0, 0f)
-                .float32(1, 0f)
-                .float32(2, 0f)
-                .float32(3, 0f)
-            depthStencil().depth(0f).stencil(0)
+                .float32(0, 0.2f)
+                .float32(1, 0.2f)
+                .float32(2, 0.2f)
+                .float32(3, 1.0f)
+        }
+
+        val clearValueDepth = calloc(VkClearValue::calloc) {
+            depthStencil().depth(0.0f)
+            depthStencil().stencil(0)
         }
 
         val colorAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc, 1)
         with(colorAttachment[0]) {
-            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             pNext(0)
-            imageLayout(KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
             resolveMode(VK_RESOLVE_MODE_NONE)
             resolveImageView(0)
             resolveImageLayout(0)
             loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
             storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            clearValue(clearValues)
+            clearValue(clearValueColor)
             imageView(shadowColorAttachment.vkImageViewHandle)
         }
 
         val depthAttachment = calloc(VkRenderingAttachmentInfoKHR::calloc) {
-            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
+            sType(VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR)
             pNext(0)
-            imageLayout(KHRSynchronization2.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
+            imageLayout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR)
             resolveMode(VK_RESOLVE_MODE_NONE)
             resolveImageView(0)
             resolveImageLayout(0)
             loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
             storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            clearValue(clearValues)
+            clearValue(clearValueDepth)
             imageView(shadowDepthAttachment.vkImageViewHandle)
         }
 
@@ -250,25 +255,13 @@ class WorldRenderer(
             extent().width(SHADOW_MAP_WIDTH).height(SHADOW_MAP_HEIGHT)
         }
 
-        val renderingInfo = calloc(VkRenderingInfoKHR::calloc) {
-            sType(KHRDynamicRendering.VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
-            pNext(0)
-            flags(0)
-            renderArea(renderArea)
-            layerCount(1)
-            viewMask(0)
-            pColorAttachments(colorAttachment)
-            pDepthAttachment(depthAttachment)
-            pStencilAttachment(null)
-        }
-
-        // Make depth image usable for rendering
-        val shadowImageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
-        with(shadowImageBarrier[0]) {
+        // Make color and depth image usable for rendering
+        val shadowColorImageBarrier = calloc(VkImageMemoryBarrier::calloc, 1)
+        with(shadowColorImageBarrier[0]) {
             sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
             pNext(0)
             srcAccessMask(0)
-            dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT or VK_ACCESS_COLOR_ATTACHMENT_READ_BIT)
             oldLayout(ImageLayout.UNDEFINED.vkValue)
             newLayout(ImageLayout.COLOR_ATTACHMENT_OPTIMAL.vkValue)
             srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
@@ -284,13 +277,25 @@ class WorldRenderer(
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
             PipelineStage.TOP_OF_PIPE.vkBits, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            0, null, null, shadowImageBarrier
+            0, null, null, shadowColorImageBarrier
         )
+
+        val renderingInfo = calloc(VkRenderingInfoKHR::calloc) {
+            sType(VK_STRUCTURE_TYPE_RENDERING_INFO_KHR)
+            pNext(0)
+            flags(0)
+            renderArea(renderArea)
+            layerCount(1)
+            viewMask(0)
+            pColorAttachments(colorAttachment)
+            pDepthAttachment(depthAttachment)
+            pStencilAttachment(null)
+        }
 
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, renderingInfo)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
-            viewport[0].set(0f, 0f, SHADOW_MAP_WIDTH.toFloat(), SHADOW_MAP_HEIGHT.toFloat(), 0f, 1f)
+            viewport[0].set(0f, 0f, SHADOW_MAP_WIDTH.toFloat(), SHADOW_MAP_HEIGHT.toFloat(), 1f, 0f)
 
             val scissors = calloc(VkRect2D::calloc, 1)
             scissors[0].offset().x(0).y(0)
@@ -317,8 +322,8 @@ class WorldRenderer(
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
-        // Make shadow depth map readable for the next draw call with color output
-        with(shadowImageBarrier[0]) {
+        // Make shadow depth and color map readable for the next draw call
+        with(shadowColorImageBarrier[0]) {
             srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
             dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
             oldLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
@@ -327,7 +332,7 @@ class WorldRenderer(
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            0, null, null, shadowImageBarrier
+            0, null, null, shadowColorImageBarrier
         )
 
         while (futures.any { !it.isDone }) { continue }
@@ -344,7 +349,7 @@ class WorldRenderer(
         pPushConstants.putInt(8, indirectCommandBuffer.index)
         pPushConstants.putInt(12, chunkPositionsBuffer.index)
         pPushConstants.putInt(16, sidePositionsBuffer.index)
-        pPushConstants.putInt(20, shadowColorAttachment.index)
+        pPushConstants.putInt(20, shadowDepthAttachment.index)
         pPushConstants.putInt(24, shadowCameraBuffers[frameIndex].index)
         lightSourceCam.position.intoByteBuffer(pPushConstants, 32)
         camera.position.intoByteBuffer(pPushConstants, 48)
@@ -370,7 +375,7 @@ class WorldRenderer(
         pVertexBuffers.put(0, debugQuad.vertexBuffer.vkBufferHandle)
         Vec2(-0.98f).intoByteBuffer(pPushConstants, 0)
         Vec2(0.8f).intoByteBuffer(pPushConstants, 8)
-        pPushConstants.putInt(16, shadowColorAttachment.index)
+        pPushConstants.putInt(16, shadowDepthAttachment.index)
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, debugQuad.pipeline.vkHandle)
         vkCmdPushConstants(
             commandBuffer.vkHandle, debugQuad.pipeline.vkLayoutHandle,
@@ -485,7 +490,6 @@ class WorldRenderer(
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
             primitive = Primitive.TRIANGLE_STRIPS,
             cullMode = CullMode.BACKFACE,
-            colorAttachmentCount = 0
         )
         this.shadowPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), shadowPipelineConfig)
 

@@ -240,11 +240,13 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     }
 
     private fun updateBuffers() {
+        camera.zNear = 0.1f
+        camera.zFar = 400f
         camera.position = -player.position
         camera.rotation = player.rotation
 
         val view = camera.calculateView()
-        val proj = camera.calculateReverseZProjection()
+        val proj = camera.calculateProjection()
         val data = ByteBuffer.allocate(144)
         data.order(ByteOrder.LITTLE_ENDIAN)
         view.toByteBufferColumnMajor(data, 0)
@@ -364,7 +366,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
-            viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 0f, 1f)
+            viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 1f, 0f)
 
             val scissor = calloc(VkRect2D::calloc, 1)
             scissor[0].offset().x(0).y(0)
