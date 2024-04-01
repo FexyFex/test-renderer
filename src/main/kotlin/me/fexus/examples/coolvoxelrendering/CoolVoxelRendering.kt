@@ -241,7 +241,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     private fun updateBuffers() {
         camera.zNear = 0.1f
-        camera.zFar = 400f
+        camera.zFar = 450f
         camera.position = -player.position
         camera.rotation = player.rotation
 
