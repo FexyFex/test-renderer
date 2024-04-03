@@ -135,8 +135,8 @@ class WorldRenderer(
 
         lightSourceCam.aspect = 1f
         lightSourceCam.fov = 90f
-        lightSourceCam.zNear = 1f//camera.zNear
-        lightSourceCam.zFar = 300f//camera.zFar
+        lightSourceCam.zNear = camera.zNear + 50f
+        lightSourceCam.zFar = camera.zFar + 50f
         lightSourceCam.position = Vec3(0f, -200f, 0f)
         lightSourceCam.rotation = Vec3(90f, 0f ,0f)
         lightSourceCam.calculateView().toByteBufferColumnMajor(camBuf, 0)
@@ -351,6 +351,7 @@ class WorldRenderer(
         pPushConstants.putInt(24, shadowCameraBuffers[frameIndex].index)
         lightSourceCam.position.intoByteBuffer(pPushConstants, 32)
         camera.position.intoByteBuffer(pPushConstants, 48)
+        Vec2(camera.zNear, camera.zFar).intoByteBuffer(pPushConstants, 64)
         vkCmdPushConstants(
             commandBuffer.vkHandle, chunkPipeline.vkLayoutHandle,
             (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,

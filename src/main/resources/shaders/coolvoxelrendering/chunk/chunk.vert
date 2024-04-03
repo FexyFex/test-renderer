@@ -44,6 +44,7 @@ layout (push_constant) uniform PushConstants {
     uint dummy;
     vec4 viewPos;
     vec4 lightSourcePos;
+    vec2 nearFar;
 };
 
 layout (location = 0) out vec2 outTexCoords;
@@ -55,6 +56,7 @@ layout (location = 5) out vec3 outNormal;
 layout (location = 6) out vec4 outLightSpaceFragPos;
 layout (location = 7) flat out vec3 outLightSourcePos;
 layout (location = 8) flat out vec3 outViewPos;
+layout (location = 9) flat out vec2 outNearFar;
 
 
 SideInfo unpack(uint packed) {
@@ -123,6 +125,7 @@ void main() {
     outLightSpaceFragPos = lightMatrix * vec4(outFragPos, 1.0);
     outLightSourcePos = lightSourcePos.xyz;//lightInfo.view[3].xyz;
     outViewPos = viewPos.xyz;//world.view[3].xyz;
+    outNearFar = nearFar;
 
     gl_Position  = world.proj * world.view * vec4(position, 1.0);
 }

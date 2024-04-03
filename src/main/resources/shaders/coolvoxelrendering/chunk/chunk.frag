@@ -10,6 +10,7 @@ layout (location = 5) in vec3 inNormal;
 layout (location = 6) in vec4 inLightSpaceFragPos;
 layout (location = 7) flat in vec3 inLightSourcePos;
 layout (location = 8) flat in vec3 inViewPos;
+layout (location = 9) flat in vec2 inNearFar;
 
 layout (set = 0, binding = 1) uniform texture2DArray texturesOnion[16];
 layout (set = 0, binding = 1) uniform texture2D depthTexture[16];
@@ -17,6 +18,11 @@ layout (set = 0, binding = 2) uniform sampler samplers[4];
 
 layout (location = 0) out vec4 outColor;
 
+
+float linearizeDepth(float depth) {
+    float z = depth * 2.0 - 1.0;
+    return (2.0 * inNearFar.x * inNearFar.y) / (inNearFar.y + inNearFar.x - z * (inNearFar.y - inNearFar.x));
+}
 
 void main() {
     vec3 lightColor = vec3(1.0);
@@ -35,7 +41,8 @@ void main() {
     vec4 fragPosLightSpace = inLightSpaceFragPos;
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[1]), projCoords.xy, 1.0).r;
+    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
+    closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
     float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
