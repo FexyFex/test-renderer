@@ -1,11 +1,13 @@
 package me.fexus.examples.coolvoxelrendering.world
 
+import me.fexus.camera.CameraOrthographic
 import me.fexus.camera.CameraPerspective
 import me.fexus.examples.coolvoxelrendering.misc.DescriptorFactory
 import me.fexus.examples.coolvoxelrendering.misc.ImageDebugQuad
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.surroundsound.MeshUploader
+import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec2
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
@@ -45,7 +47,7 @@ class WorldRenderer(
         const val SHADOW_MAP_HEIGHT = 600
     }
 
-    private val lightSourceCam = CameraPerspective(16f / 9f)
+    private val lightSourceCam = CameraOrthographic(100f, 100f, 100f, 100f)
 
     private val cullPipeline = ComputePipeline()
     private val shadowPipeline = GraphicsPipeline()
@@ -133,14 +135,15 @@ class WorldRenderer(
         proj.toByteBufferColumnMajor(camBuf, 64)
         cullCameraBuffers[frameIndex].put(0, camBuf)
 
-        lightSourceCam.aspect = 1f
-        lightSourceCam.fov = 90f
-        lightSourceCam.zNear = camera.zNear + 50f
-        lightSourceCam.zFar = camera.zFar + 50f
-        lightSourceCam.position = Vec3(0f, -200f, 0f)
-        lightSourceCam.rotation = Vec3(90f, 0f ,0f)
-        lightSourceCam.calculateView().toByteBufferColumnMajor(camBuf, 0)
-        lightSourceCam.calculateProjection().toByteBufferColumnMajor(camBuf, 64)
+        lightSourceCam.zNear = camera.zNear
+        lightSourceCam.zFar = camera.zFar
+        //lightSourceCam.position = Vec3(0f, -200f, 0f)
+        //lightSourceCam.rotation = Vec3(90f, 0f ,0f)
+        val lightView = Mat4().lookAt(Vec3(0f, -200f, 0f), Vec3(0.1f), Vec3(0f, -1f, 0f))
+        lightView.toByteBufferColumnMajor(camBuf, 0)
+        val lightProj = lightSourceCam.calculateProjection()
+        println(lightProj)
+        lightProj.toByteBufferColumnMajor(camBuf, 64)
         shadowCameraBuffers[frameIndex].put(0, camBuf)
 
         // Barrier that ensures that the buffers aren't in use anymore
@@ -374,7 +377,7 @@ class WorldRenderer(
         pVertexBuffers.put(0, debugQuad.vertexBuffer.vkBufferHandle)
         Vec2(-0.98f).intoByteBuffer(pPushConstants, 0)
         Vec2(0.8f).intoByteBuffer(pPushConstants, 8)
-        pPushConstants.putInt(16, shadowDepthAttachment.index)
+        pPushConstants.putInt(16, shadowColorAttachment.index)
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, debugQuad.pipeline.vkHandle)
         vkCmdPushConstants(
             commandBuffer.vkHandle, debugQuad.pipeline.vkLayoutHandle,
@@ -409,7 +412,7 @@ class WorldRenderer(
         this.hullVertexBuffer = meshUploader.uploadBuffer(buf, BufferUsage.VERTEX_BUFFER)
 
         val cullCameraBufferConfig = VulkanBufferConfiguration(
-            128L,
+            144L,
             MemoryPropertyFlag.HOST_VISIBLE + MemoryPropertyFlag.HOST_COHERENT,
             BufferUsage.UNIFORM_BUFFER
         )

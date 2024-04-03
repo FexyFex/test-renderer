@@ -333,6 +333,48 @@ class Mat4(val rows: Array<Vec4>) {
         return res
     }
 
+    fun lookAt(eye: Vec3, center: Vec3, up: Vec3): Mat4 {
+        val res = Mat4(1f)
+
+        val ceX = center.x - eye.x
+        val ceY = center.y - eye.y
+        val ceZ = center.z - eye.z
+
+        var dot = ceX * ceX + ceY * ceY + ceZ * ceZ
+        var invSpqr = inverseSqrt(dot)
+        val fX = ceX * invSpqr
+        val fY = ceY * invSpqr
+        val fZ = ceZ * invSpqr
+
+        val fuX = fY * up.z - up.y * fZ
+        val fuY = fZ * up.x - up.z * fX
+        val fuZ = fX * up.y - up.x * fY
+        dot = fuX * fuX + fuY * fuY + fuZ * fuZ
+        invSpqr = inverseSqrt(dot)
+        val sX = fuX * invSpqr
+        val sY = fuY * invSpqr
+        val sZ = fuZ * invSpqr
+
+        val uX = sY * fZ - fY * sZ
+        val uY = sZ * fX - fZ * sX
+        val uZ = sX * fY - fX * sY
+
+        res[0][0] = sX
+        res[1][0] = sY
+        res[2][0] = sZ
+        res[0][1] = uX
+        res[1][1] = uY
+        res[2][1] = uZ
+        res[0][2] = -fX
+        res[1][2] = -fY
+        res[2][2] = -fZ
+        res[3][0] = -(sX * eye.x + sY * eye.y + sZ * eye.z)
+        res[3][1] = -(uX * eye.x + uY * eye.y + uZ * eye.z)
+        res[3][2] = fX * eye.x + fY * eye.y + fZ * eye.z
+
+        return res
+    }
+
     fun toQuat(): Quat {
         val res = Quat()
 

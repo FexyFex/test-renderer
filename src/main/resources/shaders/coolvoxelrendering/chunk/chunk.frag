@@ -42,14 +42,14 @@ void main() {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
-    closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
+    //closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
     float bias = max(0.05 * (1.0 - dot(inNormal, lightDir)), 0.005);
     float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
     if (projCoords.z > 1.0) shadow = 0.0;
 
 //    vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
-    vec3 lighting = ((1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    vec3 lighting = ((1.0 - shadow)) * worldColor.xyz;
     //vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);
