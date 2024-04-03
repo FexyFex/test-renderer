@@ -44,13 +44,17 @@ void main() {
     float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
     closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
-    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(inNormal, lightDir)), 0.005);
+    float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
+    if (projCoords.z > 1.0) shadow = 0.0;
 
-    //vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
-    vec3 lighting = worldColor.xyz * ((1.0 - shadow));
+//    vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    vec3 lighting = ((1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    //vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);
     outColor = vec4(lighting, 1.0);
     //outColor = vec4(projCoords, 1.0);
+    //outColor = vec4(clamp(inNormal.z, 0.0, 1.0), 0.0, 0.0, 1.0);
     //outColor.xyz *= inSideLight;
 }

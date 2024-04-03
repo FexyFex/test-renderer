@@ -488,7 +488,7 @@ class WorldRenderer(
             ClassLoader.getSystemResource("shaders/coolvoxelrendering/chunk/shadow/chunk_shadow_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
             primitive = Primitive.TRIANGLE_STRIPS,
-            cullMode = CullMode.BACKFACE,
+            cullMode = CullMode.FRONTFACE,
         )
         this.shadowPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), shadowPipelineConfig)
 
