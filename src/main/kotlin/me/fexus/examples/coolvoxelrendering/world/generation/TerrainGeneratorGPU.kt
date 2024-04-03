@@ -258,7 +258,7 @@ class TerrainGeneratorGPU(
 
 
     companion object {
-        private const val MAX_CHUNKS_PER_SUBMIT = 128
+        private const val MAX_CHUNKS_PER_SUBMIT = 32
         private const val BYTES_PER_VOXEL = 4
         private const val BYTES_PER_CHUNK = BYTES_PER_VOXEL * Chunk.VOXELS_PER_CHUNK
 

@@ -37,9 +37,11 @@ class CameraPerspective(var aspect: Float) {
         res[1][1] = 1f / tanHalfFov
         res[2][3] = -1f
 
+        // ZERO TO ONE CLIP SPACE
         res[2][2] = zFar / (zNear - zFar)
         res[3][2] = -(zFar * zNear) / (zFar - zNear)
 
+        // ONE TO ZERO CLIP SPACE
         //res[2][2] = -(zFar + zNear) / (zFar - zNear)
         //res[3][2] = -(2f * zFar * zNear) / (zFar - zNear)
 

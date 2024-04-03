@@ -33,15 +33,14 @@ void main() {
 
     // SHADOW CALC
     vec4 fragPosLightSpace = inLightSpaceFragPos;
-
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = 1.0 - texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
+    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[1]), projCoords.xy, 1.0).r;
     float currentDepth = projCoords.z;
     float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
-    vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
-    //vec3 lighting = worldColor.xyz * (shadow);
+    //vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);
     outColor = vec4(lighting, 1.0);

@@ -13,6 +13,7 @@ layout (location = 0) out vec4 outColor;
 
 // Depth is automatically written to the depth attachment
 void main() {
+    outColor = vec4(1.0);
     //vec4 worldColor = texture(sampler2DArray(texturesOnion[0], samplers[0]), vec3(inTexCoords, float(textureIndex)));
     //outColor = worldColor;
     //outColor.xyz *= inSideLight;

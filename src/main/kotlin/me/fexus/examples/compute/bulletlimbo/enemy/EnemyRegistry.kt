@@ -6,7 +6,7 @@ import me.fexus.examples.compute.bulletlimbo.enemy.type.EnemyType
 class EnemyRegistry {
     private val enemyNames = mutableMapOf<String, EnemyType>()
     private val enemyIds = mutableMapOf<Int, EnemyType>()
-    private var nextID = 1
+    private var nextID = 0
 
 
     fun init(): EnemyRegistry {

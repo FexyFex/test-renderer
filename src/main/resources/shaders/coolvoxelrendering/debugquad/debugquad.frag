@@ -13,6 +13,6 @@ layout (location = 0) out vec4 outColor;
 
 void main() {
     vec4 color = texture(sampler2D(textureArray[inTextureIndex], samplers[1]), inTexCoords, 1.0);
-    outColor.rgb = color.rgb;
+    outColor.rgb = color.rrr;
     outColor.w = 1.0;
 }

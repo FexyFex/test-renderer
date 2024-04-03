@@ -135,8 +135,8 @@ class WorldRenderer(
 
         lightSourceCam.aspect = 1f
         lightSourceCam.fov = 90f
-        lightSourceCam.zNear = camera.zNear
-        lightSourceCam.zFar = camera.zFar
+        lightSourceCam.zNear = 1f//camera.zNear
+        lightSourceCam.zFar = 300f//camera.zFar
         lightSourceCam.position = Vec3(0f, -200f, 0f)
         lightSourceCam.rotation = Vec3(90f, 0f ,0f)
         lightSourceCam.calculateView().toByteBufferColumnMajor(camBuf, 0)
@@ -211,16 +211,14 @@ class WorldRenderer(
         )
 
         // Start a renderpass for the shadow map
-        val clearValueColor = calloc(VkClearValue::calloc) {
+        val clearValues = calloc(VkClearValue::calloc) {
             color()
-                .float32(0, 0.2f)
-                .float32(1, 0.2f)
-                .float32(2, 0.2f)
+                .float32(0, 0.0f)
+                .float32(1, 0.0f)
+                .float32(2, 0.0f)
                 .float32(3, 1.0f)
-        }
 
-        val clearValueDepth = calloc(VkClearValue::calloc) {
-            depthStencil().depth(0.0f)
+            depthStencil().depth(1.0f)
             depthStencil().stencil(0)
         }
 
@@ -234,7 +232,7 @@ class WorldRenderer(
             resolveImageLayout(0)
             loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
             storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            clearValue(clearValueColor)
+            clearValue(clearValues)
             imageView(shadowColorAttachment.vkImageViewHandle)
         }
 
@@ -247,7 +245,7 @@ class WorldRenderer(
             resolveImageLayout(0)
             loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
             storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            clearValue(clearValueDepth)
+            clearValue(clearValues)
             imageView(shadowDepthAttachment.vkImageViewHandle)
         }
 
@@ -295,7 +293,7 @@ class WorldRenderer(
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, renderingInfo)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
-            viewport[0].set(0f, 0f, SHADOW_MAP_WIDTH.toFloat(), SHADOW_MAP_HEIGHT.toFloat(), 1f, 0f)
+            viewport[0].set(0f, 0f, SHADOW_MAP_WIDTH.toFloat(), SHADOW_MAP_HEIGHT.toFloat(), 0f, 1f)
 
             val scissors = calloc(VkRect2D::calloc, 1)
             scissors[0].offset().x(0).y(0)

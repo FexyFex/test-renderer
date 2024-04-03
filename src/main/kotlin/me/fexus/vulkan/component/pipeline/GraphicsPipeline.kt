@@ -185,10 +185,10 @@ class GraphicsPipeline: IPipeline {
             pNext(0)
             depthTestEnable(config.depthTest)
             depthWriteEnable(config.depthWrite)
-            depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
+            depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
             depthBoundsTestEnable(false)
-            minDepthBounds(1.0f)
-            maxDepthBounds(0.0f)
+            minDepthBounds(0.0f)
+            maxDepthBounds(1.0f)
             stencilTestEnable(false)
         }
 

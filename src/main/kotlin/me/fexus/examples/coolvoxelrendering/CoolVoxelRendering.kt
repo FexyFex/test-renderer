@@ -241,7 +241,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
     private fun updateBuffers() {
         camera.zNear = 0.1f
-        camera.zFar = 450f
+        camera.zFar = 500f
         camera.position = -player.position
         camera.rotation = player.rotation
 
@@ -279,14 +279,14 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
         val clearValueColor = calloc(VkClearValue::calloc) {
             color()
-                .float32(0, 0.2f)
-                .float32(1, 0.2f)
-                .float32(2, 0.2f)
+                .float32(0, 0.0f)
+                .float32(1, 0.0f)
+                .float32(2, 0.0f)
                 .float32(3, 1.0f)
         }
 
         val clearValueDepth = calloc(VkClearValue::calloc) {
-            depthStencil().depth(0.0f)
+            depthStencil().depth(1.0f)
             depthStencil().stencil(0)
         }
 
@@ -366,7 +366,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         vkCmdBeginRenderingKHR(commandBuffer.vkHandle, defaultRendering)
         runMemorySafe {
             val viewport = calloc(VkViewport::calloc, 1)
-            viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 1f, 0f)
+            viewport[0].set(0f, 0f, width.toFloat(), height.toFloat(), 0f, 1f)
 
             val scissor = calloc(VkRect2D::calloc, 1)
             scissor[0].offset().x(0).y(0)
