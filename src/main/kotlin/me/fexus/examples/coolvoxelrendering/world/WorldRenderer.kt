@@ -45,8 +45,8 @@ class WorldRenderer(
     private val camera: CameraPerspective
 ) {
     companion object {
-        const val SHADOW_MAP_WIDTH = 600
-        const val SHADOW_MAP_HEIGHT = 600
+        const val SHADOW_MAP_WIDTH = 1200
+        const val SHADOW_MAP_HEIGHT = 1200
     }
 
     private val lightSourceCam = CameraOrthographic(-200f, 200f, -200f, 200f)
@@ -143,7 +143,7 @@ class WorldRenderer(
         lightSourceCam.zFar = 400f//camera.zFar
         val time = System.currentTimeMillis() / 1000.0
         val sine = sin(time)
-        lightSourceCam.position = Vec3(0f, -80f, 150f)
+        lightSourceCam.position = Vec3(0f, -80f, 80f)
         lightSourceCam.rotation = Vec3(40f, 180f + (sine * 10f), 0f)
         //val lightView = Mat4().lookAt(Vec3(cos * 50f, -155f, sine * 50f), Vec3(0f), Vec3(0f, -1f, 0f))
         val lightView = lightSourceCam.calculateView()
@@ -518,7 +518,7 @@ class WorldRenderer(
             ClassLoader.getSystemResource("shaders/coolvoxelrendering/chunk/shadow/chunk_shadow_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
             primitive = Primitive.TRIANGLE_STRIPS,
-            cullMode = CullMode.NONE,
+            cullMode = CullMode.BACKFACE,
         )
         this.shadowPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), shadowPipelineConfig)
 
