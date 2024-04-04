@@ -34,7 +34,9 @@ import java.nio.ByteOrder
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 
 class WorldRenderer(
@@ -47,7 +49,7 @@ class WorldRenderer(
         const val SHADOW_MAP_HEIGHT = 600
     }
 
-    private val lightSourceCam = CameraOrthographic(100f, 100f, 100f, 100f)
+    private val lightSourceCam = CameraOrthographic(-200f, 200f, -200f, 200f)
 
     private val cullPipeline = ComputePipeline()
     private val shadowPipeline = GraphicsPipeline()
@@ -59,6 +61,7 @@ class WorldRenderer(
     lateinit var shadowCameraBuffers: Array<VulkanBuffer>
     lateinit var cullObjectsBuffers: Array<VulkanBuffer>
     lateinit var indirectCommandBuffer: VulkanBuffer
+    lateinit var indirectCommandBufferShadow: VulkanBuffer
     lateinit var chunkPositionsBuffer: VulkanBuffer
     lateinit var sidePositionsBuffer: VulkanBuffer
 
@@ -120,6 +123,7 @@ class WorldRenderer(
         pPushConstants.putInt(8, indirectCommandBuffer.index)
         pPushConstants.putInt(12, chunkPositionsBuffer.index)
         pPushConstants.putInt(16, sidePositionsBuffer.index)
+        pPushConstants.putInt(20, indirectCommandBufferShadow.index)
         vkCmdPushConstants(
             commandBuffer.vkHandle, cullPipeline.vkLayoutHandle,
             (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,
@@ -135,19 +139,21 @@ class WorldRenderer(
         proj.toByteBufferColumnMajor(camBuf, 64)
         cullCameraBuffers[frameIndex].put(0, camBuf)
 
-        lightSourceCam.zNear = camera.zNear
-        lightSourceCam.zFar = camera.zFar
-        //lightSourceCam.position = Vec3(0f, -200f, 0f)
-        //lightSourceCam.rotation = Vec3(90f, 0f ,0f)
-        val lightView = Mat4().lookAt(Vec3(0f, -200f, 0f), Vec3(0.1f), Vec3(0f, -1f, 0f))
+        lightSourceCam.zNear = 0.1f//camera.zNear
+        lightSourceCam.zFar = 400f//camera.zFar
+        val time = System.currentTimeMillis() / 1000.0
+        val sine = sin(time)
+        lightSourceCam.position = Vec3(0f, -80f, 150f)
+        lightSourceCam.rotation = Vec3(40f, 180f + (sine * 10f), 0f)
+        //val lightView = Mat4().lookAt(Vec3(cos * 50f, -155f, sine * 50f), Vec3(0f), Vec3(0f, -1f, 0f))
+        val lightView = lightSourceCam.calculateView()
         lightView.toByteBufferColumnMajor(camBuf, 0)
         val lightProj = lightSourceCam.calculateProjection()
-        println(lightProj)
         lightProj.toByteBufferColumnMajor(camBuf, 64)
         shadowCameraBuffers[frameIndex].put(0, camBuf)
 
         // Barrier that ensures that the buffers aren't in use anymore
-        val barrier = calloc(VkBufferMemoryBarrier::calloc, 2)
+        val barrier = calloc(VkBufferMemoryBarrier::calloc, 3)
         with(barrier[0]) {
             sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
             pNext(0)
@@ -170,6 +176,17 @@ class WorldRenderer(
             offset(0L)
             size(VK_WHOLE_SIZE)
         }
+        with(barrier[2]) {
+            sType(VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER)
+            pNext(0)
+            srcAccessMask(0)
+            dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+            srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            buffer(indirectCommandBufferShadow.vkBufferHandle)
+            offset(0L)
+            size(VK_WHOLE_SIZE)
+        }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -179,6 +196,7 @@ class WorldRenderer(
         // Clear the buffers
         vkCmdFillBuffer(commandBuffer.vkHandle, indirectCommandBuffer.vkBufferHandle, 0L, indirectCommandBuffer.config.size, 0)
         vkCmdFillBuffer(commandBuffer.vkHandle, chunkPositionsBuffer.vkBufferHandle, 0L, chunkPositionsBuffer.config.size, 0)
+        vkCmdFillBuffer(commandBuffer.vkHandle, indirectCommandBufferShadow.vkBufferHandle, 0L, indirectCommandBufferShadow.config.size, 0)
 
         // Barrier to ensure that the clearing has finished
         with(barrier[0]) {
@@ -186,6 +204,10 @@ class WorldRenderer(
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         }
         with(barrier[1]) {
+            srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+        }
+        with(barrier[2]) {
             srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
             dstAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
         }
@@ -204,6 +226,10 @@ class WorldRenderer(
             dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
         }
         with(barrier[1]) {
+            srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
+            dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
+        }
+        with(barrier[2]) {
             srcAccessMask(VK_ACCESS_SHADER_WRITE_BIT)
             dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
         }
@@ -319,20 +345,20 @@ class WorldRenderer(
 
             vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, shadowPipeline.vkHandle)
             vkCmdBindVertexBuffers(commandBuffer.vkHandle, 0, pVertexBuffers, pOffsets)
-            vkCmdDrawIndirect(commandBuffer.vkHandle, indirectCommandBuffer.vkBufferHandle, 0L, chunkCount, 16)
+            vkCmdDrawIndirect(commandBuffer.vkHandle, indirectCommandBufferShadow.vkBufferHandle, 0L, chunkCount, 16)
         }
         vkCmdEndRenderingKHR(commandBuffer.vkHandle)
 
         // Make shadow depth and color map readable for the next draw call
         with(shadowColorImageBarrier[0]) {
             srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+            dstAccessMask(VK_ACCESS_INDIRECT_COMMAND_READ_BIT)
             oldLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
             newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
         }
         vkCmdPipelineBarrier(
             commandBuffer.vkHandle,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
             0, null, null, shadowColorImageBarrier
         )
 
@@ -377,7 +403,7 @@ class WorldRenderer(
         pVertexBuffers.put(0, debugQuad.vertexBuffer.vkBufferHandle)
         Vec2(-0.98f).intoByteBuffer(pPushConstants, 0)
         Vec2(0.8f).intoByteBuffer(pPushConstants, 8)
-        pPushConstants.putInt(16, shadowColorAttachment.index)
+        pPushConstants.putInt(16, shadowDepthAttachment.index)
         vkCmdBindPipeline(commandBuffer.vkHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, debugQuad.pipeline.vkHandle)
         vkCmdPushConstants(
             commandBuffer.vkHandle, debugQuad.pipeline.vkLayoutHandle,
@@ -432,6 +458,7 @@ class WorldRenderer(
             BufferUsage.INDIRECT + BufferUsage.STORAGE_BUFFER + BufferUsage.TRANSFER_DST
         )
         this.indirectCommandBuffer = descriptorFactory.createBuffer(indirectCommandBufferConfig)
+        this.indirectCommandBufferShadow = descriptorFactory.createBuffer(indirectCommandBufferConfig) // same thing
 
         val chunkPositionsBufferConfig = VulkanBufferConfiguration(
             16L * 65536L,
@@ -491,7 +518,7 @@ class WorldRenderer(
             ClassLoader.getSystemResource("shaders/coolvoxelrendering/chunk/shadow/chunk_shadow_frag.spv").readBytes(),
             dynamicStates = listOf(DynamicState.SCISSOR, DynamicState.VIEWPORT),
             primitive = Primitive.TRIANGLE_STRIPS,
-            cullMode = CullMode.FRONTFACE,
+            cullMode = CullMode.NONE,
         )
         this.shadowPipeline.create(deviceUtil.device, listOf(descriptorFactory.descriptorSetLayout), shadowPipelineConfig)
 
@@ -514,6 +541,7 @@ class WorldRenderer(
         shadowCameraBuffers.forEach(VulkanBuffer::destroy)
         cullObjectsBuffers.forEach(VulkanBuffer::destroy)
         indirectCommandBuffer.destroy()
+        indirectCommandBufferShadow.destroy()
         chunkPositionsBuffer.destroy()
         sidePositionsBuffer.destroy()
         shadowDepthAttachment.destroy()

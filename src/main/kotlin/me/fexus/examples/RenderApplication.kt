@@ -41,13 +41,11 @@ interface RenderApplication {
 
             // Update logic
             //------------------------------------------------------------------------------------------+
-            val toime = measureNanoTime {
-                val prep: FramePreparation = renderer.prepareFrame()
-                if (prep.acquireSuccessful) {
-                    val frameData = renderer.recordFrame(prep, updateLength)
-                    if (frameData.doSubmit)
-                        renderer.submitFrame(frameData)
-                }
+            val prep: FramePreparation = renderer.prepareFrame()
+            if (prep.acquireSuccessful) {
+                val frameData = renderer.recordFrame(prep, updateLength)
+                if (frameData.doSubmit)
+                    renderer.submitFrame(frameData)
             }
 
             window.pollEvents()

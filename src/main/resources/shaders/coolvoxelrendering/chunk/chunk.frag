@@ -26,13 +26,14 @@ float linearizeDepth(float depth) {
 
 void main() {
     vec3 lightColor = vec3(1.0);
-    vec3 ambient = lightColor * 0.25;
+    vec3 ambient = lightColor * 0.15;
+    vec3 normal = normalize(inNormal);
     vec3 lightDir = normalize(inLightSourcePos - inFragPos);
-    float diff = max(dot(lightDir, inNormal), 0.0);
+    float diff = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = lightColor * diff;
     vec3 viewDir = normalize(inViewPos - inFragPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(inNormal, halfwayDir), 0.0), 64.0);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
     vec3 specular = lightColor * spec;
 
     vec4 worldColor = texture(sampler2DArray(texturesOnion[0], samplers[0]), vec3(inTexCoords, float(textureIndex)));
@@ -44,12 +45,12 @@ void main() {
     float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
     //closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
-    float bias = max(0.05 * (1.0 - dot(inNormal, lightDir)), 0.005);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
     if (projCoords.z > 1.0) shadow = 0.0;
 
-//    vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
-    vec3 lighting = ((1.0 - shadow)) * worldColor.xyz;
+    //vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    vec3 lighting = (clamp(1.0 - shadow, 0.2, 1.0)) * worldColor.xyz;
     //vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);

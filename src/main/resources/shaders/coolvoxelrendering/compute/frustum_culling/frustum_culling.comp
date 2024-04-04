@@ -56,6 +56,7 @@ layout(push_constant) uniform PushConstants{
     uint commandBufferIndex;
     uint chunkPosBufferIndex;
     uint sidePosBufferIndex;
+    uint commandBufferShadowIndex;
 };
 
 vec3 unproject(vec3 sp, mat4 invView, mat4 invProj) {
@@ -138,6 +139,7 @@ void main() {
         isInFrontOfPlane(aabb, frustum.nearFace) &&
         isInFrontOfPlane(aabb, frustum.farFace);
 
+    // CULLED COMMAND
     DrawIndirectCommand command;
     command.vertexCount = 4;
     command.firstVertex = 0;
@@ -145,5 +147,10 @@ void main() {
     command.firstInstance = objInfo.firstInstance;
 
     outBuf[commandBufferIndex].commands[gID] = command;
+
+    // UNCULLED COMMAND FOR SHADOWS
+    command.instanceCount = objInfo.instanceCount;
+    outBuf[commandBufferShadowIndex].commands[gID] = command;
+
     posBuf[chunkPosBufferIndex].chunkPos[gID] = ivec4(objInfo.pos, 0);
 }

@@ -39,6 +39,7 @@ layout (push_constant) uniform PushConstants {
     uint commandBufferIndex;
     uint chunkPosBufferIndex;
     uint sidePosBufferIndex;
+    uint commandBufferShadowIndex;
 };
 
 layout (location = 0) out vec3 outFragPos;
