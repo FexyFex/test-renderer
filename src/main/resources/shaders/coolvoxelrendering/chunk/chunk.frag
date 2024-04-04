@@ -42,7 +42,7 @@ void main() {
     vec4 fragPosLightSpace = inLightSpaceFragPos;
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
+    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[1]), projCoords.xy, 1.0).r;
     //closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
@@ -54,8 +54,8 @@ void main() {
     //vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);
-    outColor = vec4(lighting, 1.0);
-    //outColor = vec4(projCoords, 1.0);
+    //outColor = vec4(lighting, 1.0);
+    outColor = vec4(projCoords, 1.0);
     //outColor = vec4(clamp(inNormal.z, 0.0, 1.0), 0.0, 0.0, 1.0);
     //outColor.xyz *= inSideLight;
 }

@@ -139,7 +139,7 @@ class WorldRenderer(
         proj.toByteBufferColumnMajor(camBuf, 64)
         cullCameraBuffers[frameIndex].put(0, camBuf)
 
-        lightSourceCam.zNear = 0.1f//camera.zNear
+        lightSourceCam.zNear = 40f//camera.zNear
         lightSourceCam.zFar = 400f//camera.zFar
         val time = System.currentTimeMillis() / 1000.0
         val sine = sin(time)
