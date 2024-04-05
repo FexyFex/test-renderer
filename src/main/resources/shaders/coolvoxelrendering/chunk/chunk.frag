@@ -7,7 +7,7 @@ layout (location = 2) flat in float inSideLight;
 layout (location = 3) flat in uint inShadowMapIndex;
 layout (location = 4) in vec3 inFragPos;
 layout (location = 5) in vec3 inNormal;
-layout (location = 6) in vec4 inLightSpaceFragPos;
+layout (location = 6) in vec4 inFragPosLightSpace;
 layout (location = 7) flat in vec3 inLightSourcePos;
 layout (location = 8) flat in vec3 inViewPos;
 layout (location = 9) flat in vec2 inNearFar;
@@ -39,18 +39,20 @@ void main() {
     vec4 worldColor = texture(sampler2DArray(texturesOnion[0], samplers[0]), vec3(inTexCoords, float(textureIndex)));
 
     // SHADOW CALC
-    vec4 fragPosLightSpace = inLightSpaceFragPos;
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    vec3 projCoords = inFragPosLightSpace.xyz / inFragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[0]), projCoords.xy, 1.0).r;
-    //closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
     float currentDepth = projCoords.z;
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float closestDepth = texture(sampler2D(depthTexture[inShadowMapIndex], samplers[2]), projCoords.xy, 1.0).r;
+    //closestDepth = linearizeDepth(closestDepth) / inNearFar.y;
+    //float dist = distance(inFragPosLightSpace.xyz, inLightSourcePos.xyz);
+    //float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    //float bias = (dist / (inNearFar.y - inNearFar.x) * 1.34);
+    float bias = closestDepth * 1.2 + max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
     if (projCoords.z > 1.0) shadow = 0.0;
 
-    //vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
-    vec3 lighting = (clamp(1.0 - shadow, 0.2, 1.0)) * worldColor.xyz;
+    vec3 lighting = (ambient + (1.0 - shadow) * (diff + specular)) * worldColor.xyz;
+    //vec3 lighting = (clamp(1.0 - shadow, 0.2, 1.0)) * worldColor.xyz;
     //vec3 lighting = worldColor.xyz * ((1.0 - shadow));
 
     //outColor = vec4(currentDepth, 0.0, 0.0 ,1.0);

@@ -7,7 +7,6 @@ import me.fexus.examples.coolvoxelrendering.misc.ImageDebugQuad
 import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHull
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.surroundsound.MeshUploader
-import me.fexus.math.mat.Mat4
 import me.fexus.math.vec.Vec2
 import me.fexus.math.vec.Vec3
 import me.fexus.memory.runMemorySafe
@@ -34,7 +33,6 @@ import java.nio.ByteOrder
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -378,9 +376,9 @@ class WorldRenderer(
         pPushConstants.putInt(16, sidePositionsBuffer.index)
         pPushConstants.putInt(20, shadowDepthAttachment.index)
         pPushConstants.putInt(24, shadowCameraBuffers[frameIndex].index)
-        lightSourceCam.position.intoByteBuffer(pPushConstants, 32)
-        camera.position.intoByteBuffer(pPushConstants, 48)
-        Vec2(camera.zNear, camera.zFar).intoByteBuffer(pPushConstants, 64)
+        camera.position.intoByteBuffer(pPushConstants, 32)
+        lightSourceCam.position.intoByteBuffer(pPushConstants, 48)
+        Vec2(lightSourceCam.zNear, lightSourceCam.zFar).intoByteBuffer(pPushConstants, 64)
         vkCmdPushConstants(
             commandBuffer.vkHandle, chunkPipeline.vkLayoutHandle,
             (ShaderStage.COMPUTE + ShaderStage.VERTEX + ShaderStage.FRAGMENT).vkBits,

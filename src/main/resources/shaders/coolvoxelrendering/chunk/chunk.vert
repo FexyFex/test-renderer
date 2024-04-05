@@ -53,7 +53,7 @@ layout (location = 2) flat out float outSideLight;
 layout (location = 3) flat out uint outShadowMapIndex;
 layout (location = 4) out vec3 outFragPos;
 layout (location = 5) out vec3 outNormal;
-layout (location = 6) out vec4 outLightSpaceFragPos;
+layout (location = 6) out vec4 outFragPosLightSpace;
 layout (location = 7) flat out vec3 outLightSourcePos;
 layout (location = 8) flat out vec3 outViewPos;
 layout (location = 9) flat out vec2 outNearFar;
@@ -113,7 +113,7 @@ void main() {
     }
 
     WorldInfo lightInfo = cameraBuffer[shadowBufferIndex].info;
-    mat4 lightMatrix = lightInfo.proj * lightInfo.view;
+    mat4 lightSpaceMatrix = lightInfo.proj * lightInfo.view;
 
     vec3 position = (rotatedPos * scaling) + side.position + (chunkPos.xyz);
 
@@ -121,8 +121,8 @@ void main() {
     outTextureIndex = side.textureIndex;
     outShadowMapIndex = shadowMapIndex;
     outFragPos = position;
-    outNormal = normal;
-    outLightSpaceFragPos = lightMatrix * vec4(outFragPos, 1.0);
+    outNormal = normal * vec3(1.0, -1.0, -1.0);
+    outFragPosLightSpace = lightSpaceMatrix * vec4(outFragPos, 1.0);
     outLightSourcePos = lightSourcePos.xyz;//lightInfo.view[3].xyz;
     outViewPos = viewPos.xyz;//world.view[3].xyz;
     outNearFar = nearFar;

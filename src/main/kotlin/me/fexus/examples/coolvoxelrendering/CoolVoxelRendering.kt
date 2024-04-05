@@ -94,6 +94,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     private lateinit var depthAttachment: VulkanImage
     private lateinit var cameraBuffers: Array<VulkanBuffer>
     private lateinit var nearSampler: VulkanSampler
+    private lateinit var clampingNearSampler: VulkanSampler
 
     private val textureArray = VoxelTextureArray(deviceUtil, descriptorFactory, voxelRegistry)
 
@@ -158,6 +159,9 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
         world.init()
 
         createAttachments()
+
+        val nearClampingSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_BORDER, 1, Filtering.LINEAR)
+        this.clampingNearSampler = descriptorFactory.createSampler(nearClampingSamplerConfig)
     }
 
     private fun createAttachments() {
@@ -428,6 +432,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
     override fun destroy() {
         device.waitIdle()
         nearSampler.destroy()
+        clampingNearSampler.destroy()
         cameraBuffers.forEach(VulkanBuffer::destroy)
         depthAttachment.destroy()
         descriptorPool.destroy()
