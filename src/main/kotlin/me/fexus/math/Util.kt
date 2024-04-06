@@ -64,3 +64,8 @@ fun slerp(start: Vec3, end: Vec3, progress: Float): Vec3 {
 
     return ((start * cos(theta)) + (relativeVec * sin(theta)))
 }
+
+
+fun floorMod(value: Float, mod: Float): Float {
+    return (value - floor(value / mod) * mod)
+}

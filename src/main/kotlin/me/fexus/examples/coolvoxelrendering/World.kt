@@ -12,10 +12,13 @@ import me.fexus.examples.coolvoxelrendering.world.chunk.ChunkHullingPacket
 import me.fexus.examples.coolvoxelrendering.world.generation.BlockTypePlacementVerifier
 import me.fexus.examples.coolvoxelrendering.world.position.ChunkPosition
 import me.fexus.examples.coolvoxelrendering.world.WorldRenderer
+import me.fexus.examples.coolvoxelrendering.world.position.VoxelWorldPosition
 import me.fexus.math.repeat3D
 import me.fexus.math.vec.IVec3
 import me.fexus.voxel.VoxelOctree
 import me.fexus.voxel.VoxelRegistry
+import me.fexus.voxel.type.VoidVoxel
+import me.fexus.voxel.type.VoxelType
 import me.fexus.vulkan.VulkanDeviceUtil
 import me.fexus.vulkan.component.CommandBuffer
 import me.fexus.vulkan.descriptors.buffer.VulkanBuffer
@@ -98,6 +101,13 @@ class World(
     fun getChunkAt(pos: IVec3) = getChunkAt(ChunkPosition(pos))
     fun getChunkAt(pos: ChunkPosition): Chunk? {
         return allChunks[pos]
+    }
+
+    fun getBlockAt(pos: VoxelWorldPosition): VoxelType {
+        val chunkPos = pos.toChunkPosition()
+        val chunkLocalPos = pos.toChunkLocalPos()
+        val id = getChunkAt(chunkPos)?.getVoxelAt(chunkLocalPos) ?: 0
+        return voxelRegistry.getVoxelByID(id) ?: VoidVoxel
     }
 
 

@@ -2,17 +2,26 @@ package me.fexus.math.vec
 
 import me.fexus.math.inverseSqrt
 import java.nio.ByteBuffer
+import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
-data class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float> {
+open class Vec3(override var x: Float, override var y: Float, override var z: Float): TVec3<Float> {
     constructor(s: Float): this(s,s,s)
     constructor(x: Number, y: Number, z: Number): this(x.toFloat(), y.toFloat(), z.toFloat())
     constructor(vec: TVec3<*>): this(vec.x.toFloat(), vec.y.toFloat(), vec.z.toFloat())
+
+    override val abs: Vec3
+        get() = Vec3(this.x.absoluteValue, this.y.absoluteValue, this.z.absoluteValue)
 
     override operator fun plus(other: TVec3<Float>): Vec3 = Vec3(this.x + other.x, this.y + other.y, this.z + other.z)
     override operator fun minus(other: TVec3<Float>): Vec3 = Vec3(this.x - other.x, this.y - other.y, this.z - other.z)
     override operator fun times(other: TVec3<Float>): Vec3 = Vec3(this.x * other.x, this.y * other.y, this.z * other.z)
     override operator fun div(other: TVec3<Float>): Vec3 = Vec3(this.x / other.x, this.y / other.y, this.z / other.z)
+
+    operator fun plus(other: TVec3<Double>): DVec3 = DVec3(this.x + other.x, this.y + other.y, this.z + other.z)
+    operator fun minus(other: TVec3<Double>): DVec3 = DVec3(this.x - other.x, this.y - other.y, this.z - other.z)
+    operator fun times(other: TVec3<Double>): DVec3 = DVec3(this.x * other.x, this.y * other.y, this.z * other.z)
+    operator fun div(other: TVec3<Double>): DVec3 = DVec3(this.x / other.x, this.y / other.y, this.z / other.z)
 
     override operator fun plus(other: Number): Vec3 {
         val num = other.toFloat()
@@ -89,11 +98,33 @@ data class Vec3(override var x: Float, override var y: Float, override var z: Fl
         )
     }
 
+    fun floorMod(other: Vec3): Vec3 {
+        return Vec3(
+            me.fexus.math.floorMod(this.x, other.x),
+            me.fexus.math.floorMod(this.y, other.y),
+            me.fexus.math.floorMod(this.z, other.z),
+        )
+    }
+
+    fun floorMod(mod: Float): Vec3 {
+        return Vec3(
+            me.fexus.math.floorMod(this.x, mod),
+            me.fexus.math.floorMod(this.y, mod),
+            me.fexus.math.floorMod(this.z, mod),
+        )
+    }
+
 
     fun intoByteBuffer(buf: ByteBuffer, offset: Int) {
         buf.putFloat(offset, x)
         buf.putFloat(offset + 4, y)
         buf.putFloat(offset + 8, z)
+    }
+
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is Vec3) return false
+        return this.x == other.x && this.y == other.y && this.z == other.z
     }
 
 

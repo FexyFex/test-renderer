@@ -5,7 +5,7 @@ import me.fexus.math.vec.IVec3
 import kotlin.math.ceil
 
 
-class VoxelGlobalPosition(x: Int, y: Int, z: Int): IVec3(x, y, z) {
+class VoxelWorldPosition(x: Int, y: Int, z: Int): IVec3(x, y, z) {
     constructor(pos: IVec3): this(pos.x, pos.y, pos.z)
 
 

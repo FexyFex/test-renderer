@@ -160,7 +160,7 @@ class CoolVoxelRendering: VulkanRendererBase(createWindow()), InputEventSubscrib
 
         createAttachments()
 
-        val nearClampingSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_BORDER, 1, Filtering.LINEAR)
+        val nearClampingSamplerConfig = VulkanSamplerConfiguration(AddressMode.CLAMP_TO_BORDER, 1, Filtering.NEAREST)
         this.clampingNearSampler = descriptorFactory.createSampler(nearClampingSamplerConfig)
     }
 

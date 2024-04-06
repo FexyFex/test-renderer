@@ -13,6 +13,7 @@ interface TVec3<T: Number>: Vec<T> {
     var b: T; get() = z; set(value) { z = value }
 
     override val length: Float; get() = sqrt(this.dot(this).toFloat())
+    val abs: TVec3<T>
 
     abstract fun plus(other: TVec3<T>): TVec3<T>
     abstract fun minus(other: TVec3<T>): TVec3<T>

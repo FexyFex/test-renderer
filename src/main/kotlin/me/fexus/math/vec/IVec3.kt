@@ -10,7 +10,7 @@ open class IVec3(override var x: Int, override var y: Int, override var z: Int):
     constructor(x: Number, y: Number, z: Number): this(x.toInt(), y.toInt(), z.toInt())
     constructor(v2: IVec2, z: Int): this(v2.x, v2.y, z)
 
-    val abs: IVec3; get() = IVec3(x.absoluteValue, y.absoluteValue, z.absoluteValue)
+    override val abs: IVec3; get() = IVec3(x.absoluteValue, y.absoluteValue, z.absoluteValue)
 
     val xy: IVec2; get() = IVec2(x, y)
 
